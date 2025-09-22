@@ -1,0 +1,33 @@
+{
+  "name": "@smart-qa/github-remote",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@octokit/rest": "^20.0.1",
+    "@octokit/auth-oauth-device": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.9",
+    "rimraf": "^5.0.1",
+    "typescript": "^5.0.2"
+  }
+}

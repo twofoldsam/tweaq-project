@@ -1,0 +1,324 @@
+.github-settings {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.github-settings h2 {
+  margin-bottom: 30px;
+  color: #333;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+.settings-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.settings-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #555;
+  font-size: 18px;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 10px 15px;
+  border-radius: 4px;
+  border: 1px solid #fcc;
+  margin-bottom: 20px;
+}
+
+.success-message {
+  background: #efe;
+  color: #363;
+  padding: 10px 15px;
+  border-radius: 4px;
+  border: 1px solid #cfc;
+  margin-bottom: 20px;
+}
+
+.auth-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.user-login {
+  font-size: 14px;
+  color: #666;
+}
+
+.connect-button, .disconnect-button, .save-button, .test-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.connect-button {
+  background: #28a745;
+  color: white;
+}
+
+.connect-button:hover:not(:disabled) {
+  background: #218838;
+}
+
+.disconnect-button {
+  background: #dc3545;
+  color: white;
+}
+
+.disconnect-button:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.save-button {
+  background: #007bff;
+  color: white;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.test-button {
+  background: #17a2b8;
+  color: white;
+}
+
+.test-button:hover:not(:disabled) {
+  background: #138496;
+}
+
+.connect-button:disabled, .disconnect-button:disabled, .save-button:disabled, .test-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #555;
+  font-size: 14px;
+}
+
+.form-group input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  color: #333;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-group input::placeholder {
+  color: #999;
+}
+
+.repo-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  color: #333;
+  width: 100%;
+  cursor: pointer;
+}
+
+.repo-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.loading-repos {
+  padding: 8px 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.repo-info {
+  margin: 15px 0;
+  padding: 15px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.repo-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.repo-details strong {
+  color: #495057;
+  font-size: 16px;
+}
+
+.repo-details p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.repo-details code {
+  background: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .github-settings {
+    background: #1e1e1e;
+    color: #fff;
+  }
+  
+  .settings-section {
+    background: #2d2d2d;
+    border-color: #444;
+  }
+  
+  .settings-section h3 {
+    color: #fff;
+  }
+  
+  .form-group label {
+    color: #ccc;
+  }
+  
+  .form-group input {
+    background: #3d3d3d;
+    border-color: #555;
+    color: #fff;
+  }
+  
+  .form-group input:focus {
+    border-color: #007bff;
+  }
+  
+  .form-group input::placeholder {
+    color: #999;
+  }
+  
+  .user-name {
+    color: #fff;
+  }
+  
+  .error-message {
+    background: #4a1a1a;
+    color: #ff6b6b;
+    border-color: #6b2a2a;
+  }
+  
+  .success-message {
+    background: #1a4a1a;
+    color: #6bff6b;
+    border-color: #2a6b2a;
+  }
+
+  .repo-select {
+    background: #3d3d3d;
+    border-color: #555;
+    color: #fff;
+  }
+
+  .repo-select:focus {
+    border-color: #007bff;
+  }
+
+  .loading-repos {
+    color: #ccc;
+  }
+
+  .repo-info {
+    background: #2d2d2d;
+    border-color: #444;
+  }
+
+  .repo-details strong {
+    color: #fff;
+  }
+
+  .repo-details p {
+    color: #ccc;
+  }
+
+  .repo-details code {
+    background: #444;
+    color: #fff;
+  }
+}
+
+@media (max-width: 600px) {
+  .github-settings {
+    padding: 15px;
+  }
+  
+  .auth-status {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .user-info {
+    justify-content: center;
+  }
+}

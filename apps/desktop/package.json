@@ -1,0 +1,64 @@
+{
+  "name": "@smart-qa/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/main.js",
+  "description": "Smart QA Browser Desktop App",
+  "scripts": {
+    "dev": "concurrently \"npm run build:electron-main\" \"vite\" \"npm run electron-dev\"",
+    "build:electron-main": "tsc electron/main.ts electron/preload.ts --outDir dist --target es2020 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck",
+    "electron-dev": "sleep 3 && electron . --enable-logging",
+    "build": "npm run build:electron-main && vite build && electron-builder",
+    "build:electron": "electron-builder",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rimraf dist build"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "electron-store": "^8.1.0",
+    "@smart-qa/github": "workspace:*",
+    "@smart-qa/github-remote": "workspace:*",
+    "@smart-qa/change-engine": "workspace:*",
+    "@smart-qa/mapping-remote": "workspace:*",
+    "keytar": "^7.9.0",
+    "@octokit/rest": "^20.0.1",
+    "@octokit/auth-oauth-device": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "concurrently": "^8.2.2",
+    "electron": "^26.2.1",
+    "electron-builder": "^24.6.4",
+    "rimraf": "^5.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.smartqa.browser",
+    "productName": "Smart QA Browser",
+    "directories": {
+      "output": "../../dist"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

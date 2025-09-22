@@ -1,0 +1,1215 @@
+/* Tweaq Overlay Styles - Lightweight and minimal chrome */
+
+/* Element outline */
+.tweaq-element-outline {
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid #007acc;
+  background-color: rgba(0, 122, 204, 0.1);
+  z-index: 999999;
+  transition: all 0.1s ease;
+  box-shadow: 0 0 0 1px rgba(0, 122, 204, 0.3);
+}
+
+/* Main overlay container */
+.tweaq-overlay-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Toolbar */
+.tweaq-overlay-toolbar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.tweaq-toolbar-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tweaq-mode-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.tweaq-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.15s ease;
+}
+
+.tweaq-mode-btn:hover {
+  color: #333;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.tweaq-mode-btn.active {
+  background: #007acc;
+  color: white;
+  box-shadow: 0 1px 3px rgba(0, 122, 204, 0.3);
+}
+
+.tweaq-mode-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tweaq-current-mode {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.tweaq-mode-indicator {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+}
+
+.tweaq-close-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #666;
+  transition: all 0.15s ease;
+}
+
+.tweaq-close-btn:hover {
+  background: rgba(255, 0, 0, 0.1);
+  color: #dc3545;
+}
+
+/* Panels */
+.tweaq-overlay-panel {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 280px;
+  max-height: calc(100vh - 120px);
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tweaq-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.tweaq-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+  color: #333;
+}
+
+.tweaq-panel-close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #666;
+  transition: all 0.15s ease;
+}
+
+.tweaq-panel-close:hover {
+  background: rgba(255, 0, 0, 0.1);
+  color: #dc3545;
+}
+
+.tweaq-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Panel tabs */
+.tweaq-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.tweaq-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.15s ease;
+}
+
+.tweaq-tab:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+.tweaq-tab.active {
+  background: white;
+  color: #007acc;
+  border-bottom: 2px solid #007acc;
+}
+
+/* Info panel specific styles */
+.tweaq-info-section {
+  margin-bottom: 16px;
+}
+
+.tweaq-info-section:last-child {
+  margin-bottom: 0;
+}
+
+.tweaq-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tweaq-info-row {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.tweaq-info-row:last-child {
+  margin-bottom: 0;
+}
+
+.tweaq-info-label {
+  font-size: 11px;
+  color: #666;
+  min-width: 60px;
+  font-weight: 500;
+}
+
+.tweaq-info-value {
+  font-size: 11px;
+  color: #333;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  flex: 1;
+  word-break: break-all;
+}
+
+.tweaq-tag {
+  color: #007acc;
+  font-weight: 600;
+}
+
+.tweaq-id {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.tweaq-class {
+  color: #6f42c1;
+  font-weight: 600;
+}
+
+.tweaq-text-content {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #333;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Properties panel specific styles */
+.tweaq-property-row {
+  margin-bottom: 12px;
+}
+
+.tweaq-property-row:last-child {
+  margin-bottom: 0;
+}
+
+.tweaq-property-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.tweaq-property-input {
+  width: 100%;
+}
+
+.tweaq-text-input,
+.tweaq-select-input,
+.tweaq-textarea-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 11px;
+  background: white;
+  transition: border-color 0.15s ease;
+}
+
+.tweaq-text-input:focus,
+.tweaq-select-input:focus,
+.tweaq-textarea-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.tweaq-color-input {
+  width: 100%;
+  height: 28px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  background: white;
+}
+
+.tweaq-textarea-input {
+  resize: vertical;
+  min-height: 60px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+}
+
+.tweaq-add-attribute {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.tweaq-add-btn {
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  color: #666;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tweaq-add-btn:hover {
+  background: rgba(0, 122, 204, 0.05);
+  border-color: #007acc;
+  color: #007acc;
+}
+
+/* Scrollbar styling */
+.tweaq-panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tweaq-panel-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.tweaq-panel-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.tweaq-panel-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+      /* Inspector Panel Styles (Figma-like) */
+      .tweaq-inspector-panel .tweaq-panel-content {
+        padding: 0;
+      }
+
+      .tweaq-inspector-section {
+        padding: 16px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      }
+
+      .tweaq-inspector-section:last-child {
+        border-bottom: none;
+      }
+
+      .tweaq-element-tag {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+
+      .tweaq-tag-name {
+        background: #f0f0f0;
+        color: #333;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        font-weight: 600;
+      }
+
+      .tweaq-element-id {
+        color: #28a745;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .tweaq-element-classes {
+        color: #6f42c1;
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .tweaq-dimension-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .tweaq-dimension-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+      }
+
+      .tweaq-dimension-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .tweaq-dimension-value {
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+      }
+
+      .tweaq-property-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        min-height: 24px;
+      }
+
+      .tweaq-property-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .tweaq-property-label {
+        font-size: 11px;
+        color: #666;
+        font-weight: 500;
+        min-width: 60px;
+      }
+
+      .tweaq-property-value {
+        font-size: 11px;
+        color: #333;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        text-align: right;
+      }
+
+      .tweaq-token-value {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        justify-content: flex-end;
+      }
+
+      .tweaq-value {
+        font-size: 11px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .tweaq-token-match {
+        color: #28a745;
+      }
+
+      .tweaq-token-mismatch {
+        color: #333;
+      }
+
+      .tweaq-token-name {
+        font-size: 10px;
+        color: #007acc;
+        background: rgba(0, 122, 204, 0.1);
+        padding: 1px 4px;
+        border-radius: 2px;
+        font-weight: 500;
+      }
+
+      .tweaq-token-status {
+        font-size: 10px;
+      }
+
+      .tweaq-color-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        display: inline-block;
+      }
+
+      .tweaq-spacing-group {
+        margin-bottom: 12px;
+      }
+
+      .tweaq-spacing-group:last-child {
+        margin-bottom: 0;
+      }
+
+      .tweaq-spacing-label {
+        display: block;
+        font-size: 11px;
+        color: #666;
+        font-weight: 500;
+        margin-bottom: 6px;
+      }
+
+      .tweaq-spacing-box {
+        background: rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 4px;
+        padding: 8px;
+        text-align: center;
+      }
+
+      .tweaq-spacing-values {
+        font-size: 11px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        color: #333;
+        font-weight: 500;
+      }
+
+      .tweaq-token-summary {
+        background: rgba(0, 122, 204, 0.02);
+      }
+
+      .tweaq-token-status-summary {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      }
+
+      .tweaq-token-indicator {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+      }
+
+      .tweaq-token-indicator.match {
+        background: #28a745;
+        color: white;
+      }
+
+      .tweaq-token-indicator.mismatch {
+        background: #ffc107;
+        color: #333;
+      }
+
+      /* Ruler Panel Styles */
+      .tweaq-ruler-panel {
+        top: 140px;
+      }
+
+      .tweaq-ruler-measurements {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .tweaq-measurement-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+      }
+
+      .tweaq-measurement-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: #666;
+        font-weight: 500;
+      }
+
+      .tweaq-measurement-color {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .tweaq-measurement-value {
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+      }
+
+      .tweaq-ruler-instructions {
+        padding-top: 12px;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .tweaq-ruler-instructions p {
+        font-size: 11px;
+        color: #666;
+        margin: 4px 0;
+        line-height: 1.4;
+      }
+
+      .tweaq-ruler-label {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 2px 4px;
+        border-radius: 2px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+      }
+
+      /* Alignment Guides */
+      .tweaq-alignment-guides {
+        pointer-events: none;
+      }
+
+      /* Edit Panel Styles */
+      .tweaq-edit-panel {
+        width: 320px;
+      }
+
+      .tweaq-edit-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        background: rgba(0, 0, 0, 0.02);
+        padding: 4px;
+        gap: 2px;
+      }
+
+      .tweaq-edit-tab {
+        flex: 1;
+        min-width: 70px;
+        padding: 6px 8px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 10px;
+        font-weight: 500;
+        color: #666;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .tweaq-edit-tab:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #333;
+      }
+
+      .tweaq-edit-tab.active {
+        background: #007acc;
+        color: white;
+      }
+
+      .tweaq-edit-group {
+        padding: 16px;
+      }
+
+      .tweaq-edit-control {
+        margin-bottom: 16px;
+        position: relative;
+      }
+
+      .tweaq-edit-control:last-child {
+        margin-bottom: 0;
+      }
+
+      .tweaq-edit-control.tweaq-edit-changed {
+        background: rgba(0, 122, 204, 0.05);
+        border-radius: 6px;
+        padding: 8px;
+        margin: 8px -8px;
+      }
+
+      .tweaq-edit-control.tweaq-edit-changed::before {
+        content: '';
+        position: absolute;
+        left: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 20px;
+        background: #007acc;
+        border-radius: 2px;
+      }
+
+      .tweaq-edit-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 6px;
+      }
+
+      .tweaq-edit-input,
+      .tweaq-edit-select,
+      .tweaq-edit-textarea,
+      .tweaq-edit-number {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        font-size: 11px;
+        background: white;
+        transition: all 0.15s ease;
+      }
+
+      .tweaq-edit-input:focus,
+      .tweaq-edit-select:focus,
+      .tweaq-edit-textarea:focus,
+      .tweaq-edit-number:focus {
+        outline: none;
+        border-color: #007acc;
+        box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+      }
+
+      .tweaq-edit-textarea {
+        resize: vertical;
+        min-height: 60px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+      }
+
+      .tweaq-color-control {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .tweaq-color-picker {
+        width: 40px;
+        height: 32px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        background: white;
+        padding: 2px;
+      }
+
+      .tweaq-color-text {
+        flex: 1;
+        padding: 8px 10px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+      }
+
+      .tweaq-number-control {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .tweaq-edit-number {
+        flex: 1;
+      }
+
+      .tweaq-unit {
+        font-size: 10px;
+        color: #666;
+        font-weight: 500;
+        min-width: 20px;
+      }
+
+      .tweaq-edit-range {
+        width: 100%;
+        height: 4px;
+        border-radius: 2px;
+        background: #ddd;
+        outline: none;
+        -webkit-appearance: none;
+      }
+
+      .tweaq-edit-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #007acc;
+        cursor: pointer;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .tweaq-range-value {
+        float: right;
+        font-size: 10px;
+        color: #666;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+      }
+
+      .tweaq-multi-value-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .tweaq-multi-value-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .tweaq-multi-label {
+        font-size: 9px;
+        font-weight: 600;
+        color: #666;
+        min-width: 12px;
+        text-align: center;
+      }
+
+      .tweaq-multi-input {
+        flex: 1;
+        padding: 4px 6px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+        font-size: 10px;
+        text-align: center;
+      }
+
+      .tweaq-multi-input:focus {
+        outline: none;
+        border-color: #007acc;
+      }
+
+      .tweaq-edit-actions {
+        padding: 16px;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+        background: rgba(0, 0, 0, 0.02);
+        display: flex;
+        gap: 8px;
+      }
+
+      .tweaq-edit-button {
+        flex: 1;
+        padding: 8px 16px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .tweaq-edit-reset {
+        background: white;
+        color: #666;
+      }
+
+      .tweaq-edit-reset:hover:not(:disabled) {
+        background: #f5f5f5;
+        color: #333;
+      }
+
+      .tweaq-edit-record {
+        background: #007acc;
+        color: white;
+        border-color: #007acc;
+      }
+
+      .tweaq-edit-record:hover:not(:disabled) {
+        background: #0056b3;
+        border-color: #0056b3;
+      }
+
+      .tweaq-edit-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Dark mode support */
+      @media (prefers-color-scheme: dark) {
+        .tweaq-overlay-toolbar {
+          background: rgba(30, 30, 30, 0.95);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-overlay-panel {
+          background: rgba(30, 30, 30, 0.95);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-panel-header {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-panel-title {
+          color: #ffffff;
+        }
+
+        .tweaq-panel-close,
+        .tweaq-close-btn {
+          color: #cccccc;
+        }
+
+        .tweaq-panel-close:hover,
+        .tweaq-close-btn:hover {
+          background: rgba(255, 0, 0, 0.2);
+          color: #ff6b6b;
+        }
+
+        .tweaq-mode-toggle {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-mode-btn {
+          color: #cccccc;
+        }
+
+        .tweaq-mode-btn:hover {
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-mode-btn.active {
+          background: #007acc;
+          color: white;
+        }
+
+        .tweaq-mode-indicator {
+          color: #cccccc;
+        }
+
+        .tweaq-inspector-section {
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-section-title {
+          color: #ffffff;
+        }
+
+        .tweaq-tag-name {
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+        }
+
+        .tweaq-element-id {
+          color: #4ade80;
+        }
+
+        .tweaq-element-classes {
+          color: #a78bfa;
+        }
+
+        .tweaq-dimension-item {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-dimension-label {
+          color: #cccccc;
+        }
+
+        .tweaq-dimension-value {
+          color: #ffffff;
+        }
+
+        .tweaq-property-label {
+          color: #cccccc;
+        }
+
+        .tweaq-property-value {
+          color: #ffffff;
+        }
+
+        .tweaq-value {
+          color: #ffffff;
+        }
+
+        .tweaq-token-match {
+          color: #4ade80;
+        }
+
+        .tweaq-token-mismatch {
+          color: #ffffff;
+        }
+
+        .tweaq-token-name {
+          color: #007acc;
+          background: rgba(0, 122, 204, 0.2);
+        }
+
+        .tweaq-spacing-box {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-spacing-values {
+          color: #ffffff;
+        }
+
+        .tweaq-spacing-label {
+          color: #cccccc;
+        }
+
+        .tweaq-token-summary {
+          background: rgba(0, 122, 204, 0.1);
+        }
+
+        .tweaq-measurement-item {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-measurement-label {
+          color: #cccccc;
+        }
+
+        .tweaq-measurement-value {
+          color: #ffffff;
+        }
+
+        .tweaq-ruler-instructions p {
+          color: #cccccc;
+        }
+
+        .tweaq-tab {
+          color: #cccccc;
+        }
+
+        .tweaq-tab:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+        }
+
+        .tweaq-tab.active {
+          background: rgba(30, 30, 30, 1);
+          color: #007acc;
+          border-color: #007acc;
+        }
+
+        .tweaq-text-input,
+        .tweaq-select-input,
+        .tweaq-textarea-input {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+          color: #ffffff;
+        }
+
+        .tweaq-text-input:focus,
+        .tweaq-select-input:focus,
+        .tweaq-textarea-input:focus {
+          border-color: #007acc;
+          background: rgba(255, 255, 255, 0.15);
+        }
+
+        .tweaq-color-input {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .tweaq-add-btn {
+          border-color: rgba(255, 255, 255, 0.3);
+          color: #cccccc;
+        }
+
+        .tweaq-add-btn:hover {
+          background: rgba(0, 122, 204, 0.1);
+          border-color: #007acc;
+          color: #007acc;
+        }
+
+        .tweaq-text-content {
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+        }
+
+        /* Edit Panel Dark Mode */
+        .tweaq-edit-tabs {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-edit-tab {
+          color: #cccccc;
+        }
+
+        .tweaq-edit-tab:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+        }
+
+        .tweaq-edit-tab.active {
+          background: #007acc;
+          color: white;
+        }
+
+        .tweaq-edit-control.tweaq-edit-changed {
+          background: rgba(0, 122, 204, 0.1);
+        }
+
+        .tweaq-edit-label {
+          color: #ffffff;
+        }
+
+        .tweaq-edit-input,
+        .tweaq-edit-select,
+        .tweaq-edit-textarea,
+        .tweaq-edit-number,
+        .tweaq-color-text,
+        .tweaq-multi-input {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+          color: #ffffff;
+        }
+
+        .tweaq-edit-input:focus,
+        .tweaq-edit-select:focus,
+        .tweaq-edit-textarea:focus,
+        .tweaq-edit-number:focus,
+        .tweaq-color-text:focus,
+        .tweaq-multi-input:focus {
+          border-color: #007acc;
+          background: rgba(255, 255, 255, 0.15);
+        }
+
+        .tweaq-color-picker {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .tweaq-unit {
+          color: #cccccc;
+        }
+
+        .tweaq-range-value {
+          color: #cccccc;
+        }
+
+        .tweaq-multi-label {
+          color: #cccccc;
+        }
+
+        .tweaq-edit-actions {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tweaq-edit-reset {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+          color: #cccccc;
+        }
+
+        .tweaq-edit-reset:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.15);
+          color: #ffffff;
+        }
+
+        .tweaq-edit-record {
+          background: #007acc;
+          border-color: #007acc;
+          color: white;
+        }
+
+        .tweaq-edit-record:hover:not(:disabled) {
+          background: #0056b3;
+          border-color: #0056b3;
+        }
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .tweaq-overlay-toolbar {
+          top: 10px;
+          right: 10px;
+        }
+        
+        .tweaq-overlay-panel {
+          top: 70px;
+          right: 10px;
+          left: 10px;
+          width: auto;
+        }
+
+        .tweaq-ruler-panel {
+          top: 70px;
+        }
+
+        .tweaq-dimension-grid {
+          grid-template-columns: 1fr;
+        }
+      }

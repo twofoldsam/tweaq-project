@@ -1,0 +1,75 @@
+interface GitHubConfig {
+  owner: string;
+  repo: string;
+  baseBranch: string;
+  label: string;
+}
+
+interface VisualEdit {
+  id: string;
+  timestamp: number;
+  element: {
+    selector: string;
+    tagName: string;
+    id: string | undefined;
+    className: string | undefined;
+  };
+  changes: {
+    property: string;
+    before: string;
+    after: string;
+  }[];
+}
+
+interface GitHubUser {
+  login: string;
+  id: number;
+  avatar_url: string;
+  name?: string;
+  email?: string;
+}
+
+interface ElectronAPI {
+  navigate: (url: string) => Promise<{ success: boolean; url?: string; error?: string }>;
+  getCurrentUrl: () => Promise<string>;
+  goBack: () => Promise<boolean>;
+  goForward: () => Promise<boolean>;
+  reload: () => Promise<boolean>;
+  canGoBack: () => Promise<boolean>;
+  canGoForward: () => Promise<boolean>;
+  onPageNavigation: (callback: (data: { url: string }) => void) => () => void;
+  onPageLoading: (callback: (loading: boolean) => void) => () => void;
+  onPageLoaded: (callback: (data: { url: string; title: string; loading: boolean }) => void) => () => void;
+  onPageError: (callback: (data: { url: string; error: string; loading: boolean }) => void) => () => void;
+  
+  // GitHub API
+  githubConnect: () => Promise<{ success: boolean; user?: GitHubUser; error?: string }>;
+  githubLoadStoredToken: () => Promise<{ success: boolean; user?: GitHubUser; error?: string }>;
+  githubDisconnect: () => Promise<{ success: boolean; error?: string }>;
+  githubIsAuthenticated: () => Promise<boolean>;
+  githubSaveConfig: (config: GitHubConfig) => Promise<{ success: boolean; error?: string }>;
+  githubGetConfig: () => Promise<GitHubConfig | undefined>;
+  githubListRepos: () => Promise<{ success: boolean; repos?: Array<{ full_name: string; name: string; owner: string; default_branch: string; private: boolean; description: string; updated_at: string }>; error?: string }>;
+  githubTestPR: () => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
+  toggleSettings: (showSettings: boolean) => Promise<{ success: boolean }>;
+  
+  // PR Watcher API
+  prWatcherStart: (options: { owner: string; repo: string; prNumber: number }) => Promise<{ success: boolean; watcherKey?: string; error?: string }>;
+  prWatcherStop: (watcherKey: string) => Promise<{ success: boolean; error?: string }>;
+  prWatcherGetPreviews: (watcherKey: string) => Promise<{ success: boolean; previews?: Array<{ url: string; provider: string; status: string; environment?: string }>; error?: string }>;
+  showPreviewPane: (previewUrl: string) => Promise<{ success: boolean; error?: string }>;
+  hidePreviewPane: () => Promise<{ success: boolean; error?: string }>;
+  onPreviewUrlReady: (callback: (data: { prKey: string; preview: any; allPreviews: any[] }) => void) => () => void;
+  onPRWatcherError: (callback: (data: { prKey: string; error: string }) => void) => () => void;
+  
+  // Confirm flow API
+  confirmChanges: (changeSet: VisualEdit[]) => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
+}
+
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}
+
+export {};

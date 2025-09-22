@@ -1,0 +1,465 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { OverlayMode, OverlayState, SelectedElement, ElementInfo, PendingEdit, VisualEdit } from '../types';
+import Toolbar from './Toolbar';
+// import InfoPanel from './InfoPanel'; // Replaced by Inspector
+// import PropertiesPanel from './PropertiesPanel'; // Replaced by EditPanel
+import Inspector from './Inspector';
+import EditPanel from './EditPanel';
+import Ruler from './Ruler';
+import AlignmentGuides from './AlignmentGuides';
+
+interface OverlayUIProps {
+  initialMode?: OverlayMode;
+  onClose?: () => void;
+}
+
+const OverlayUI: React.FC<OverlayUIProps> = ({ 
+  initialMode = 'measure', 
+  onClose = () => {} 
+}) => {
+  const [state, setState] = useState<OverlayState>({
+    mode: initialMode,
+    selectedElement: null,
+    selectedElements: [],
+    hoveredElement: null,
+    isVisible: true,
+    showRuler: false,
+    showAlignmentGuides: true,
+  });
+
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const outlineRef = useRef<HTMLDivElement>(null);
+  const [pendingEdits, setPendingEdits] = useState<Map<string, PendingEdit>>(new Map());
+  const [visualEdits, setVisualEdits] = useState<VisualEdit[]>([]);
+
+  // Get element information
+  const getElementInfo = useCallback((element: HTMLElement): ElementInfo => {
+    const rect = element.getBoundingClientRect();
+    const computedStyles = window.getComputedStyle(element);
+    const attributes: Record<string, string> = {};
+    
+    // Get all attributes
+    for (let i = 0; i < element.attributes.length; i++) {
+      const attr = element.attributes[i];
+      if (attr) {
+        attributes[attr.name] = attr.value;
+      }
+    }
+
+    // Get key computed styles
+    const styleProps = [
+      'display', 'position', 'color', 'backgroundColor', 'fontSize', 
+      'fontFamily', 'fontWeight', 'textAlign', 'padding', 'margin', 
+      'border', 'borderRadius', 'width', 'height'
+    ];
+    
+    const computedStylesObj: Record<string, string> = {};
+    styleProps.forEach(prop => {
+      computedStylesObj[prop] = computedStyles.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase());
+    });
+
+    return {
+      tagName: element.tagName,
+      id: element.id || undefined,
+      className: element.className || undefined,
+      textContent: element.textContent || undefined,
+      attributes,
+      computedStyles: computedStylesObj,
+      dimensions: {
+        width: rect.width,
+        height: rect.height,
+        x: rect.left + window.scrollX,
+        y: rect.top + window.scrollY,
+      },
+    };
+  }, []);
+
+  // Create or update element outline
+  const updateOutline = useCallback((element: HTMLElement | null) => {
+    if (!outlineRef.current) return;
+
+    if (!element) {
+      outlineRef.current.style.display = 'none';
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const outline = outlineRef.current;
+    
+    outline.style.display = 'block';
+    outline.style.left = `${rect.left + window.scrollX}px`;
+    outline.style.top = `${rect.top + window.scrollY}px`;
+    outline.style.width = `${rect.width}px`;
+    outline.style.height = `${rect.height}px`;
+  }, []);
+
+  // Handle mouse move for hover effects
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!state.isVisible) return;
+
+    const target = e.target as HTMLElement;
+    
+    // Don't highlight overlay elements
+    if (target.closest('.tweaq-overlay-toolbar') || 
+        target.closest('.tweaq-overlay-panel') ||
+        target.closest('.tweaq-element-outline')) {
+      return;
+    }
+
+    setState(prev => ({ ...prev, hoveredElement: target }));
+    
+    // Only show outline for hovered element if no element is selected
+    if (!state.selectedElement) {
+      updateOutline(target);
+    }
+  }, [state.isVisible, state.selectedElement, updateOutline]);
+
+  // Handle click for element selection
+  const handleClick = useCallback((e: MouseEvent) => {
+    if (!state.isVisible) return;
+
+    const target = e.target as HTMLElement;
+    
+    // Don't select overlay elements
+    if (target.closest('.tweaq-overlay-toolbar') || 
+        target.closest('.tweaq-overlay-panel') ||
+        target.closest('.tweaq-element-outline')) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const elementInfo = getElementInfo(target);
+    const selectedElement: SelectedElement = {
+      element: target,
+      info: elementInfo,
+    };
+
+    // Check for modifier key (Cmd/Ctrl) for multi-selection in measure mode
+    const isMultiSelect = (e.metaKey || e.ctrlKey) && state.mode === 'measure';
+
+    if (isMultiSelect) {
+      setState(prev => {
+        const newSelectedElements = [...prev.selectedElements];
+        
+        // Check if element is already selected
+        const existingIndex = newSelectedElements.findIndex(sel => sel.element === target);
+        
+        if (existingIndex >= 0) {
+          // Remove if already selected
+          newSelectedElements.splice(existingIndex, 1);
+        } else {
+          // Add to selection (max 2 for ruler tool)
+          newSelectedElements.push(selectedElement);
+          if (newSelectedElements.length > 2) {
+            newSelectedElements.shift(); // Remove first element
+          }
+        }
+
+        return {
+          ...prev,
+          selectedElements: newSelectedElements,
+          selectedElement: newSelectedElements.length === 1 ? newSelectedElements[0] || null : null,
+          showRuler: newSelectedElements.length === 2,
+          hoveredElement: null
+        };
+      });
+    } else {
+      setState(prev => ({ 
+        ...prev, 
+        selectedElement: selectedElement,
+        selectedElements: [selectedElement],
+        showRuler: false,
+        hoveredElement: null 
+      }));
+    }
+    
+    updateOutline(target);
+  }, [state.isVisible, state.mode, getElementInfo, updateOutline]);
+
+  // Handle escape key to cancel selection
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setState(prev => ({ 
+        ...prev, 
+        selectedElement: null,
+        selectedElements: [],
+        showRuler: false,
+        hoveredElement: null 
+      }));
+      updateOutline(null);
+    }
+  }, [updateOutline]);
+
+  // Handle mode toggle
+  const handleModeToggle = useCallback((mode: OverlayMode) => {
+    setState(prev => ({ ...prev, mode }));
+  }, []);
+
+  // Handle property changes in edit mode with live preview
+  const handlePropertyChange = useCallback((property: string, value: string, originalValue?: string) => {
+    if (!state.selectedElement) return;
+
+    const { element } = state.selectedElement;
+    
+    // Apply the change immediately for live preview
+    if (property.startsWith('style.')) {
+      const styleProp = property.replace('style.', '');
+      (element.style as any)[styleProp] = value;
+    } else if (property.startsWith('attribute.')) {
+      const attrName = property.replace('attribute.', '');
+      element.setAttribute(attrName, value);
+    } else if (property === 'textContent') {
+      element.textContent = value;
+    } else {
+      // Handle CSS properties directly
+      const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
+      element.style.setProperty(cssProperty, value);
+    }
+
+    // Track the pending edit
+    if (originalValue !== undefined) {
+      setPendingEdits(prev => {
+        const newMap = new Map(prev);
+        newMap.set(property, {
+          property,
+          after: value,
+          before: originalValue,
+        });
+        return newMap;
+      });
+    }
+
+    // Update the selected element info
+    const updatedInfo = getElementInfo(element);
+    setState(prev => ({
+      ...prev,
+      selectedElement: prev.selectedElement ? {
+        ...prev.selectedElement,
+        info: updatedInfo,
+      } : null,
+    }));
+  }, [state.selectedElement, getElementInfo]);
+
+  // Generate element selector for recording edits
+  const getElementSelector = useCallback((element: HTMLElement): string => {
+    if (element.id) {
+      return `#${element.id}`;
+    }
+    
+    if (element.className && typeof element.className === 'string') {
+      const classes = element.className.trim().split(/\s+/).join('.');
+      if (classes) {
+        return `.${classes}`;
+      }
+    }
+    
+    // Fallback to tag name with nth-child
+    const parent = element.parentElement;
+    if (parent) {
+      const siblings = Array.from(parent.children).filter(el => el.tagName === element.tagName);
+      const index = siblings.indexOf(element);
+      return `${element.tagName.toLowerCase()}:nth-child(${index + 1})`;
+    }
+    
+    return element.tagName.toLowerCase();
+  }, []);
+
+  // Record the current edits as a VisualEdit
+  const handleRecordEdit = useCallback(() => {
+    if (!state.selectedElement || pendingEdits.size === 0) return;
+
+    const { element } = state.selectedElement;
+    const visualEdit: VisualEdit = {
+      id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      element: {
+        selector: getElementSelector(element),
+        tagName: element.tagName,
+        id: element.id || undefined,
+        className: element.className || undefined,
+      },
+      changes: Array.from(pendingEdits.values()).map(edit => ({
+        property: edit.property,
+        before: edit.before,
+        after: edit.after,
+      })),
+    };
+
+    setVisualEdits(prev => [...prev, visualEdit]);
+    setPendingEdits(new Map()); // Clear pending edits
+
+    console.log('Recorded VisualEdit:', visualEdit);
+    
+    // TODO: Send to backend or store in localStorage
+    // localStorage.setItem('tweaq-visual-edits', JSON.stringify([...visualEdits, visualEdit]));
+  }, [state.selectedElement, pendingEdits, visualEdits, getElementSelector]);
+
+  // Reset all pending changes
+  const handleResetChanges = useCallback(() => {
+    if (!state.selectedElement) return;
+
+    const { element } = state.selectedElement;
+    
+    // Revert all pending changes
+    pendingEdits.forEach(edit => {
+      if (edit.property.startsWith('style.')) {
+        const styleProp = edit.property.replace('style.', '');
+        if (edit.before) {
+          (element.style as any)[styleProp] = edit.before;
+        } else {
+          element.style.removeProperty(styleProp.replace(/([A-Z])/g, '-$1').toLowerCase());
+        }
+      } else if (edit.property.startsWith('attribute.')) {
+        const attrName = edit.property.replace('attribute.', '');
+        if (edit.before) {
+          element.setAttribute(attrName, edit.before);
+        } else {
+          element.removeAttribute(attrName);
+        }
+      } else if (edit.property === 'textContent') {
+        element.textContent = edit.before;
+      } else {
+        // Handle CSS properties directly
+        const cssProperty = edit.property.replace(/([A-Z])/g, '-$1').toLowerCase();
+        if (edit.before) {
+          element.style.setProperty(cssProperty, edit.before);
+        } else {
+          element.style.removeProperty(cssProperty);
+        }
+      }
+    });
+
+    setPendingEdits(new Map());
+
+    // Update the selected element info
+    const updatedInfo = getElementInfo(element);
+    setState(prev => ({
+      ...prev,
+      selectedElement: prev.selectedElement ? {
+        ...prev.selectedElement,
+        info: updatedInfo,
+      } : null,
+    }));
+  }, [state.selectedElement, pendingEdits, getElementInfo]);
+
+  // Handle panel close
+  const handlePanelClose = useCallback(() => {
+    // Reset any pending changes before closing
+    if (pendingEdits.size > 0) {
+      handleResetChanges();
+    }
+    
+    setState(prev => ({ 
+      ...prev, 
+      selectedElement: null,
+      selectedElements: [],
+      showRuler: false,
+      hoveredElement: null 
+    }));
+    updateOutline(null);
+  }, [updateOutline, pendingEdits.size, handleResetChanges]);
+
+  // Handle ruler close
+  const handleRulerClose = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      showRuler: false,
+      selectedElements: prev.selectedElements.slice(0, 1), // Keep only first element
+      selectedElement: prev.selectedElements[0] || null,
+    }));
+  }, []);
+
+  // Set up event listeners
+  useEffect(() => {
+    if (!state.isVisible) return;
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('click', handleClick, true);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('click', handleClick, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [state.isVisible, handleMouseMove, handleClick, handleKeyDown]);
+
+  // Update outline when selected element changes
+  useEffect(() => {
+    if (state.selectedElement) {
+      updateOutline(state.selectedElement.element);
+    } else if (state.hoveredElement) {
+      updateOutline(state.hoveredElement);
+    } else {
+      updateOutline(null);
+    }
+  }, [state.selectedElement, state.hoveredElement, updateOutline]);
+
+  if (!state.isVisible) return null;
+
+  return (
+    <>
+      {/* Element outline */}
+      <div 
+        ref={outlineRef}
+        className="tweaq-element-outline"
+        style={{ display: 'none' }}
+      />
+
+      {/* Main overlay container */}
+      <div ref={overlayRef} className="tweaq-overlay-container">
+        {/* Toolbar */}
+        <Toolbar
+          mode={state.mode}
+          onModeToggle={handleModeToggle}
+          onClose={onClose}
+        />
+
+        {/* Panels */}
+        {state.selectedElement && (
+          <>
+            {state.mode === 'measure' && (
+              <Inspector
+                elementInfo={state.selectedElement.info}
+                onClose={handlePanelClose}
+              />
+            )}
+            {state.mode === 'edit' && (
+              <EditPanel
+                elementInfo={state.selectedElement.info}
+                selectedElement={state.selectedElement.element}
+                pendingEdits={pendingEdits}
+                onPropertyChange={handlePropertyChange}
+                onRecordEdit={handleRecordEdit}
+                onResetChanges={handleResetChanges}
+                onClose={handlePanelClose}
+                elementSelector={getElementSelector(state.selectedElement.element)}
+              />
+            )}
+          </>
+        )}
+
+        {/* Ruler Tool */}
+        {state.showRuler && state.selectedElements.length === 2 && state.selectedElements[0] && state.selectedElements[1] && (
+          <Ruler
+            element1={state.selectedElements[0].element}
+            element2={state.selectedElements[1].element}
+            onClose={handleRulerClose}
+          />
+        )}
+
+        {/* Alignment Guides */}
+        {state.showAlignmentGuides && state.mode === 'measure' && (
+          <AlignmentGuides
+            selectedElement={state.selectedElement?.element || null}
+            hoveredElement={state.hoveredElement}
+          />
+        )}
+      </div>
+    </>
+  );
+};
+
+export default OverlayUI;

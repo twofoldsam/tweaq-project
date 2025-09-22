@@ -1,0 +1,90 @@
+.cdp-test {
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.collect-button {
+  background: #007AFF;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  margin: 16px 0;
+}
+
+.collect-button:hover {
+  background: #0056CC;
+}
+
+.collect-button:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 4px;
+  margin: 16px 0;
+  border-left: 4px solid #c62828;
+}
+
+.results {
+  margin-top: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.result-section {
+  margin-bottom: 20px;
+}
+
+.result-section h5 {
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.node-snapshot {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 13px;
+}
+
+.node-snapshot div {
+  margin-bottom: 4px;
+}
+
+.sourcemap-list {
+  list-style: none;
+  padding: 0;
+}
+
+.sourcemap-item {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border-left: 3px solid #007AFF;
+}
+
+.sourcemap-item div {
+  margin-bottom: 4px;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 13px;
+}
+
+.raw-data {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
