@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { GitHubSettings } from './components/GitHubSettings';
 import CDPTest from './components/CDPTest';
+import { LLMSettings } from './components/LLMSettings';
 
 interface PageState {
   url: string;
@@ -23,7 +24,7 @@ function App() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState<'github' | 'cdp'>('github');
+  const [activeTab, setActiveTab] = useState<'github' | 'cdp' | 'llm'>('github');
   const [githubAuthState, setGithubAuthState] = useState<{
     isAuthenticated: boolean;
     user: GitHubUser | null;
@@ -45,14 +46,27 @@ function App() {
     // Initialize GitHub authentication state
     const checkGithubAuth = async () => {
       try {
+        // First check if we're authenticated (this will also try to load stored token)
         const authenticated = await window.electronAPI.githubIsAuthenticated();
+        
         if (authenticated) {
+          // If authenticated, get the user info from the stored token
           const result = await window.electronAPI.githubLoadStoredToken();
-          setGithubAuthState({
-            isAuthenticated: true,
-            user: result.success ? result.user : null,
-            loading: false
-          });
+          if (result.success && result.user) {
+            setGithubAuthState({
+              isAuthenticated: true,
+              user: result.user,
+              loading: false
+            });
+            console.log('GitHub authentication restored from stored credentials');
+          } else {
+            // Authentication failed, clear state
+            setGithubAuthState({
+              isAuthenticated: false,
+              user: null,
+              loading: false
+            });
+          }
         } else {
           setGithubAuthState({
             isAuthenticated: false,
@@ -231,6 +245,12 @@ function App() {
               >
                 CDP Test
               </button>
+              <button 
+                className={`tab-button ${activeTab === 'llm' ? 'active' : ''}`}
+                onClick={() => setActiveTab('llm')}
+              >
+                LLM Settings
+              </button>
             </div>
           </div>
         )}
@@ -309,6 +329,7 @@ function App() {
           />
         )}
         {showSettings && activeTab === 'cdp' && <CDPTest />}
+        {showSettings && activeTab === 'llm' && <LLMSettings />}
       </main>
     </div>
   );

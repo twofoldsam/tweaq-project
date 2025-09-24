@@ -64,6 +64,11 @@ interface ElectronAPI {
   
   // Confirm flow API
   confirmChanges: (changeSet: VisualEdit[]) => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
+  
+  // LLM Configuration API
+  llmSaveConfig: (config: { provider: string; apiKey?: string }) => Promise<{ success: boolean; error?: string }>;
+  llmGetConfig: () => Promise<{ provider: string; hasApiKey?: boolean }>;
+  llmTestConnection: () => Promise<{ success: boolean; message?: string; error?: string }>;
 }
 
 declare global {

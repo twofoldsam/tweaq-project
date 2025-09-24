@@ -7,7 +7,7 @@ import { Octokit } from '@octokit/rest';
 import * as keytar from 'keytar';
 import { RemoteRepo } from '../../../packages/github-remote/dist/index.js';
 import { InMemoryPatcher } from '../../../packages/change-engine/dist/src/index.js';
-// import { MappingEngine, OpenAIProvider } from '../../../packages/mapping-remote/dist/index.js';
+import { MappingEngine, MockLLMProvider, OpenAIProvider, ClaudeProvider, buildRepoIndex, getDeterministicHints } from '../../../packages/mapping-remote/dist/index.js';
 
 interface StoreSchema {
   lastUrl: string;
@@ -16,6 +16,10 @@ interface StoreSchema {
     repo: string;
     baseBranch: string;
     label: string;
+  };
+  llm?: {
+    provider: 'openai' | 'claude' | 'mock';
+    apiKey?: string;
   };
 }
 
@@ -133,6 +137,15 @@ class ElectronGitClient extends GitClient {
     }
     return this.electronOctokit;
   }
+
+  async getAuthenticatedUser() {
+    if (!this.electronOctokit) {
+      throw new Error('Not authenticated. Call connectDeviceFlow() first.');
+    }
+    
+    const { data: user } = await this.electronOctokit.rest.users.getAuthenticated();
+    return user;
+  }
 }
 
 const gitClient = new ElectronGitClient(GITHUB_CLIENT_ID);
@@ -230,7 +243,7 @@ function createWindow(): void {
 
   // Update browser view bounds when window is resized
   mainWindow.on('resize', () => {
-    if (rightPaneView && mainWindow.getBrowserViews().includes(rightPaneView)) {
+    if (rightPaneView && mainWindow?.getBrowserViews().includes(rightPaneView)) {
       updateLayoutWithRightPane();
     } else {
       updateBrowserViewBounds();
@@ -367,7 +380,15 @@ ipcMain.handle('github-load-stored-token', async () => {
   try {
     const success = await gitClient.loadStoredToken();
     if (success) {
-      const user = await gitClient.getAuthenticatedUser();
+      const fullUser = await gitClient.getAuthenticatedUser();
+      // Transform to the format expected by the frontend
+      const user = {
+        login: fullUser.login,
+        id: fullUser.id,
+        avatar_url: fullUser.avatar_url,
+        ...(fullUser.name && { name: fullUser.name }),
+        ...(fullUser.email && { email: fullUser.email }),
+      };
       return { success: true, user };
     }
     return { success: false, error: 'No stored token found' };
@@ -946,22 +967,116 @@ ipcMain.handle('confirm-changes', async (event, changeSet: VisualEdit[]) => {
 async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo: RemoteRepo): Promise<CodeIntent[]> {
   const intents: CodeIntent[] = [];
   
-  for (const edit of changeSet) {
-    // Convert visual edit to intent description
-    const intent = generateIntentFromEdit(edit);
+  try {
+    // Get configured LLM provider
+    const llmConfig = store.get('llm') || { provider: 'mock' };
+    let llmProvider;
     
-    // Use mapping engine to find source files (R3+R4)
-    // For now, we'll create a simplified mapping
-    const codeIntent: CodeIntent = {
-      filePath: 'src/components/Button.tsx', // This should come from mapping
-      intent: intent,
-      targetElement: edit.element.tagName.toLowerCase(),
-      tailwindChanges: extractTailwindChanges(edit),
-      confidence: 0.8, // This should come from mapping
-      evidence: 'visual-edit'
-    };
+    if (llmConfig.provider === 'openai') {
+      const apiKey = await keytar.getPassword('smart-qa-llm', 'openai-api-key');
+      if (apiKey) {
+        llmProvider = new OpenAIProvider(apiKey);
+      } else {
+        console.warn('OpenAI provider configured but no API key found, falling back to mock');
+        llmProvider = new MockLLMProvider();
+      }
+    } else if (llmConfig.provider === 'claude') {
+      const apiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key');
+      if (apiKey) {
+        llmProvider = new ClaudeProvider(apiKey);
+      } else {
+        console.warn('Claude provider configured but no API key found, falling back to mock');
+        llmProvider = new MockLLMProvider();
+      }
+    } else {
+      llmProvider = new MockLLMProvider();
+    }
     
-    intents.push(codeIntent);
+    console.log(`🤖 Using LLM provider: ${llmConfig.provider}`);
+    
+    const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
+    
+    if (!githubToken) {
+      console.warn('No GitHub token available for mapping engine');
+      return [];
+    }
+    
+    // Build repository index first
+    console.log('🗂️ Building repository index...');
+    const repoIndex = await buildRepoIndex({
+      owner: config.owner,
+      repo: config.repo,
+      ref: config.baseBranch,
+      auth: githubToken
+    });
+    
+    console.log(`✅ Repository index built with ${repoIndex.files.length} files`);
+    
+    // Get current page URL for context
+    const currentUrl = browserView?.webContents?.getURL() || '';
+    const urlPath = new URL(currentUrl).pathname || '/';
+    
+    for (const edit of changeSet) {
+      try {
+        // Convert visual edit to node snapshot format
+        const nodeSnapshot = {
+          tagName: edit.element.tagName,
+          className: edit.element.className,
+          id: edit.element.id,
+          textContent: '', // We don't have this from VisualEdit
+          attributes: {}
+        };
+        
+        // Get deterministic hints first
+        console.log(`🔍 Getting hints for element: ${edit.element.tagName}${edit.element.id ? '#' + edit.element.id : ''}${edit.element.className ? '.' + edit.element.className.split(' ').join('.') : ''}`);
+        
+        const hints = await getDeterministicHints({
+          nodeSnapshot,
+          urlPath,
+          repoIndex,
+          auth: githubToken
+        });
+        
+        console.log(`📍 Found ${hints.length} deterministic hints`);
+        
+        // Convert to CodeIntent format
+        if (hints.length > 0) {
+          // Use the highest confidence hint
+          const bestHint = hints.sort((a, b) => b.confidence - a.confidence)[0];
+          
+          const codeIntent: CodeIntent = {
+            filePath: bestHint.filePath,
+            intent: generateIntentFromEdit(edit),
+            targetElement: edit.element.tagName.toLowerCase(),
+            tailwindChanges: extractTailwindChanges(edit),
+            confidence: bestHint.confidence,
+            evidence: bestHint.evidence
+          };
+          
+          intents.push(codeIntent);
+          console.log(`✅ Mapped to ${bestHint.filePath} with confidence ${bestHint.confidence}`);
+        } else {
+          // Fallback to common patterns
+          console.warn('No hints found, using fallback mapping');
+          const fallbackIntent: CodeIntent = {
+            filePath: 'src/components/Button.tsx', // Common fallback
+            intent: generateIntentFromEdit(edit),
+            targetElement: edit.element.tagName.toLowerCase(),
+            tailwindChanges: extractTailwindChanges(edit),
+            confidence: 0.3, // Low confidence for fallback
+            evidence: 'fallback'
+          };
+          
+          intents.push(fallbackIntent);
+        }
+      } catch (error) {
+        console.warn('Failed to map visual edit to code intent:', error);
+        // Continue with other edits
+      }
+    }
+  } catch (error) {
+    console.error('Failed to build code intents:', error);
+    // Return empty array rather than failing completely
   }
   
   return intents;
@@ -1033,7 +1148,27 @@ function mapToTailwindSpacing(value: string): string {
 
 // Helper function to get file updates using R5 (InMemoryPatcher)
 async function getFileUpdates(codeIntents: CodeIntent[], config: any, remoteRepo: RemoteRepo) {
-  const patcher = new InMemoryPatcher(remoteRepo);
+  // Create a file reader that uses RemoteRepo to fetch file contents
+  const fileReader = {
+    readFile: async (options: { owner: string; repo: string; path: string; ref?: string }) => {
+      try {
+        console.log(`📖 Reading file: ${options.path} from ${options.owner}/${options.repo}@${options.ref}`);
+        const content = await remoteRepo.readFile({
+          owner: options.owner,
+          repo: options.repo,
+          path: options.path,
+          ref: options.ref || config.baseBranch
+        });
+        return content;
+      } catch (error) {
+        console.warn(`Failed to read file ${options.path}:`, error);
+        // Return empty content as fallback
+        return '';
+      }
+    }
+  };
+  
+  const patcher = new InMemoryPatcher(fileReader);
   const allFileUpdates: any[] = [];
   
   for (const intent of codeIntents) {
@@ -1189,6 +1324,112 @@ function generatePRBody(edits: VisualEdit[], fileUpdates: any[]): string {
   
   return body;
 }
+
+// LLM Configuration IPC handlers
+ipcMain.handle('llm-save-config', async (event, config: { provider: string; apiKey?: string }) => {
+  try {
+    // Store API key securely in keychain if provided
+    if (config.apiKey) {
+      await keytar.setPassword('smart-qa-llm', `${config.provider}-api-key`, config.apiKey);
+    }
+    
+    // Store provider preference in local storage (without API key)
+    store.set('llm', {
+      provider: config.provider as 'openai' | 'claude' | 'mock'
+    });
+    
+    console.log(`💾 LLM configuration saved: ${config.provider}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving LLM config:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to save LLM config' };
+  }
+});
+
+ipcMain.handle('llm-get-config', async () => {
+  try {
+    const config = store.get('llm');
+    if (!config) {
+      return { provider: 'mock' }; // Default to mock provider
+    }
+    
+    // Check if API key exists for the provider
+    let hasApiKey = false;
+    if (config.provider !== 'mock') {
+      try {
+        const apiKey = await keytar.getPassword('smart-qa-llm', `${config.provider}-api-key`);
+        hasApiKey = !!apiKey;
+      } catch (error) {
+        console.warn('Failed to check API key:', error);
+      }
+    }
+    
+    return {
+      provider: config.provider,
+      hasApiKey
+    };
+  } catch (error) {
+    console.error('Error getting LLM config:', error);
+    return { provider: 'mock', hasApiKey: false };
+  }
+});
+
+ipcMain.handle('llm-test-connection', async () => {
+  try {
+    const config = store.get('llm');
+    if (!config || config.provider === 'mock') {
+      return { success: true, message: 'Mock provider is always available' };
+    }
+    
+    const apiKey = await keytar.getPassword('smart-qa-llm', `${config.provider}-api-key`);
+    if (!apiKey) {
+      return { success: false, error: 'No API key configured' };
+    }
+    
+    // Test the connection based on provider
+    if (config.provider === 'openai') {
+      // Simple test API call to OpenAI
+      const response = await fetch('https://api.openai.com/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        return { success: true, message: 'OpenAI API connection successful' };
+      } else {
+        return { success: false, error: 'OpenAI API connection failed' };
+      }
+    } else if (config.provider === 'claude') {
+      // Simple test for Claude API
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'test' }]
+        })
+      });
+      
+      if (response.ok) {
+        return { success: true, message: 'Claude API connection successful' };
+      } else {
+        return { success: false, error: 'Claude API connection failed' };
+      }
+    }
+    
+    return { success: false, error: 'Unknown provider' };
+  } catch (error) {
+    console.error('Error testing LLM connection:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Connection test failed' };
+  }
+});
 
 app.whenReady().then(async () => {
   createWindow();

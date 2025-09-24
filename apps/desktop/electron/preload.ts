@@ -60,6 +60,30 @@ export interface ElectronAPI {
   hidePreviewPane: () => Promise<{ success: boolean; error?: string }>;
   onPreviewUrlReady: (callback: (data: { prKey: string; preview: any; allPreviews: any[] }) => void) => () => void;
   onPRWatcherError: (callback: (data: { prKey: string; error: string }) => void) => () => void;
+  
+  // Confirm changes API
+  confirmChanges: (changeSet: VisualEdit[]) => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
+  
+  // LLM Configuration API
+  llmSaveConfig: (config: { provider: string; apiKey?: string }) => Promise<{ success: boolean; error?: string }>;
+  llmGetConfig: () => Promise<{ provider: string; hasApiKey?: boolean }>;
+  llmTestConnection: () => Promise<{ success: boolean; message?: string; error?: string }>;
+}
+
+export interface VisualEdit {
+  id: string;
+  timestamp: number;
+  element: {
+    selector: string;
+    tagName: string;
+    id: string | undefined;
+    className: string | undefined;
+  };
+  changes: {
+    property: string;
+    before: string;
+    after: string;
+  }[];
 }
 
 // Expose protected methods that allow the renderer process to use
@@ -167,7 +191,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   
   // Confirm flow API implementations
-  confirmChanges: (changeSet: any[]) => ipcRenderer.invoke('confirm-changes', changeSet)
+  confirmChanges: (changeSet: any[]) => ipcRenderer.invoke('confirm-changes', changeSet),
+  
+  // LLM Configuration API implementations
+  llmSaveConfig: (config: { provider: string; apiKey?: string }) => ipcRenderer.invoke('llm-save-config', config),
+  llmGetConfig: () => ipcRenderer.invoke('llm-get-config'),
+  llmTestConnection: () => ipcRenderer.invoke('llm-test-connection')
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI

@@ -59,6 +59,7 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
     try {
       onAuthStateChange({ ...authState, loading: true });
       
+      // Check authentication status (this will also try to load stored token)
       const authenticated = await window.electronAPI.githubIsAuthenticated();
       
       if (authenticated) {
@@ -70,6 +71,7 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
             loading: false
           });
           loadRepositories();
+          console.log('GitHub authentication status verified, user logged in');
         } else {
           onAuthStateChange({
             isAuthenticated: false,
