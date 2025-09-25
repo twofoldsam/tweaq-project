@@ -8,6 +8,7 @@ import * as keytar from 'keytar';
 import { RemoteRepo } from '../../../packages/github-remote/dist/index.js';
 import { InMemoryPatcher } from '../../../packages/change-engine/dist/src/index.js';
 import { MappingEngine, MockLLMProvider, OpenAIProvider, ClaudeProvider, buildRepoIndex, getDeterministicHints } from '../../../packages/mapping-remote/dist/index.js';
+import { RepoAnalyzer, RepoSymbolicModel } from '../../../packages/repo-analyzer/dist/index.js';
 
 interface StoreSchema {
   lastUrl: string;
@@ -53,6 +54,10 @@ const store = new Store<StoreSchema>({
     lastUrl: 'https://www.google.com'
   }
 });
+
+// Global repo analyzer and symbolic model
+let repoAnalyzer: RepoAnalyzer | null = null;
+let currentRepoModel: RepoSymbolicModel | null = null;
 
 // GitHub OAuth App Client ID - Replace with your actual GitHub OAuth App Client ID
 const GITHUB_CLIENT_ID = 'Ov23liiu7rMP6sTcvb6H';
@@ -945,7 +950,15 @@ ipcMain.handle('confirm-changes', async (event, changeSet: VisualEdit[]) => {
     const octokit = gitClient.getOctokit();
     const remoteRepo = new RemoteRepo(await keytar.getPassword('smart-qa-github', 'github-token') || '');
     
-    // Step 1: Build CodeIntent[] using R3+R4 mapping
+    // Initialize repository analyzer if not already done
+    if (!currentRepoModel || currentRepoModel.repoId !== `${config.owner}/${config.repo}`) {
+      console.log('🔍 Repository model not available or outdated, initializing...');
+      await initializeRepoAnalyzer(config, remoteRepo);
+    } else {
+      console.log('✅ Using cached repository model');
+    }
+    
+    // Step 1: Build CodeIntent[] using symbolic analysis + LLM mapping
     const codeIntents = await buildCodeIntents(changeSet, config, remoteRepo);
     console.log('📝 Built code intents:', codeIntents.length, 'intents');
     
@@ -968,31 +981,72 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
   const intents: CodeIntent[] = [];
   
   try {
-    // Get configured LLM provider
-    const llmConfig = store.get('llm') || { provider: 'mock' };
+    // Configure LLM provider directly in code (check environment variables first)
     let llmProvider;
+    let providerName = 'mock';
     
-    if (llmConfig.provider === 'openai') {
-      const apiKey = await keytar.getPassword('smart-qa-llm', 'openai-api-key');
-      if (apiKey) {
-        llmProvider = new OpenAIProvider(apiKey);
-      } else {
-        console.warn('OpenAI provider configured but no API key found, falling back to mock');
-        llmProvider = new MockLLMProvider();
-      }
-    } else if (llmConfig.provider === 'claude') {
-      const apiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key');
-      if (apiKey) {
-        llmProvider = new ClaudeProvider(apiKey);
-      } else {
-        console.warn('Claude provider configured but no API key found, falling back to mock');
-        llmProvider = new MockLLMProvider();
-      }
-    } else {
-      llmProvider = new MockLLMProvider();
+    // Check for API keys in multiple sources (config file, environment variables, then hardcoded)
+    let llmConfig: any = {};
+    try {
+      llmConfig = require('../../../llm-config.js');
+    } catch (error) {
+      // Config file doesn't exist, that's okay
     }
     
-    console.log(`🤖 Using LLM provider: ${llmConfig.provider}`);
+    const openaiKey = (llmConfig.openai?.enabled ? llmConfig.openai.apiKey : null) ||
+                      process.env.OPENAI_API_KEY || 
+                      // Uncomment and add your API key here for development:
+                      // 'sk-your-openai-key-here' ||
+                      null;
+    
+    const claudeKey = (llmConfig.claude?.enabled ? llmConfig.claude.apiKey : null) ||
+                      process.env.ANTHROPIC_API_KEY || 
+                      process.env.CLAUDE_API_KEY ||
+                      // Uncomment and add your API key here for development:
+                      // 'sk-ant-your-claude-key-here' ||
+                      null;
+    
+    if (openaiKey) {
+      llmProvider = new OpenAIProvider(openaiKey);
+      providerName = 'openai';
+      const source = llmConfig.openai?.enabled ? 'config file' : 
+                     process.env.OPENAI_API_KEY ? 'environment variable' : 'hardcoded';
+      console.log(`🤖 Using OpenAI provider (from ${source})`);
+    } else if (claudeKey) {
+      llmProvider = new ClaudeProvider(claudeKey);
+      providerName = 'claude';
+      const source = llmConfig.claude?.enabled ? 'config file' : 
+                     (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) ? 'environment variable' : 'hardcoded';
+      console.log(`🤖 Using Claude provider (from ${source})`);
+    } else {
+      // Fallback to UI configuration if no environment variables
+      const uiLlmConfig = store.get('llm') || { provider: 'mock' };
+      
+      if (uiLlmConfig.provider === 'openai') {
+        const apiKey = await keytar.getPassword('smart-qa-llm', 'openai-api-key');
+        if (apiKey) {
+          llmProvider = new OpenAIProvider(apiKey);
+          providerName = 'openai';
+          console.log('🤖 Using OpenAI provider (from UI settings)');
+        } else {
+          llmProvider = new MockLLMProvider();
+          console.log('🤖 Using Mock provider (OpenAI configured but no API key found)');
+        }
+      } else if (uiLlmConfig.provider === 'claude') {
+        const apiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key');
+        if (apiKey) {
+          llmProvider = new ClaudeProvider(apiKey);
+          providerName = 'claude';
+          console.log('🤖 Using Claude provider (from UI settings)');
+        } else {
+          llmProvider = new MockLLMProvider();
+          console.log('🤖 Using Mock provider (Claude configured but no API key found)');
+        }
+      } else {
+        llmProvider = new MockLLMProvider();
+        console.log('🤖 Using Mock provider (default)');
+      }
+    }
     
     const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
     
@@ -1030,44 +1084,118 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
         // Get deterministic hints first
         console.log(`🔍 Getting hints for element: ${edit.element.tagName}${edit.element.id ? '#' + edit.element.id : ''}${edit.element.className ? '.' + edit.element.className.split(' ').join('.') : ''}`);
         
-        const hints = await getDeterministicHints({
-          nodeSnapshot,
-          urlPath,
-          repoIndex,
-          auth: githubToken
-        });
+        // Use symbolic repository model for intelligent file detection
+        console.log('🧠 Using symbolic repository analysis for precise mapping...');
         
-        console.log(`📍 Found ${hints.length} deterministic hints`);
-        
-        // Convert to CodeIntent format
-        if (hints.length > 0) {
-          // Use the highest confidence hint
-          const bestHint = hints.sort((a, b) => b.confidence - a.confidence)[0];
+        try {
+          const symbolicMappingResult = await mapVisualChangeWithSymbolicModel(
+            edit,
+            currentUrl,
+            llmProvider
+          );
           
-          const codeIntent: CodeIntent = {
-            filePath: bestHint.filePath,
-            intent: generateIntentFromEdit(edit),
-            targetElement: edit.element.tagName.toLowerCase(),
-            tailwindChanges: extractTailwindChanges(edit),
-            confidence: bestHint.confidence,
-            evidence: bestHint.evidence
-          };
+          if (symbolicMappingResult && symbolicMappingResult.filePath) {
+            const symbolicIntent: CodeIntent = {
+              filePath: symbolicMappingResult.filePath,
+              intent: symbolicMappingResult.intent,
+              targetElement: edit.element.tagName.toLowerCase(),
+              tailwindChanges: symbolicMappingResult.tailwindChanges,
+              confidence: symbolicMappingResult.confidence,
+              evidence: 'symbolic-analysis'
+            };
+            intents.push(symbolicIntent);
+            console.log(`🎯 Symbolic model mapped to: ${symbolicMappingResult.filePath} (confidence: ${symbolicMappingResult.confidence})`);
+            console.log(`💡 Reasoning: ${symbolicMappingResult.reasoning}`);
+          } else {
+            throw new Error('Symbolic model could not identify target file');
+          }
+        } catch (error) {
+          console.warn('Symbolic mapping failed, falling back to LLM approach:', error.message);
           
-          intents.push(codeIntent);
-          console.log(`✅ Mapped to ${bestHint.filePath} with confidence ${bestHint.confidence}`);
-        } else {
-          // Fallback to common patterns
-          console.warn('No hints found, using fallback mapping');
-          const fallbackIntent: CodeIntent = {
-            filePath: 'src/components/Button.tsx', // Common fallback
-            intent: generateIntentFromEdit(edit),
-            targetElement: edit.element.tagName.toLowerCase(),
-            tailwindChanges: extractTailwindChanges(edit),
-            confidence: 0.3, // Low confidence for fallback
-            evidence: 'fallback'
-          };
+          // Fallback to original LLM mapping
+          try {
+            const llmMappingResult = await mapVisualChangeWithLLM({
+              edit,
+              repoIndex,
+              currentUrl,
+              llmProvider,
+              remoteRepo,
+              config
+            });
+            
+            if (llmMappingResult && llmMappingResult.filePath) {
+              const llmBasedIntent: CodeIntent = {
+                filePath: llmMappingResult.filePath,
+                intent: llmMappingResult.intent || generateIntentFromEdit(edit),
+                targetElement: edit.element.tagName.toLowerCase(),
+                tailwindChanges: llmMappingResult.tailwindChanges || extractTailwindChanges(edit),
+                confidence: llmMappingResult.confidence || 0.6, // Lower confidence for fallback
+                evidence: 'llm-fallback'
+              };
+              intents.push(llmBasedIntent);
+              console.log(`🎯 LLM fallback mapped to: ${llmMappingResult.filePath} (confidence: ${llmMappingResult.confidence})`);
+            } else {
+              throw new Error('LLM fallback could not identify target file');
+            }
+          } catch (llmError) {
+            console.warn('LLM fallback also failed, using deterministic approach:', llmError.message);
+          }
           
-          intents.push(fallbackIntent);
+          // Fallback to deterministic approach
+          let hints: any[] = [];
+          try {
+            hints = await getDeterministicHints({
+              nodeSnapshot,
+              urlPath,
+              repoIndex,
+              auth: githubToken
+            });
+            console.log(`📍 Found ${hints.length} deterministic hints`);
+          } catch (searchError) {
+            console.warn('Deterministic search also failed, using URL-based mapping');
+          }
+          
+          if (hints.length > 0) {
+            const bestHint = hints.sort((a, b) => b.confidence - a.confidence)[0];
+            const codeIntent: CodeIntent = {
+              filePath: bestHint.filePath,
+              intent: generateIntentFromEdit(edit),
+              targetElement: edit.element.tagName.toLowerCase(),
+              tailwindChanges: extractTailwindChanges(edit),
+              confidence: bestHint.confidence,
+              evidence: bestHint.evidence
+            };
+            intents.push(codeIntent);
+            console.log(`✅ Fallback mapped to ${bestHint.filePath}`);
+          } else {
+            // Final fallback to URL-based mapping
+            const possibleFiles = await findLikelySourceFiles(repoIndex, currentUrl);
+            if (possibleFiles.length > 0) {
+              const bestFile = possibleFiles[0];
+              const urlBasedIntent: CodeIntent = {
+                filePath: bestFile.path,
+                intent: generateIntentFromEdit(edit),
+                targetElement: edit.element.tagName.toLowerCase(),
+                tailwindChanges: extractTailwindChanges(edit),
+                confidence: 0.4,
+                evidence: 'url-pattern'
+              };
+              intents.push(urlBasedIntent);
+              console.log(`📍 Final fallback to: ${bestFile.path}`);
+            } else {
+              // Create changelog as last resort
+              const changelogIntent: CodeIntent = {
+                filePath: 'DESIGN_CHANGES.md',
+                intent: `Manual design change: ${generateIntentFromEdit(edit)}`,
+                targetElement: edit.element.tagName.toLowerCase(),
+                tailwindChanges: extractTailwindChanges(edit),
+                confidence: 0.1,
+                evidence: 'changelog-fallback'
+              };
+              intents.push(changelogIntent);
+              console.log('📝 Creating changelog entry as final fallback');
+            }
+          }
         }
       } catch (error) {
         console.warn('Failed to map visual edit to code intent:', error);
@@ -1080,6 +1208,423 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
   }
   
   return intents;
+}
+
+// Initialize repository analyzer for the configured GitHub repo
+async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Promise<void> {
+  console.log('🔍 Initializing repository analyzer...');
+  
+  try {
+    if (!repoAnalyzer) {
+      repoAnalyzer = new RepoAnalyzer();
+    }
+    
+    // Check if we already have analysis for this repo
+    const repoId = `${config.owner}/${config.repo}`;
+    
+    console.log(`📊 Analyzing repository: ${repoId}`);
+    const analysisResult = await repoAnalyzer.analyzeRepository(
+      remoteRepo,
+      {
+        owner: config.owner,
+        repo: config.repo,
+        baseBranch: config.baseBranch
+      },
+      {
+        cacheEnabled: true,
+        analysisDepth: 'comprehensive',
+        parallelProcessing: true
+      }
+    );
+    
+    if (analysisResult.success && analysisResult.model) {
+      currentRepoModel = analysisResult.model;
+      console.log(`✅ Repository analysis complete:`);
+      console.log(`   📁 ${analysisResult.stats.filesAnalyzed} files analyzed`);
+      console.log(`   ⚛️ ${analysisResult.stats.componentsFound} components found`);
+      console.log(`   📋 ${analysisResult.stats.rulesGenerated} transformation rules generated`);
+      console.log(`   ⏱️ Analysis took ${analysisResult.stats.processingTime}ms`);
+    } else {
+      console.warn('⚠️ Repository analysis failed:', analysisResult.errors);
+      currentRepoModel = null;
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize repository analyzer:', error);
+    currentRepoModel = null;
+  }
+}
+
+// Enhanced function to use repository symbolic model for precise mapping
+async function mapVisualChangeWithSymbolicModel(
+  edit: VisualEdit,
+  currentUrl: string,
+  llmProvider: any
+): Promise<{
+  filePath: string;
+  intent: string;
+  tailwindChanges: Record<string, string>;
+  confidence: number;
+  reasoning: string;
+} | null> {
+  
+  if (!currentRepoModel) {
+    console.log('📝 No symbolic model available, falling back to basic LLM mapping');
+    return null;
+  }
+  
+  console.log('🧠 Using symbolic repository model for intelligent mapping...');
+  
+  // Extract element details
+  const elementSelector = `${edit.element.tagName.toLowerCase()}${edit.element.id ? '#' + edit.element.id : ''}${edit.element.className ? '.' + edit.element.className.split(' ').join('.') : ''}`;
+  
+  // Find matching DOM mappings from the symbolic model
+  const domMappings = currentRepoModel.domMappings.get(elementSelector) || [];
+  
+  if (domMappings.length > 0) {
+    // Sort by confidence and take the best match
+    const bestMapping = domMappings.sort((a, b) => b.confidence - a.confidence)[0];
+    
+    console.log(`🎯 Found direct mapping: ${elementSelector} → ${bestMapping.filePath} (confidence: ${bestMapping.confidence})`);
+    
+    // Find applicable transformation rules
+    const applicableRules = currentRepoModel.transformationRules.filter(rule => 
+      rule.selector === elementSelector &&
+      edit.changes.some(change => 
+        change.property === rule.property.replace('-', '') // fontSize vs font-size
+      )
+    );
+    
+    if (applicableRules.length > 0) {
+      const bestRule = applicableRules.sort((a, b) => b.confidence - a.confidence)[0];
+      
+      console.log(`⚡ Found transformation rule: ${bestRule.action} - ${bestRule.fromValue} → ${bestRule.toValue}`);
+      
+      return {
+        filePath: bestMapping.filePath,
+        intent: `Update ${edit.element.tagName.toLowerCase()} element: Apply ${bestRule.action} transformation`,
+        tailwindChanges: { [bestRule.fromValue]: bestRule.toValue },
+        confidence: Math.min(bestMapping.confidence, bestRule.confidence),
+        reasoning: `Symbolic model mapping: Direct DOM-to-component mapping with transformation rule (${bestRule.action})`
+      };
+    }
+    
+    // No specific rule, but we have a file mapping
+    const changesDescription = edit.changes.map(change => `${change.property} from "${change.before}" to "${change.after}"`).join(', ');
+    
+    return {
+      filePath: bestMapping.filePath,
+      intent: `Update ${edit.element.tagName.toLowerCase()} element: Change ${changesDescription}`,
+      tailwindChanges: extractTailwindChanges(edit),
+      confidence: bestMapping.confidence,
+      reasoning: `Direct DOM-to-component mapping from repository analysis`
+    };
+  }
+  
+  // No direct mapping, use LLM with symbolic model context
+  console.log('🤖 No direct mapping found, using LLM with symbolic context...');
+  
+  const contextualPrompt = `
+Repository Analysis Context:
+- Framework: ${currentRepoModel.primaryFramework}
+- Styling: ${currentRepoModel.stylingApproach}
+- Components: ${currentRepoModel.components.length} analyzed
+- Transformation Rules: ${currentRepoModel.transformationRules.length} available
+
+Visual Change Details:
+- Element: ${elementSelector}
+- URL: ${currentUrl}
+- Changes: ${edit.changes.map(c => `${c.property}: ${c.before} → ${c.after}`).join(', ')}
+
+Top Component Files:
+${currentRepoModel.components.slice(0, 5).map(c => 
+  `- ${c.filePath} (${c.framework}, ${c.domElements.length} elements)`
+).join('\n')}
+
+Based on the repository analysis, which file should be modified and what specific changes should be made?
+
+Respond with JSON:
+{
+  "filePath": "path/to/file.tsx",
+  "confidence": 0.8,
+  "reasoning": "Why this file was chosen",
+  "tailwindChanges": {"old-class": "new-class"}
+}`;
+
+  try {
+    // Use the existing LLM provider to get a response
+    const analysisRequest = {
+      nodeSnapshot: {
+        tagName: edit.element.tagName,
+        className: edit.element.className,
+        id: edit.element.id,
+        textContent: '',
+        attributes: {}
+      },
+      urlPath: new URL(currentUrl).pathname,
+      candidateFiles: currentRepoModel.components.slice(0, 10).map(c => ({
+        path: c.filePath,
+        excerpt: `// ${c.framework} component with ${c.domElements.length} DOM elements\n// Styling: ${c.styling.approach}\n// Classes: ${c.styling.classes.slice(0, 5).join(', ')}`
+      }))
+    };
+    
+    const response = await llmProvider.analyzeComponents(analysisRequest);
+    
+    if (response.rankings && response.rankings.length > 0) {
+      const bestResult = response.rankings[0];
+      
+      return {
+        filePath: bestResult.filePath,
+        intent: `Update ${edit.element.tagName.toLowerCase()} element: Apply symbolic model guided changes`,
+        tailwindChanges: extractTailwindChanges(edit),
+        confidence: bestResult.confidence,
+        reasoning: `LLM analysis with symbolic model context: ${bestResult.reasoning}`
+      };
+    }
+  } catch (error) {
+    console.error('🚨 LLM analysis with symbolic context failed:', error);
+  }
+  
+  return null;
+}
+
+// Helper function to use LLM for intelligent visual change mapping
+async function mapVisualChangeWithLLM(options: {
+  edit: VisualEdit;
+  repoIndex: any;
+  currentUrl: string;
+  llmProvider: any;
+  remoteRepo: RemoteRepo;
+  config: any;
+}): Promise<{
+  filePath: string;
+  intent?: string;
+  tailwindChanges?: Record<string, string>;
+  confidence: number;
+  reasoning: string;
+} | null> {
+  const { edit, repoIndex, currentUrl, llmProvider, remoteRepo, config } = options;
+  
+  // Prepare context for the LLM
+  const urlPath = new URL(currentUrl).pathname;
+  const elementDescription = `${edit.element.tagName}${edit.element.id ? '#' + edit.element.id : ''}${edit.element.className ? '.' + edit.element.className.split(' ').join('.') : ''}`;
+  
+  // Get relevant files (frontend files only to reduce context size)
+  const relevantFiles = repoIndex.files
+    .filter((file: any) => 
+      file.type === 'blob' && 
+      /\.(tsx|jsx|ts|js|vue|svelte|astro|html)$/i.test(file.path)
+    )
+    .slice(0, 50) // Limit to first 50 files to stay within token limits
+    .map((file: any) => ({
+      path: file.path,
+      size: file.size || 0
+    }));
+  
+  // For non-mock providers, we can also provide file contents for better analysis
+  let fileContentsContext = '';
+  if (llmProvider.constructor.name !== 'MockLLMProvider' && relevantFiles.length > 0) {
+    // Get a few key files to provide more context
+    const keyFiles = relevantFiles
+      .filter(file => 
+        file.path.includes('index.') || 
+        file.path.includes('app.') || 
+        file.path.includes('layout.') ||
+        file.path.includes('page.')
+      )
+      .slice(0, 3); // Just a few key files
+    
+    if (keyFiles.length > 0) {
+      fileContentsContext = '\n\n**Key File Contents (for better analysis):**\n';
+      // Note: In a real implementation, we'd fetch these file contents
+      // For now, we'll just indicate which files we would analyze
+      fileContentsContext += keyFiles.map(file => 
+        `- ${file.path}: Would analyze this file's structure and exports`
+      ).join('\n');
+    }
+  }
+  
+  // Create the changes description
+  const changesDescription = edit.changes.map(change => 
+    `${change.property}: "${change.before}" → "${change.after}"`
+  ).join(', ');
+  
+  const prompt = `You are a code analysis expert. I need to map a visual change made on a website to the exact source file that should be modified.
+
+**Context:**
+- Website URL: ${currentUrl}
+- URL Path: ${urlPath}
+- Element changed: ${elementDescription}
+- Visual changes made: ${changesDescription}
+
+**Repository Structure:**
+The repository contains ${repoIndex.files.length} total files. Here are the frontend-related files:
+${relevantFiles.map(file => `- ${file.path} (${file.size} bytes)`).join('\n')}
+
+**Common source folders found:** ${repoIndex.commonSourceFolders.join(', ')}${fileContentsContext}
+
+**Your Task:**
+Analyze the visual change and repository structure to determine:
+1. Which specific file likely contains the code for the changed element
+2. How confident you are in this mapping (0.0 to 1.0)
+3. Your reasoning for this choice
+
+**Consider:**
+- URL path patterns (e.g., /about might map to about.tsx or pages/about.js)
+- Component naming conventions
+- Directory structure patterns
+- File sizes (larger files might be main pages/layouts)
+- Framework patterns (Next.js pages/, React components/, etc.)
+
+**Respond in JSON format:**
+{
+  "filePath": "path/to/most/likely/file.tsx",
+  "confidence": 0.85,
+  "reasoning": "Explain your analysis and why you chose this file",
+  "suggestedIntent": "Optional: Better description of what should be changed",
+  "tailwindClasses": {
+    "fontSize": "text-lg",
+    "color": "text-blue-500"
+  }
+}
+
+If you cannot determine a likely file with reasonable confidence (>0.3), respond with:
+{
+  "filePath": null,
+  "confidence": 0.0,
+  "reasoning": "Explain why mapping is not possible"
+}`;
+
+  try {
+    console.log('🤖 Sending analysis request to LLM...');
+    
+    // Convert our file list to the format expected by the LLM provider
+    // For better analysis, let's fetch the actual content of key files
+    const candidateFiles = [];
+    
+    for (const file of relevantFiles.slice(0, 10)) { // Limit to top 10 files to avoid token limits
+      try {
+        // Read the actual file content for better LLM analysis
+        const fileContent = await remoteRepo.readFile({
+          owner: config.owner,
+          repo: config.repo,
+          path: file.path,
+          ref: config.baseBranch
+        });
+        
+        // Truncate content to avoid token limits (first 500 chars should be enough for analysis)
+        const truncatedContent = fileContent.length > 500 
+          ? fileContent.substring(0, 500) + '\n// ... (truncated)'
+          : fileContent;
+        
+        candidateFiles.push({
+          path: file.path,
+          excerpt: truncatedContent
+        });
+        
+        console.log(`📖 Read ${file.path} for LLM analysis (${fileContent.length} chars)`);
+      } catch (error) {
+        // If we can't read the file, still include it with basic info
+        candidateFiles.push({
+          path: file.path,
+          excerpt: `// File: ${file.path}\n// Size: ${file.size} bytes\n// Could not read content: ${error.message}`
+        });
+        console.warn(`⚠️ Could not read ${file.path} for LLM analysis:`, error.message);
+      }
+    }
+    
+    const analysisRequest = {
+      nodeSnapshot: {
+        tagName: edit.element.tagName,
+        className: edit.element.className,
+        id: edit.element.id,
+        textContent: '', // We don't have this from visual edits
+        attributes: {}
+      },
+      urlPath,
+      candidateFiles
+    };
+    
+    const response = await llmProvider.analyzeComponents(analysisRequest);
+    
+    if (!response.rankings || response.rankings.length === 0) {
+      console.log('🤖 LLM found no suitable file mappings');
+      return null;
+    }
+    
+    // Get the highest confidence result
+    const bestMatch = response.rankings[0];
+    
+    if (bestMatch.confidence < 0.3) {
+      console.log('🤖 LLM confidence too low:', bestMatch.confidence);
+      return null;
+    }
+    
+    return {
+      filePath: bestMatch.filePath,
+      intent: `Update ${edit.element.tagName.toLowerCase()} element: ${changesDescription}`,
+      tailwindChanges: extractTailwindChanges(edit),
+      confidence: bestMatch.confidence,
+      reasoning: bestMatch.reasoning || 'LLM analysis'
+    };
+    
+  } catch (error) {
+    console.error('LLM mapping error:', error);
+    return null;
+  }
+}
+
+// Helper function to find likely source files based on URL patterns
+async function findLikelySourceFiles(repoIndex: any, currentUrl: string): Promise<{ path: string; score: number }[]> {
+  const candidates: { path: string; score: number }[] = [];
+  
+  // Extract path from URL for pattern matching
+  const urlPath = new URL(currentUrl).pathname.toLowerCase();
+  
+  // Look for common frontend file patterns
+  const commonPatterns = [
+    /\.(tsx|jsx|ts|js)$/i,
+    /\.(vue|svelte)$/i,
+    /\.astro$/i
+  ];
+  
+  for (const file of repoIndex.files) {
+    if (file.type !== 'blob') continue;
+    
+    let score = 0;
+    const filePath = file.path.toLowerCase();
+    
+    // Score based on file type
+    if (commonPatterns.some(pattern => pattern.test(filePath))) {
+      score += 10;
+    }
+    
+    // Score based on common frontend directories
+    if (filePath.includes('src/') || filePath.includes('components/') || filePath.includes('pages/')) {
+      score += 5;
+    }
+    
+    // Score based on URL path similarity
+    const pathSegments = urlPath.split('/').filter(s => s.length > 0);
+    for (const segment of pathSegments) {
+      if (filePath.includes(segment)) {
+        score += 3;
+      }
+    }
+    
+    // Prefer index files or files with common names
+    if (filePath.includes('index.') || filePath.includes('app.') || filePath.includes('main.')) {
+      score += 2;
+    }
+    
+    if (score > 0) {
+      candidates.push({ path: file.path, score });
+    }
+  }
+  
+  // Sort by score descending and return top candidates
+  return candidates
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
 }
 
 // Helper function to generate intent from visual edit
@@ -1250,17 +1795,19 @@ async function createPullRequest(fileUpdates: any[], config: any, remoteRepo: Re
       parentSha: baseSha
     });
     
-    // Create/update branch
+    // Create branch reference
     try {
-      await remoteRepo.updateRef({
+      // Create a new branch reference pointing to our commit
+      const octokit = gitClient.getOctokit();
+      await octokit.rest.git.createRef({
         owner: config.owner,
         repo: config.repo,
-        ref: branchName,
+        ref: `refs/heads/${branchName}`,
         sha: commit.sha
       });
+      console.log(`🌿 Created branch: ${branchName}`);
     } catch (error) {
-      // Branch might not exist, try creating it
-      // This is a simplified approach - RemoteRepo should handle this
+      console.error('Failed to create branch:', error);
       throw error;
     }
     

@@ -24,6 +24,7 @@
     "@smart-qa/github-remote": "workspace:*",
     "@smart-qa/change-engine": "workspace:*",
     "@smart-qa/mapping-remote": "workspace:*",
+    "@smart-qa/repo-analyzer": "workspace:*",
     "keytar": "^7.9.0",
     "@octokit/rest": "^20.0.1",
     "@octokit/auth-oauth-device": "^6.0.1"
