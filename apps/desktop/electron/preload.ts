@@ -196,7 +196,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // LLM Configuration API implementations
   llmSaveConfig: (config: { provider: string; apiKey?: string }) => ipcRenderer.invoke('llm-save-config', config),
   llmGetConfig: () => ipcRenderer.invoke('llm-get-config'),
-  llmTestConnection: () => ipcRenderer.invoke('llm-test-connection')
+  llmTestConnection: () => ipcRenderer.invoke('llm-test-connection'),
+  
+  // Repository Analysis API implementations
+  analyzeRepository: () => ipcRenderer.invoke('analyze-repository'),
+  getAnalysisStatus: () => ipcRenderer.invoke('get-analysis-status')
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI

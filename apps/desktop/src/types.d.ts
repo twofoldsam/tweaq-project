@@ -69,6 +69,10 @@ interface ElectronAPI {
   llmSaveConfig: (config: { provider: string; apiKey?: string }) => Promise<{ success: boolean; error?: string }>;
   llmGetConfig: () => Promise<{ provider: string; hasApiKey?: boolean }>;
   llmTestConnection: () => Promise<{ success: boolean; message?: string; error?: string }>;
+  
+  // Repository Analysis API
+  analyzeRepository: () => Promise<{ success: boolean; model?: any; error?: string }>;
+  getAnalysisStatus: () => Promise<{ hasAnalysis: boolean; repoId?: string; analyzedAt?: Date; componentsCount?: number; rulesCount?: number }>;
 }
 
 declare global {

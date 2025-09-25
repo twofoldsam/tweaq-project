@@ -40,11 +40,15 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [prNumber, setPrNumber] = useState<number | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<any>(null);
 
   useEffect(() => {
     loadConfig();
     if (isAuthenticated && user) {
       loadRepositories();
+      loadAnalysisStatus();
     }
   }, [isAuthenticated, user]);
 
@@ -241,6 +245,37 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
     setConfig(prev => ({ ...prev, [field]: value }));
   };
 
+  const loadAnalysisStatus = async () => {
+    try {
+      const status = await window.electronAPI.getAnalysisStatus();
+      setAnalysisStatus(status);
+    } catch (err) {
+      console.error('Error loading analysis status:', err);
+    }
+  };
+
+  const handleAnalyzeRepository = async () => {
+    setAnalysisLoading(true);
+    setError(null);
+    setSuccess(null);
+    setAnalysisResult(null);
+
+    try {
+      const result = await window.electronAPI.analyzeRepository();
+      if (result.success && result.model) {
+        setAnalysisResult(result.model);
+        setSuccess('Repository analysis completed successfully!');
+        await loadAnalysisStatus(); // Refresh status
+      } else {
+        setError(result.error || 'Failed to analyze repository');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to analyze repository');
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
   return (
     <div className="github-settings">
       <h2>GitHub Settings</h2>
@@ -357,6 +392,125 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
           <p>Please connect to GitHub first to see your repositories.</p>
         )}
       </div>
+
+      {/* Repository Analysis Section */}
+      {isAuthenticated && config.owner && config.repo && (
+        <div className="settings-section">
+          <h3>Repository Analysis</h3>
+          <p>Analyze your repository to build symbolic representations for better visual-to-code mapping.</p>
+          
+          {analysisStatus?.hasAnalysis && (
+            <div className="analysis-status">
+              <div className="status-info">
+                <strong>Current Analysis:</strong>
+                <div>Repository: {analysisStatus.repoId}</div>
+                <div>Analyzed: {new Date(analysisStatus.analyzedAt).toLocaleString()}</div>
+                <div>Components: {analysisStatus.componentsCount}</div>
+                <div>Rules: {analysisStatus.rulesCount}</div>
+              </div>
+            </div>
+          )}
+          
+          <button 
+            onClick={handleAnalyzeRepository}
+            disabled={analysisLoading || !isAuthenticated || !config.owner || !config.repo}
+            className="analyze-button"
+          >
+            {analysisLoading ? 'Analyzing Repository...' : 'Analyze Repository'}
+          </button>
+          
+          {analysisResult && (
+            <div className="analysis-results">
+              <h4>Analysis Results</h4>
+              <div className="analysis-summary">
+                <div className="summary-stats">
+                  <div className="stat-item">
+                    <span className="stat-label">Framework:</span>
+                    <span className="stat-value">{analysisResult.primaryFramework}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Styling:</span>
+                    <span className="stat-value">{analysisResult.stylingApproach}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Components:</span>
+                    <span className="stat-value">{analysisResult.componentsCount}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Transform Rules:</span>
+                    <span className="stat-value">{analysisResult.transformationRulesCount}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">DOM Mappings:</span>
+                    <span className="stat-value">{analysisResult.domMappingsCount}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="analysis-details">
+                <div className="detail-section">
+                  <h5>Components Found</h5>
+                  <div className="component-list">
+                    {analysisResult.components.slice(0, 10).map((comp: any, index: number) => (
+                      <div key={index} className="component-item">
+                        <div className="component-name">{comp.name}</div>
+                        <div className="component-path">{comp.filePath}</div>
+                        <div className="component-meta">
+                          {comp.framework} • {comp.domElementsCount} elements • {comp.stylingApproach}
+                        </div>
+                        {comp.classes.length > 0 && (
+                          <div className="component-classes">
+                            Classes: {comp.classes.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {analysisResult.components.length > 10 && (
+                      <div className="more-items">
+                        ... and {analysisResult.components.length - 10} more components
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="detail-section">
+                  <h5>DOM Mappings (Top 10)</h5>
+                  <div className="mapping-list">
+                    {analysisResult.topMappings.map((mapping: any, index: number) => (
+                      <div key={index} className="mapping-item">
+                        <div className="mapping-selector">{mapping.selector}</div>
+                        <div className="mapping-target">
+                          → {mapping.topMapping.componentName} ({mapping.topMapping.filePath})
+                        </div>
+                        <div className="mapping-confidence">
+                          Confidence: {(mapping.topMapping.confidence * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="detail-section">
+                  <h5>Transformation Rules (Top 20)</h5>
+                  <div className="rules-list">
+                    {analysisResult.transformationRules.map((rule: any, index: number) => (
+                      <div key={index} className="rule-item">
+                        <div className="rule-selector">{rule.selector}</div>
+                        <div className="rule-transform">
+                          {rule.action}: {rule.fromValue} → {rule.toValue}
+                        </div>
+                        <div className="rule-meta">
+                          {rule.property} • {rule.filePath} • {(rule.confidence * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Test Section */}
       <div className="settings-section">

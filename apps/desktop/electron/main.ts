@@ -1872,6 +1872,92 @@ function generatePRBody(edits: VisualEdit[], fileUpdates: any[]): string {
   return body;
 }
 
+// Repository Analysis IPC handlers
+ipcMain.handle('analyze-repository', async () => {
+  try {
+    const config = store.get('github');
+    if (!config) {
+      return { success: false, error: 'No GitHub configuration found. Please configure GitHub settings first.' };
+    }
+
+    if (!gitClient.isAuthenticated()) {
+      return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
+    }
+
+    const octokit = gitClient.getOctokit();
+    const remoteRepo = new RemoteRepo(await keytar.getPassword('smart-qa-github', 'github-token') || '');
+    
+    console.log('🔍 Manual repository analysis requested...');
+    
+    // Force re-analysis by clearing current model
+    currentRepoModel = null;
+    
+    await initializeRepoAnalyzer(config, remoteRepo);
+    
+    if (currentRepoModel) {
+      return {
+        success: true,
+        model: {
+          repoId: currentRepoModel.repoId,
+          analyzedAt: currentRepoModel.analyzedAt,
+          primaryFramework: currentRepoModel.primaryFramework,
+          stylingApproach: currentRepoModel.stylingApproach,
+          componentsCount: currentRepoModel.components.length,
+          transformationRulesCount: currentRepoModel.transformationRules.length,
+          components: currentRepoModel.components.map(c => ({
+            name: c.name,
+            filePath: c.filePath,
+            framework: c.framework,
+            domElementsCount: c.domElements.length,
+            stylingApproach: c.styling.approach,
+            classes: c.styling.classes.slice(0, 10) // Limit for UI
+          })),
+          domMappingsCount: currentRepoModel.domMappings.size,
+          topMappings: Array.from(currentRepoModel.domMappings.entries())
+            .slice(0, 10)
+            .map(([selector, mappings]) => ({
+              selector,
+              mappingsCount: mappings.length,
+              topMapping: mappings.sort((a, b) => b.confidence - a.confidence)[0]
+            })),
+          transformationRules: currentRepoModel.transformationRules.slice(0, 20).map(rule => ({
+            id: rule.id,
+            selector: rule.selector,
+            property: rule.property,
+            fromValue: rule.fromValue,
+            toValue: rule.toValue,
+            action: rule.action,
+            confidence: rule.confidence,
+            filePath: rule.target.filePath
+          }))
+        }
+      };
+    } else {
+      return { success: false, error: 'Analysis completed but no model was generated' };
+    }
+  } catch (error) {
+    console.error('❌ Manual repository analysis failed:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error occurred during analysis' 
+    };
+  }
+});
+
+ipcMain.handle('get-analysis-status', async () => {
+  if (currentRepoModel) {
+    return {
+      hasAnalysis: true,
+      repoId: currentRepoModel.repoId,
+      analyzedAt: currentRepoModel.analyzedAt,
+      componentsCount: currentRepoModel.components.length,
+      rulesCount: currentRepoModel.transformationRules.length
+    };
+  } else {
+    return { hasAnalysis: false };
+  }
+});
+
 // LLM Configuration IPC handlers
 ipcMain.handle('llm-save-config', async (event, config: { provider: string; apiKey?: string }) => {
   try {
