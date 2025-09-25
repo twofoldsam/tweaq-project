@@ -72,6 +72,7 @@ interface ElectronAPI {
   
   // Repository Analysis API
   analyzeRepository: () => Promise<{ success: boolean; model?: any; error?: string }>;
+  reAnalyzeRepository: () => Promise<{ success: boolean; model?: any; error?: string }>;
   getAnalysisStatus: () => Promise<{ hasAnalysis: boolean; repoId?: string; analyzedAt?: Date; componentsCount?: number; rulesCount?: number }>;
 }
 

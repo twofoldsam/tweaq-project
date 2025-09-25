@@ -20,6 +20,7 @@ export class RepoAnalyzer {
   private cssAnalyzer: CSSAnalyzer;
   private ruleGenerator: RuleGenerator;
   private cache: RepoCache;
+  private validatedPaths: Map<string, boolean> = new Map();
 
   constructor() {
     this.reactAnalyzer = new ReactAnalyzer();
@@ -48,6 +49,16 @@ export class RepoAnalyzer {
       const cached = await this.cache.get(repoId);
       if (cached && await this.isCacheValid(cached, remoteRepo)) {
         console.log('📦 Using cached analysis');
+        
+        // Restore validated paths from cached components
+        this.validatedPaths.clear();
+        for (const component of cached.components) {
+          if (component.validated) {
+            this.validatedPaths.set(component.filePath, true);
+          }
+        }
+        console.log(`🔄 Restored ${this.validatedPaths.size} validated paths from cache`);
+        
         return {
           success: true,
           model: cached,
@@ -179,10 +190,10 @@ export class RepoAnalyzer {
     config: { owner: string; repo: string; baseBranch: string },
     options: AnalysisOptions
   ): Promise<Array<{ path: string; size: number; type: string }>> {
-    const tree = await remoteRepo.getTree({
+    const tree = await remoteRepo.getRepoTree({
       owner: config.owner,
       repo: config.repo,
-      tree_sha: config.baseBranch,
+      ref: config.baseBranch,
       recursive: true
     });
 
@@ -235,14 +246,23 @@ export class RepoAnalyzer {
       ['tsx', 'jsx', 'vue', 'svelte'].includes(f.type)
     );
 
+    // Validate and store file paths that can actually be read
+    const validatedFiles = new Map<string, boolean>();
+
     for (const file of componentFiles) {
       try {
+        console.log(`📖 Reading file: ${file.path} from ${config.owner}/${config.repo}@${config.baseBranch}`);
+        console.log(`🔧 Analysis Debug - owner: ${config.owner}, repo: ${config.repo}, baseBranch: ${config.baseBranch}, path: ${file.path}`);
         const content = await remoteRepo.readFile({
           owner: config.owner,
           repo: config.repo,
           path: file.path,
           ref: config.baseBranch
         });
+
+        // Mark this path as validated and working
+        validatedFiles.set(file.path, true);
+        console.log(`✅ Successfully read ${file.path} (${content.length} chars)`);
 
         let component: ComponentStructure | null = null;
 
@@ -255,12 +275,22 @@ export class RepoAnalyzer {
         }
 
         if (component) {
+          // Store validation info in the component
+          component.validated = true;
+          component.lastValidated = new Date();
           components.push(component);
+          console.log(`🧩 Analyzed component: ${component.name} in ${file.path}`);
         }
         } catch (error) {
-          console.warn(`⚠️ Failed to analyze ${file.path}:`, error instanceof Error ? error.message : String(error));
+          console.error(`❌ Failed to read/analyze ${file.path}:`, error instanceof Error ? error.message : String(error));
+          // Mark this path as invalid
+          validatedFiles.set(file.path, false);
         }
     }
+
+    // Store validation results for later use
+    this.validatedPaths = validatedFiles;
+    console.log(`📋 Path validation complete: ${Array.from(validatedFiles.entries()).filter(([,valid]) => valid).length}/${validatedFiles.size} files accessible`);
 
     return components;
   }
@@ -268,7 +298,18 @@ export class RepoAnalyzer {
   private async generateDOMMappings(components: ComponentStructure[]) {
     const mappings = new Map();
     
-    for (const component of components) {
+    // Only include components with validated file paths
+    const validComponents = components.filter(component => {
+      const isValidated = component.validated && this.validatedPaths.get(component.filePath) === true;
+      if (!isValidated) {
+        console.warn(`⚠️ Skipping DOM mapping for ${component.name} - file path not validated: ${component.filePath}`);
+      }
+      return isValidated;
+    });
+
+    console.log(`🗺️ Creating DOM mappings for ${validComponents.length}/${components.length} validated components`);
+    
+    for (const component of validComponents) {
       for (const element of component.domElements) {
         const selector = element.selector;
         if (!mappings.has(selector)) {
@@ -310,5 +351,19 @@ export class RepoAnalyzer {
     // Simple time-based cache validation for now
     const hoursSinceAnalysis = (Date.now() - cached.analyzedAt.getTime()) / (1000 * 60 * 60);
     return hoursSinceAnalysis < 24; // Cache valid for 24 hours
+  }
+
+  /**
+   * Get list of file paths that were successfully validated during analysis
+   */
+  public getValidatedPaths(): Map<string, boolean> {
+    return new Map(this.validatedPaths);
+  }
+
+  /**
+   * Check if a specific file path was validated during analysis
+   */
+  public isPathValidated(filePath: string): boolean {
+    return this.validatedPaths.get(filePath) === true;
   }
 }

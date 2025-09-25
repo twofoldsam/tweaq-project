@@ -5,8 +5,8 @@ import { GitClient, PRWatcher, type DeploymentPreview } from '../../../packages/
 import { createOAuthDeviceAuth } from '@octokit/auth-oauth-device';
 import { Octokit } from '@octokit/rest';
 import * as keytar from 'keytar';
-import { RemoteRepo } from '../../../packages/github-remote/dist/index.js';
-import { InMemoryPatcher } from '../../../packages/change-engine/dist/src/index.js';
+import { RemoteRepo, LocalRepo } from '../../../packages/github-remote/dist/index.js';
+import { InMemoryPatcher, LLMCodeAdapter } from '../../../packages/change-engine/dist/src/index.js';
 import { MappingEngine, MockLLMProvider, OpenAIProvider, ClaudeProvider, buildRepoIndex, getDeterministicHints } from '../../../packages/mapping-remote/dist/index.js';
 import { RepoAnalyzer, RepoSymbolicModel } from '../../../packages/repo-analyzer/dist/index.js';
 
@@ -950,20 +950,16 @@ ipcMain.handle('confirm-changes', async (event, changeSet: VisualEdit[]) => {
     const octokit = gitClient.getOctokit();
     const remoteRepo = new RemoteRepo(await keytar.getPassword('smart-qa-github', 'github-token') || '');
     
-    // Initialize repository analyzer if not already done
-    if (!currentRepoModel || currentRepoModel.repoId !== `${config.owner}/${config.repo}`) {
-      console.log('🔍 Repository model not available or outdated, initializing...');
-      await initializeRepoAnalyzer(config, remoteRepo);
-    } else {
-      console.log('✅ Using cached repository model');
-    }
+    // Initialize repository analyzer to ensure we have current analysis
+    console.log('🔍 Initializing repository analyzer...');
+    await initializeRepoAnalyzer(config, remoteRepo);
     
     // Step 1: Build CodeIntent[] using symbolic analysis + LLM mapping
     const codeIntents = await buildCodeIntents(changeSet, config, remoteRepo);
     console.log('📝 Built code intents:', codeIntents.length, 'intents');
     
-    // Step 2: Use R5 (InMemoryPatcher) to get file updates
-    const fileUpdates = await getFileUpdates(codeIntents, config, remoteRepo);
+    // Step 2: Use hybrid approach (LocalRepo + InMemoryPatcher) to get file updates
+    const fileUpdates = await getFileUpdatesHybrid(codeIntents, config, remoteRepo);
     console.log('🔧 Generated file updates:', fileUpdates.length, 'files');
     
     // Step 3: Use RemoteRepo to create PR
@@ -975,6 +971,86 @@ ipcMain.handle('confirm-changes', async (event, changeSet: VisualEdit[]) => {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to confirm changes' };
   }
 });
+
+// Helper function to initialize LLM provider for code generation
+async function initializeLLMProviderForCodeGeneration(): Promise<{ provider: any; type: 'openai' | 'claude' | 'mock'; apiKey?: string }> {
+  try {
+    // Load LLM configuration from file
+    const llmConfigPath = path.join(__dirname, '../../..', 'llm-config.js');
+    let llmConfig: any = { openai: { enabled: false }, claude: { enabled: false } };
+    
+    try {
+      delete require.cache[require.resolve(llmConfigPath)];
+      llmConfig = require(llmConfigPath);
+    } catch (error) {
+      console.log('📝 No llm-config.js found, using environment variables and UI settings');
+    }
+
+    let llmProvider: any = null;
+
+    // Try to get API keys from config file first, then environment variables
+    const openaiKey = (llmConfig.openai?.enabled ? llmConfig.openai.apiKey : null) ||
+                      process.env.OPENAI_API_KEY ||
+                      // Uncomment and add your API key here for development:
+                      // 'sk-your-openai-key-here' ||
+                      null;
+
+    const claudeKey = (llmConfig.claude?.enabled ? llmConfig.claude.apiKey : null) ||
+                      process.env.ANTHROPIC_API_KEY || 
+                      process.env.CLAUDE_API_KEY ||
+                      // Uncomment and add your API key here for development:
+                      // 'sk-ant-your-claude-key-here' ||
+                      null;
+
+    if (openaiKey) {
+      llmProvider = new OpenAIProvider(openaiKey);
+      const source = llmConfig.openai?.enabled ? 'config file' : 
+                     process.env.OPENAI_API_KEY ? 'environment variable' : 'hardcoded';
+      console.log(`🤖 Using OpenAI provider for code generation (from ${source})`);
+      return { provider: llmProvider, type: 'openai', apiKey: openaiKey };
+    } else if (claudeKey) {
+      llmProvider = new ClaudeProvider(claudeKey);
+      const source = llmConfig.claude?.enabled ? 'config file' : 
+                     (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) ? 'environment variable' : 'hardcoded';
+      console.log(`🤖 Using Claude provider for code generation (from ${source})`);
+      return { provider: llmProvider, type: 'claude', apiKey: claudeKey };
+    } else {
+      // Fallback to UI configuration if no environment variables
+      const uiLlmConfig = store.get('llm') || { provider: 'mock' };
+      
+      if (uiLlmConfig.provider === 'openai') {
+        const apiKey = await keytar.getPassword('smart-qa-llm', 'openai-api-key');
+        if (apiKey) {
+          llmProvider = new OpenAIProvider(apiKey);
+          console.log('🤖 Using OpenAI provider for code generation (from UI settings)');
+          return { provider: llmProvider, type: 'openai', apiKey };
+        } else {
+          llmProvider = new MockLLMProvider();
+          console.log('🤖 Using Mock provider for code generation (OpenAI configured but no API key found)');
+          return { provider: llmProvider, type: 'mock' };
+        }
+      } else if (uiLlmConfig.provider === 'claude') {
+        const apiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key');
+        if (apiKey) {
+          llmProvider = new ClaudeProvider(apiKey);
+          console.log('🤖 Using Claude provider for code generation (from UI settings)');
+          return { provider: llmProvider, type: 'claude', apiKey };
+        } else {
+          llmProvider = new MockLLMProvider();
+          console.log('🤖 Using Mock provider for code generation (Claude configured but no API key found)');
+          return { provider: llmProvider, type: 'mock' };
+        }
+      } else {
+        llmProvider = new MockLLMProvider();
+        console.log('🤖 Using Mock provider for code generation (default)');
+        return { provider: llmProvider, type: 'mock' };
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize LLM provider:', error);
+    return { provider: new MockLLMProvider(), type: 'mock' };
+  }
+}
 
 // Helper function to build CodeIntents from VisualEdits
 async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo: RemoteRepo): Promise<CodeIntent[]> {
@@ -1212,7 +1288,7 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
 
 // Initialize repository analyzer for the configured GitHub repo
 async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Promise<void> {
-  console.log('🔍 Initializing repository analyzer...');
+  console.log('🔍 Initializing repository analyzer with hybrid approach...');
   
   try {
     if (!repoAnalyzer) {
@@ -1223,6 +1299,7 @@ async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Prom
     const repoId = `${config.owner}/${config.repo}`;
     
     console.log(`📊 Analyzing repository: ${repoId}`);
+    // Note: Analysis uses GitHub API for efficiency, but file editing uses local cloning for reliability
     const analysisResult = await repoAnalyzer.analyzeRepository(
       remoteRepo,
       {
@@ -1244,6 +1321,16 @@ async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Prom
       console.log(`   ⚛️ ${analysisResult.stats.componentsFound} components found`);
       console.log(`   📋 ${analysisResult.stats.rulesGenerated} transformation rules generated`);
       console.log(`   ⏱️ Analysis took ${analysisResult.stats.processingTime}ms`);
+      
+      // Debug: Show some sample DOM mappings
+      console.log(`🗺️ Sample DOM mappings (first 10):`);
+      let count = 0;
+      for (const [selector, mappings] of currentRepoModel.domMappings.entries()) {
+        if (count < 10) {
+          console.log(`   ${selector} → ${mappings[0]?.componentName} (${mappings[0]?.filePath})`);
+          count++;
+        }
+      }
     } else {
       console.warn('⚠️ Repository analysis failed:', analysisResult.errors);
       currentRepoModel = null;
@@ -1277,8 +1364,36 @@ async function mapVisualChangeWithSymbolicModel(
   // Extract element details
   const elementSelector = `${edit.element.tagName.toLowerCase()}${edit.element.id ? '#' + edit.element.id : ''}${edit.element.className ? '.' + edit.element.className.split(' ').join('.') : ''}`;
   
+  console.log(`🔍 Looking for DOM mappings for selector: ${elementSelector}`);
+  
   // Find matching DOM mappings from the symbolic model
-  const domMappings = currentRepoModel.domMappings.get(elementSelector) || [];
+  let domMappings = currentRepoModel.domMappings.get(elementSelector) || [];
+  
+  // If no exact match, try partial matching with key classes
+  if (domMappings.length === 0 && edit.element.className) {
+    const classes = edit.element.className.split(' ').filter(cls => 
+      !cls.includes('var(') && // Skip CSS custom property classes
+      cls.length > 2 && // Skip very short classes
+      !cls.startsWith('max-w') // Skip utility classes that are less specific
+    );
+    
+    console.log(`🔍 No exact match, trying partial matching with classes: ${classes.join(', ')}`);
+    
+    // Try different combinations of classes
+    for (const [selector, mappings] of currentRepoModel.domMappings.entries()) {
+      // Check if selector contains some of our key classes
+      const selectorClasses = selector.split('.').slice(1); // Remove tag name
+      const commonClasses = classes.filter(cls => selectorClasses.includes(cls));
+      
+      if (commonClasses.length >= 2) { // Require at least 2 matching classes
+        console.log(`🎯 Found partial match: ${selector} (${commonClasses.length} common classes: ${commonClasses.join(', ')})`);
+        domMappings = mappings;
+        break;
+      }
+    }
+  }
+  
+  console.log(`📊 Found ${domMappings.length} DOM mappings for element`);
   
   if (domMappings.length > 0) {
     // Sort by confidence and take the best match
@@ -1691,66 +1806,151 @@ function mapToTailwindSpacing(value: string): string {
   return spacingMap[value] || '4';
 }
 
-// Helper function to get file updates using R5 (InMemoryPatcher)
-async function getFileUpdates(codeIntents: CodeIntent[], config: any, remoteRepo: RemoteRepo) {
-  // Create a file reader that uses RemoteRepo to fetch file contents
-  const fileReader = {
-    readFile: async (options: { owner: string; repo: string; path: string; ref?: string }) => {
-      try {
-        console.log(`📖 Reading file: ${options.path} from ${options.owner}/${options.repo}@${options.ref}`);
-        const content = await remoteRepo.readFile({
-          owner: options.owner,
-          repo: options.repo,
-          path: options.path,
-          ref: options.ref || config.baseBranch
-        });
-        return content;
-      } catch (error) {
-        console.warn(`Failed to read file ${options.path}:`, error);
-        // Return empty content as fallback
-        return '';
+// Helper function to get file updates using hybrid approach (LocalRepo + InMemoryPatcher)
+async function getFileUpdatesHybrid(codeIntents: CodeIntent[], config: any, remoteRepo: RemoteRepo) {
+  console.log('🔄 Using hybrid approach: cloning repository locally for file operations');
+  
+  // Create local repository instance
+  const token = await keytar.getPassword('smart-qa-github', 'github-token') || '';
+  const localRepo = new LocalRepo({
+    owner: config.owner,
+    repo: config.repo,
+    branch: config.baseBranch,
+    token
+  });
+
+  let allFileUpdates: any[] = [];
+
+  try {
+    // Clone repository
+    await localRepo.clone();
+
+    // Create a file reader that uses local file system
+    const fileReader = {
+      readFile: async (options: { owner: string; repo: string; path: string; ref?: string }) => {
+        try {
+          console.log(`📖 Reading local file: ${options.path}`);
+          const content = await localRepo.readFile(options.path);
+          console.log(`✅ Successfully read ${options.path} (${content.length} chars)`);
+          return content;
+        } catch (error) {
+          console.error(`❌ Failed to read local file ${options.path}:`, error instanceof Error ? error.message : String(error));
+          throw error;
+        }
       }
-    }
-  };
-  
-  const patcher = new InMemoryPatcher(fileReader);
-  const allFileUpdates: any[] = [];
-  
-  for (const intent of codeIntents) {
-    try {
-      console.log(`🔍 Processing intent for ${intent.filePath}:`, intent.intent);
-      const result = await patcher.prepareFilesForIntent({
-        owner: config.owner,
-        repo: config.repo,
-        ref: config.baseBranch,
-        hints: [{
-          owner: config.owner,
-          repo: config.repo,
-          ref: config.baseBranch,
+    };
+    
+    // Get LLM provider for code generation (reuse the same logic as buildCodeIntents)
+    const { provider: llmProvider, type: providerType, apiKey } = await initializeLLMProviderForCodeGeneration();
+    const llmAdapter = llmProvider && apiKey && (providerType === 'openai' || providerType === 'claude') 
+      ? new LLMCodeAdapter({ apiKey, model: llmProvider.model }, providerType) 
+      : undefined;
+    
+    console.log(`🤖 LLM provider available: ${llmAdapter ? 'yes' : 'no'}`);
+    const patcher = new InMemoryPatcher(fileReader, llmAdapter);
+    
+    for (const intent of codeIntents) {
+      try {
+        console.log(`🔍 Processing intent for ${intent.filePath}:`, intent.intent);
+        
+        // Check if file exists locally first
+        const fileExists = await localRepo.fileExists(intent.filePath);
+        if (!fileExists) {
+          console.warn(`⚠️ File ${intent.filePath} does not exist locally, skipping`);
+          continue;
+        }
+
+        console.log(`🔍 Debug - Intent details:`, {
           filePath: intent.filePath,
           intent: intent.intent,
           targetElement: intent.targetElement,
           tailwindChanges: intent.tailwindChanges
-        }]
-      });
-      
-      console.log(`  ✅ Generated ${result.fileUpdates.length} file updates`);
-      allFileUpdates.push(...result.fileUpdates);
-      
-      // If no file updates but there's a changelog, add it as a file
-      if (result.fileUpdates.length === 0 && result.changelogEntry) {
-        console.log('  📝 Adding changelog entry as fallback');
+        });
+
+        const result = await patcher.prepareFilesForIntent({
+          owner: config.owner,
+          repo: config.repo,
+          ref: config.baseBranch,
+          hints: [{
+            owner: config.owner,
+            repo: config.repo,
+            ref: config.baseBranch,
+            filePath: intent.filePath,
+            intent: intent.intent,
+            targetElement: intent.targetElement,
+            tailwindChanges: intent.tailwindChanges
+          }]
+        });
+        
+        console.log(`🔍 Debug - InMemoryPatcher result:`, {
+          fileUpdatesCount: result.fileUpdates.length,
+          changelogEntry: result.changelogEntry ? 'present' : 'none',
+          fileUpdates: result.fileUpdates.map(f => ({ path: f.path, contentLength: f.newContent?.length }))
+        });
+        
+        console.log(`  ✅ Generated ${result.fileUpdates.length} file updates`);
+        allFileUpdates.push(...result.fileUpdates);
+        
+        // If no file updates but there's a changelog, add it as a file
+        if (result.fileUpdates.length === 0 && result.changelogEntry) {
+          console.log('  📝 Adding changelog entry as fallback');
+          allFileUpdates.push({
+            path: 'CHANGELOG.md',
+            newContent: result.changelogEntry
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to process intent for ${intent.filePath}:`, error instanceof Error ? error.message : String(error));
+        
+        // Create a changelog entry for failed intents
         allFileUpdates.push({
-          path: 'CHANGELOG.md',
-          newContent: result.changelogEntry
+          path: 'DESIGN_CHANGES.md',
+          newContent: `## Design Change Request
+
+**File**: ${intent.filePath}
+**Intent**: ${intent.intent}
+**Element**: ${intent.targetElement}
+**Reason**: Failed to process intent - ${error instanceof Error ? error.message : String(error)}
+
+**Tailwind Changes**:
+${intent.tailwindChanges && Array.isArray(intent.tailwindChanges) ? intent.tailwindChanges.map(c => `- ${c.property}: ${c.oldValue} → ${c.newValue}`).join('\n') : 'None'}
+
+---
+*Generated on ${new Date().toISOString()}*
+`
         });
       }
-    } catch (error) {
-      console.warn('Failed to process intent:', intent, error);
     }
+
+    // Ensure we always have at least one file update to prevent empty tree errors
+    if (allFileUpdates.length === 0) {
+      console.log('📝 No file updates generated, creating fallback changelog');
+      allFileUpdates.push({
+        path: 'DESIGN_CHANGES.md',
+        newContent: `## Design Change Request
+
+**Status**: No file updates could be generated
+**Timestamp**: ${new Date().toISOString()}
+
+**Original Intents**: ${codeIntents.length} visual edits were attempted but could not be processed.
+
+**Recommendation**: 
+1. Verify the visual edits target existing elements
+2. Check that the repository analysis is up to date
+3. Ensure file paths are correct
+
+---
+*This is an automatically generated fallback when no file updates can be created*
+`
+      });
+    }
+
+    return allFileUpdates;
+
+  } finally {
+    // Always cleanup the local repository
+    await localRepo.cleanup();
   }
-  
-  return allFileUpdates;
 }
 
 // Helper function to create pull request
@@ -1941,6 +2141,89 @@ ipcMain.handle('analyze-repository', async () => {
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred during analysis' 
     };
+  }
+});
+
+// Re-analyze repository (clear cache first)
+ipcMain.handle('re-analyze-repository', async () => {
+  try {
+    const config = store.get('github');
+    if (!config) {
+      return { success: false, error: 'No GitHub configuration found. Please configure GitHub settings first.' };
+    }
+
+    if (!gitClient.isAuthenticated()) {
+      return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
+    }
+
+    const octokit = gitClient.getOctokit();
+    const remoteRepo = new RemoteRepo(await keytar.getPassword('smart-qa-github', 'github-token') || '');
+    
+    console.log('🔄 Repository re-analysis requested - clearing cache...');
+    
+    // Clear cache first by forcing re-analysis
+    const repoId = `${config.owner}/${config.repo}`;
+    console.log('🗑️ Clearing cache and forcing fresh analysis');
+    
+    // Clear the disk cache file
+    try {
+      const { RepoCache } = await import('@smart-qa/repo-analyzer');
+      const cache = new RepoCache();
+      await cache.invalidate(repoId);
+      console.log('🗑️ Invalidated cache for twofoldsam/picturist-website');
+    } catch (error) {
+      console.warn('⚠️ Failed to clear cache:', error);
+    }
+    
+    // Clear the current model and force new analysis
+    currentRepoModel = null;
+    repoAnalyzer = null; // Force new analyzer instance
+    
+    await initializeRepoAnalyzer(config, remoteRepo);
+    
+    if (currentRepoModel) {
+      return {
+        success: true,
+        model: {
+          repoId: currentRepoModel.repoId,
+          analyzedAt: currentRepoModel.analyzedAt,
+          primaryFramework: currentRepoModel.primaryFramework,
+          stylingApproach: currentRepoModel.stylingApproach,
+          componentsCount: currentRepoModel.components.length,
+          transformationRulesCount: currentRepoModel.transformationRules.length,
+          components: currentRepoModel.components.map(c => ({
+            name: c.name,
+            filePath: c.filePath,
+            framework: c.framework,
+            domElementsCount: c.domElements.length,
+            stylingApproach: c.styling.approach,
+            classes: c.styling.classes.slice(0, 10) // Limit for UI
+          })),
+          domMappingsCount: currentRepoModel.domMappings.size,
+          domMappings: Array.from(currentRepoModel.domMappings.entries()).slice(0, 20).map(([selector, mappings]) => ({
+            selector,
+            mappings: mappings.map(m => ({
+              componentName: m.componentName,
+              filePath: m.filePath,
+              confidence: m.confidence
+            }))
+          })),
+          transformationRules: currentRepoModel.transformationRules.slice(0, 20).map(rule => ({
+            selector: rule.selector,
+            property: rule.property,
+            fromValue: rule.fromValue,
+            toValue: rule.toValue,
+            action: rule.action,
+            confidence: rule.confidence
+          }))
+        }
+      };
+    } else {
+      return { success: false, error: 'Failed to re-analyze repository. Check console for details.' };
+    }
+  } catch (error) {
+    console.error('❌ Repository re-analysis failed:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error during re-analysis' };
   }
 });
 

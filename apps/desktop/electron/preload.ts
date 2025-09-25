@@ -200,6 +200,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Repository Analysis API implementations
   analyzeRepository: () => ipcRenderer.invoke('analyze-repository'),
+  reAnalyzeRepository: () => ipcRenderer.invoke('re-analyze-repository'),
   getAnalysisStatus: () => ipcRenderer.invoke('get-analysis-status')
 } as ElectronAPI);
 

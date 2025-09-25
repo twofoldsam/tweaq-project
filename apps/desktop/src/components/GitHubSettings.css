@@ -324,6 +324,13 @@
 }
 
 /* Repository Analysis Styles */
+.analysis-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
 .analyze-button {
   background: #007bff;
   color: white;
@@ -333,7 +340,7 @@
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  margin-top: 10px;
+  transition: background-color 0.2s ease;
 }
 
 .analyze-button:hover:not(:disabled) {
@@ -343,6 +350,14 @@
 .analyze-button:disabled {
   background: #6c757d;
   cursor: not-allowed;
+}
+
+.reanalyze-button {
+  background: #dc3545;
+}
+
+.reanalyze-button:hover:not(:disabled) {
+  background: #c82333;
 }
 
 .analysis-status {

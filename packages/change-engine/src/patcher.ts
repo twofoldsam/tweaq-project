@@ -1,24 +1,21 @@
 import { Project, SourceFile, SyntaxKind, Node } from 'ts-morph';
-import type { SourceHint, PatchResult, PrepareFilesOptions } from './types';
-
-// Define interface for file reader to avoid circular dependency
-interface FileReader {
-  readFile(options: { owner: string; repo: string; path: string; ref?: string }): Promise<string>;
-}
+import type { SourceHint, PatchResult, PrepareFilesOptions, FileReader, LLMProvider } from './types';
 
 export class InMemoryPatcher {
   private project: Project;
   private fileReader: FileReader | undefined;
+  private llmProvider: LLMProvider | undefined;
 
-  constructor(fileReader?: FileReader) {
+  constructor(fileReader?: FileReader, llmProvider?: LLMProvider) {
     this.project = new Project({
       useInMemoryFileSystem: true,
     });
     this.fileReader = fileReader;
+    this.llmProvider = llmProvider;
   }
 
   /**
-   * Prepares files for intent-based modifications
+   * Prepares files for intent-based modifications using LLM-powered code generation
    */
   async prepareFilesForIntent(options: PrepareFilesOptions): Promise<PatchResult> {
     const { owner, repo, ref, hints } = options;
@@ -27,25 +24,67 @@ export class InMemoryPatcher {
 
     for (const hint of hints) {
       try {
-        // Fetch the file content (in a real implementation, this would use a GitHub API or similar)
-        const fileContent = await this.readFile(hint.filePath, { owner, repo, ref });
+        console.log(`🧠 Processing LLM-powered code change for ${hint.filePath}`);
         
-        // Add file to in-memory project
-        const sourceFile = this.project.createSourceFile(hint.filePath, fileContent, { overwrite: true });
+        // Fetch the file content
+        const fileContent = await this.readFile(hint.filePath, { owner, repo, ref });
+        console.log(`📖 Read file content: ${fileContent.length} characters`);
 
-        // Determine if this is a Tailwind-compatible file
-        if (this.isTailwindCompatible(sourceFile, hint)) {
-          const modifiedContent = await this.applyTailwindChanges(sourceFile, hint);
-          if (modifiedContent !== fileContent) {
-            fileUpdates.push({
-              path: hint.filePath,
-              newContent: modifiedContent,
-            });
+        // Use LLM to generate code changes if available
+        if (this.llmProvider) {
+          console.log(`🤖 Using LLM to generate code changes...`);
+          
+          const llmResult = await this.llmProvider.generateCodeChanges({
+            fileContent,
+            filePath: hint.filePath,
+            intent: hint.intent,
+            ...(hint.targetElement && { targetElement: hint.targetElement }),
+            context: `This is a ${this.getFileType(hint.filePath)} file. Please apply the requested changes precisely and return the complete modified file content.`
+          });
+
+          if (llmResult.success && llmResult.modifiedContent) {
+            console.log(`✅ LLM generated modified content: ${llmResult.modifiedContent.length} characters`);
+            
+            // Only add to file updates if the content actually changed
+            if (llmResult.modifiedContent !== fileContent) {
+              fileUpdates.push({
+                path: hint.filePath,
+                newContent: llmResult.modifiedContent,
+              });
+              console.log(`📝 Added file update for ${hint.filePath}`);
+            } else {
+              console.log(`ℹ️ No changes needed for ${hint.filePath}`);
+            }
+          } else {
+            console.warn(`❌ LLM failed to generate changes: ${llmResult.error}`);
+            // Fallback to deterministic approach
+            const fallbackResult = await this.applyDeterministicChanges(fileContent, hint);
+            if (fallbackResult !== fileContent) {
+              fileUpdates.push({
+                path: hint.filePath,
+                newContent: fallbackResult,
+              });
+            } else {
+              // Fallback to changelog entry
+              if (!changelogEntry) {
+                changelogEntry = this.generateChangelogEntry(hints);
+              }
+            }
           }
         } else {
-          // Fallback to changelog entry
-          if (!changelogEntry) {
-            changelogEntry = this.generateChangelogEntry(hints);
+          console.log(`🔧 No LLM provider available, using deterministic approach`);
+          // Fallback to deterministic approach
+          const fallbackResult = await this.applyDeterministicChanges(fileContent, hint);
+          if (fallbackResult !== fileContent) {
+            fileUpdates.push({
+              path: hint.filePath,
+              newContent: fallbackResult,
+            });
+          } else {
+            // Fallback to changelog entry
+            if (!changelogEntry) {
+              changelogEntry = this.generateChangelogEntry(hints);
+            }
           }
         }
       } catch (error) {
@@ -62,7 +101,46 @@ export class InMemoryPatcher {
       result.changelogEntry = changelogEntry;
     }
 
+    console.log(`🔧 InMemoryPatcher result: ${fileUpdates.length} file updates, changelog: ${changelogEntry ? 'yes' : 'no'}`);
     return result;
+  }
+
+  /**
+   * Gets the file type based on extension
+   */
+  private getFileType(filePath: string): string {
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'tsx':
+      case 'jsx':
+        return 'React/JSX';
+      case 'ts':
+        return 'TypeScript';
+      case 'js':
+        return 'JavaScript';
+      case 'vue':
+        return 'Vue';
+      case 'svelte':
+        return 'Svelte';
+      default:
+        return 'source code';
+    }
+  }
+
+  /**
+   * Applies deterministic changes (fallback when LLM is not available)
+   */
+  private async applyDeterministicChanges(fileContent: string, hint: SourceHint): Promise<string> {
+    // Add file to in-memory project for AST manipulation
+    const sourceFile = this.project.createSourceFile(hint.filePath, fileContent, { overwrite: true });
+
+    // Determine if this is a Tailwind-compatible file
+    if (this.isTailwindCompatible(sourceFile, hint)) {
+      return await this.applyTailwindChanges(sourceFile, hint);
+    }
+
+    // No changes could be applied deterministically
+    return fileContent;
   }
 
   /**

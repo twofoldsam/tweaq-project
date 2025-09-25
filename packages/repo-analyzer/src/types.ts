@@ -21,6 +21,9 @@ export interface ComponentStructure {
   slots?: ComponentSlot[];
   styling: ComponentStyling;
   domElements: DOMElementInfo[];
+  // Path validation tracking
+  validated?: boolean;
+  lastValidated?: Date;
 }
 
 export interface ComponentProp {

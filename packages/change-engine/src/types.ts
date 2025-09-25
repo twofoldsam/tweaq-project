@@ -57,3 +57,23 @@ export interface PrepareFilesOptions {
   ref: string;
   hints: SourceHint[];
 }
+
+// Define interface for file reader to avoid circular dependency
+export interface FileReader {
+  readFile(options: { owner: string; repo: string; path: string; ref?: string }): Promise<string>;
+}
+
+// Define interface for LLM provider to avoid circular dependency
+export interface LLMProvider {
+  generateCodeChanges(options: {
+    fileContent: string;
+    filePath: string;
+    intent: string;
+    targetElement?: string;
+    context?: string;
+  }): Promise<{
+    success: boolean;
+    modifiedContent?: string;
+    error?: string;
+  }>;
+}

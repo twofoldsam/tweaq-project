@@ -276,6 +276,31 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
     }
   };
 
+  const handleReAnalyzeRepository = async () => {
+    setAnalysisLoading(true);
+    setError(null);
+    setSuccess(null);
+    setAnalysisResult(null);
+
+    try {
+      // Clear existing analysis status first
+      setAnalysisStatus(null);
+      
+      const result = await window.electronAPI.reAnalyzeRepository();
+      if (result.success && result.model) {
+        setAnalysisResult(result.model);
+        setSuccess('Repository re-analysis completed successfully! Cache has been refreshed.');
+        await loadAnalysisStatus(); // Refresh status
+      } else {
+        setError(result.error || 'Failed to re-analyze repository');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to re-analyze repository');
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
   return (
     <div className="github-settings">
       <h2>GitHub Settings</h2>
@@ -411,13 +436,26 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
             </div>
           )}
           
-          <button 
-            onClick={handleAnalyzeRepository}
-            disabled={analysisLoading || !isAuthenticated || !config.owner || !config.repo}
-            className="analyze-button"
-          >
-            {analysisLoading ? 'Analyzing Repository...' : 'Analyze Repository'}
-          </button>
+          <div className="analysis-buttons">
+            <button 
+              onClick={handleAnalyzeRepository}
+              disabled={analysisLoading || !isAuthenticated || !config.owner || !config.repo}
+              className="analyze-button"
+            >
+              {analysisLoading ? 'Analyzing Repository...' : 'Analyze Repository'}
+            </button>
+            
+            {analysisStatus?.hasAnalysis && (
+              <button 
+                onClick={handleReAnalyzeRepository}
+                disabled={analysisLoading || !isAuthenticated || !config.owner || !config.repo}
+                className="analyze-button reanalyze-button"
+                title="Force re-analysis and clear cache"
+              >
+                {analysisLoading ? 'Re-analyzing...' : 'Re-analyze (Clear Cache)'}
+              </button>
+            )}
+          </div>
           
           {analysisResult && (
             <div className="analysis-results">
@@ -451,21 +489,21 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
                 <div className="detail-section">
                   <h5>Components Found</h5>
                   <div className="component-list">
-                    {analysisResult.components.slice(0, 10).map((comp: any, index: number) => (
+                    {(analysisResult.components || []).slice(0, 10).map((comp: any, index: number) => (
                       <div key={index} className="component-item">
                         <div className="component-name">{comp.name}</div>
                         <div className="component-path">{comp.filePath}</div>
                         <div className="component-meta">
                           {comp.framework} • {comp.domElementsCount} elements • {comp.stylingApproach}
                         </div>
-                        {comp.classes.length > 0 && (
+                        {comp.classes && comp.classes.length > 0 && (
                           <div className="component-classes">
                             Classes: {comp.classes.join(', ')}
                           </div>
                         )}
                       </div>
                     ))}
-                    {analysisResult.components.length > 10 && (
+                    {(analysisResult.components || []).length > 10 && (
                       <div className="more-items">
                         ... and {analysisResult.components.length - 10} more components
                       </div>
@@ -476,14 +514,14 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
                 <div className="detail-section">
                   <h5>DOM Mappings (Top 10)</h5>
                   <div className="mapping-list">
-                    {analysisResult.topMappings.map((mapping: any, index: number) => (
+                    {(analysisResult.domMappings || []).map((mapping: any, index: number) => (
                       <div key={index} className="mapping-item">
                         <div className="mapping-selector">{mapping.selector}</div>
                         <div className="mapping-target">
-                          → {mapping.topMapping.componentName} ({mapping.topMapping.filePath})
+                          → {mapping.mappings?.[0]?.componentName} ({mapping.mappings?.[0]?.filePath})
                         </div>
                         <div className="mapping-confidence">
-                          Confidence: {(mapping.topMapping.confidence * 100).toFixed(1)}%
+                          Confidence: {((mapping.mappings?.[0]?.confidence || 0) * 100).toFixed(1)}%
                         </div>
                       </div>
                     ))}
@@ -493,7 +531,7 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
                 <div className="detail-section">
                   <h5>Transformation Rules (Top 20)</h5>
                   <div className="rules-list">
-                    {analysisResult.transformationRules.map((rule: any, index: number) => (
+                    {(analysisResult.transformationRules || []).map((rule: any, index: number) => (
                       <div key={index} className="rule-item">
                         <div className="rule-selector">{rule.selector}</div>
                         <div className="rule-transform">
