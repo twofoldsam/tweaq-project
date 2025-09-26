@@ -42,16 +42,10 @@ export function VisualCodingAgent({ onClose }: VisualCodingAgentProps) {
     setError(null);
 
     try {
-      // Get the Anthropic API key from environment variables
-      const anthropicApiKey = await window.electronAPI.getEnvVar('ANTHROPIC_API_KEY');
-      
-      if (!anthropicApiKey) {
-        setError('Anthropic API key not found. Please set ANTHROPIC_API_KEY in your environment variables.');
-        return;
-      }
-
+      // For now, use mock implementation regardless of API key
+      // This allows the UI to work while we resolve integration issues
       const config: VisualCodingConfig = {
-        anthropicApiKey,
+        anthropicApiKey: 'mock-key-for-demo',
         cacheAnalysis: true
       };
 

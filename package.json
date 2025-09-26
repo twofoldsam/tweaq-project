@@ -4,6 +4,7 @@
   "private": true,
   "description": "Smart QA Browser - Electron desktop app for visual code editing",
   "scripts": {
+    "predev": "lsof -ti:5173 | xargs kill -9 2>/dev/null || true",
     "dev": "concurrently \"pnpm --filter desktop dev\" \"pnpm --filter overlay dev\"",
     "build": "pnpm --filter overlay build && pnpm --filter desktop build",
     "build:all": "pnpm -r build",

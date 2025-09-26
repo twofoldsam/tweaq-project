@@ -4,24 +4,14 @@
  * This service provides a clean interface for integrating the visual coding agent
  * with the Smart QA Browser application. It handles initialization, configuration,
  * and provides methods for processing visual design requests.
+ * 
+ * The agent runs in the Electron main process via IPC to avoid CommonJS/ES module issues.
  */
 
-// Import types from the TypeScript definitions
-import type { 
-  VisualRequest, 
-  VisualResponse,
-  DesignContext,
-  DOMElement,
-  CodeChange,
-  Alternative,
-  DesignTokens,
-  Framework,
-  StylingSystem
-} from './visual-coding-agent';
+// ===== TYPE DEFINITIONS =====
 
-// Import the actual implementation using CommonJS require
-const { createVisualCodingAgent, VisualCodingAgent } = require('./visual-coding-agent');
-const { AnthropicClaudeProvider } = require('./visual-coding-agent/packages/providers/claude');
+export type Framework = 'react' | 'vue' | 'svelte';
+export type StylingSystem = 'tailwind' | 'css-modules' | 'styled-components' | 'vanilla-css' | 'mui' | 'chakra' | 'ant-design';
 
 export interface VisualCodingConfig {
   anthropicApiKey: string;
@@ -49,6 +39,21 @@ export interface DesignRequest {
   filePath?: string;
 }
 
+export interface CodeChange {
+  filePath: string;
+  oldContent: string;
+  newContent: string;
+  reasoning: string;
+  changeType: 'modify' | 'create' | 'delete';
+}
+
+export interface Alternative {
+  description: string;
+  changes: CodeChange[];
+  tradeoffs: string;
+  confidence: number;
+}
+
 export interface DesignResponse {
   changes: CodeChange[];
   explanation: string;
@@ -58,8 +63,23 @@ export interface DesignResponse {
   tokensUsed?: number;
 }
 
+export interface DesignTokens {
+  colors: Record<string, Record<string, string>>;
+  spacing: Record<string, string>;
+  typography: {
+    fontSizes: Record<string, string>;
+    fontWeights: Record<string, string>;
+    lineHeights: Record<string, string>;
+    fontFamilies: Record<string, string>;
+  };
+  shadows: Record<string, string>;
+  borderRadius: Record<string, string>;
+  breakpoints: Record<string, string>;
+}
+
+// ===== MAIN SERVICE CLASS =====
+
 export class VisualCodingAgentService {
-  private agent: VisualCodingAgent | null = null;
   private config: VisualCodingConfig;
   private designTokens: DesignTokens;
   private initialized = false;
@@ -69,41 +89,88 @@ export class VisualCodingAgentService {
     this.designTokens = this.getDefaultDesignTokens();
   }
 
+  // ===== INITIALIZATION =====
+
   /**
-   * Initialize the visual coding agent
+   * Initialize the visual coding agent via IPC to main process
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
     try {
-      const claudeProvider = new AnthropicClaudeProvider(this.config.anthropicApiKey);
-      const agentConfig: any = {};
-      if (this.config.repositoryPath) {
-        agentConfig.repositoryPath = this.config.repositoryPath;
+      const result = await (window as any).electronAPI?.initializeVisualAgent?.(this.config);
+      
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to initialize Visual Coding Agent');
       }
-      agentConfig.cacheAnalysis = this.config.cacheAnalysis ?? true;
-      
-      this.agent = createVisualCodingAgent(claudeProvider, agentConfig);
-      
+
       this.initialized = true;
-      console.log('Visual Coding Agent initialized successfully');
+      console.log('✅ Visual Coding Agent initialized successfully via IPC');
     } catch (error) {
       console.error('Failed to initialize Visual Coding Agent:', error);
       throw new Error(`Failed to initialize Visual Coding Agent: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
+  // ===== CORE PROCESSING METHODS =====
+
   /**
-   * Process a visual design request
+   * Process visual edits from the overlay system (main integration point)
    */
-  async processDesignRequest(request: DesignRequest): Promise<DesignResponse> {
-    if (!this.agent) {
+  async processVisualEdits(visualEdits: any[], context?: any): Promise<DesignResponse> {
+    if (!this.initialized) {
       throw new Error('Visual Coding Agent not initialized. Call initialize() first.');
     }
 
     try {
-      // Convert ElementSelection to DOMElement format
-      const domElement: DOMElement = {
+      const description = this.generateDescriptionFromEdits(visualEdits);
+      const selectedElement = this.extractElementFromEdits(visualEdits);
+
+      const designContext = {
+        designTokens: this.designTokens,
+        framework: 'react' as Framework,
+        stylingSystem: 'vanilla-css' as StylingSystem,
+        fileStructure: this.getFileStructure(),
+        componentPatterns: this.getComponentPatterns(),
+        existingCode: context?.existingCode,
+        filePath: context?.filePath,
+        symbolicContext: context?.symbolicContext
+      };
+
+      const result = await (window as any).electronAPI?.processVisualRequest?.({
+        description,
+        selectedElement,
+        context: designContext,
+        framework: 'react' as Framework
+      });
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to process visual request');
+      }
+
+      return {
+        changes: result.data.changes,
+        explanation: result.data.explanation,
+        alternatives: result.data.alternatives,
+        confidence: result.data.confidence,
+        designPrinciples: result.data.designPrinciples
+      };
+    } catch (error) {
+      console.error('Error processing visual edits:', error);
+      throw new Error(`Failed to process visual edits: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Process a direct visual design request (for UI usage)
+   */
+  async processDesignRequest(request: DesignRequest): Promise<DesignResponse> {
+    if (!this.initialized) {
+      throw new Error('Visual Coding Agent not initialized. Call initialize() first.');
+    }
+
+    try {
+      const domElement = {
         tagName: request.selectedElement.tagName,
         classes: request.selectedElement.classes,
         id: request.selectedElement.id,
@@ -112,8 +179,7 @@ export class VisualCodingAgentService {
         attributes: request.selectedElement.attributes
       };
 
-      // Build design context
-      const context: DesignContext = {
+      const context = {
         designTokens: this.designTokens,
         framework: request.framework,
         stylingSystem: request.stylingSystem,
@@ -123,23 +189,25 @@ export class VisualCodingAgentService {
         filePath: request.filePath
       };
 
-      // Create visual request
-      const visualRequest: VisualRequest = {
+      const visualRequest = {
         description: request.description,
         element: domElement,
         context,
         framework: request.framework
       };
 
-      // Process the request
-      const response: VisualResponse = await this.agent.processRequest(visualRequest);
+      const result = await (window as any).electronAPI?.processVisualRequest?.(visualRequest);
+      
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to process visual request');
+      }
 
       return {
-        changes: response.changes,
-        explanation: response.explanation,
-        alternatives: response.alternatives,
-        confidence: response.confidence,
-        designPrinciples: response.designPrinciples
+        changes: result.data.changes,
+        explanation: result.data.explanation,
+        alternatives: result.data.alternatives,
+        confidence: result.data.confidence,
+        designPrinciples: result.data.designPrinciples
       };
     } catch (error) {
       console.error('Error processing design request:', error);
@@ -147,45 +215,21 @@ export class VisualCodingAgentService {
     }
   }
 
-  /**
-   * Update design tokens configuration
-   */
-  updateDesignTokens(tokens: Partial<DesignTokens>): void {
-    this.designTokens = {
-      ...this.designTokens,
-      ...tokens
-    };
-  }
-
-  /**
-   * Get current design tokens
-   */
-  getDesignTokens(): DesignTokens {
-    return { ...this.designTokens };
-  }
+  // ===== UTILITY METHODS =====
 
   /**
    * Extract element information from a DOM element
    */
-  static extractElementInfo(element: HTMLElement): ElementSelection {
-    const computedStyle = window.getComputedStyle(element);
+  extractElementInfo(element: HTMLElement): ElementSelection {
     const style: Record<string, string> = {};
-    
-    // Extract key style properties
-    const importantStyles = [
-      'display', 'position', 'width', 'height', 'margin', 'padding',
-      'background', 'color', 'font-size', 'font-weight', 'border',
-      'border-radius', 'box-shadow', 'opacity', 'transform'
-    ];
-    
-    importantStyles.forEach(prop => {
+    const computedStyle = window.getComputedStyle(element);
+    Array.from(computedStyle).forEach(prop => {
       const value = computedStyle.getPropertyValue(prop);
       if (value) {
         style[prop] = value;
       }
     });
 
-    // Extract attributes
     const attributes: Record<string, string> = {};
     for (let i = 0; i < element.attributes.length; i++) {
       const attr = element.attributes[i];
@@ -207,171 +251,93 @@ export class VisualCodingAgentService {
   }
 
   /**
-   * Generate a CSS selector for an element
+   * Update design tokens configuration
    */
-  private static generateSelector(element: HTMLElement): string {
-    if (element.id) {
-      return `#${element.id}`;
-    }
-    
-    let selector = element.tagName.toLowerCase();
-    
-    if (element.classList.length > 0) {
-      selector += '.' + Array.from(element.classList).join('.');
-    }
-    
-    // Add nth-child if needed for uniqueness
-    const parent = element.parentElement;
-    if (parent) {
-      const siblings = Array.from(parent.children).filter(
-        child => child.tagName === element.tagName
-      );
-      if (siblings.length > 1) {
-        const index = siblings.indexOf(element) + 1;
-        selector += `:nth-child(${index})`;
-      }
-    }
-    
-    return selector;
+  updateDesignTokens(tokens: Partial<DesignTokens>): void {
+    this.designTokens = { ...this.designTokens, ...tokens };
   }
 
   /**
-   * Check if the agent is initialized
+   * Get current design context
    */
-  isInitialized(): boolean {
-    return this.initialized;
-  }
-
-  /**
-   * Clear the analysis cache
-   */
-  clearCache(): void {
-    if (this.agent) {
-      this.agent.clearAnalysisCache();
-    }
-  }
-
-  /**
-   * Get default design tokens based on the application's current styling
-   */
-  private getDefaultDesignTokens(): DesignTokens {
+  async getDesignContext(): Promise<any> {
     return {
-      colors: {
-        primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe', 
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9', // Main primary color similar to #007acc
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e'
-        },
-        gray: {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-          300: '#d1d5db',
-          400: '#9ca3af',
-          500: '#6b7280',
-          600: '#4b5563',
-          700: '#374151',
-          800: '#1f2937',
-          900: '#111827'
-        },
-        white: '#ffffff',
-        black: '#000000'
-      },
-      typography: {
-        fontSizes: {
-          xs: '0.75rem',
-          sm: '0.875rem',
-          base: '1rem',
-          lg: '1.125rem',
-          xl: '1.25rem',
-          '2xl': '1.5rem',
-          '3xl': '1.875rem',
-          '4xl': '2.25rem'
-        },
-        fontWeights: {
-          normal: '400',
-          medium: '500',
-          semibold: '600',
-          bold: '700'
-        },
-        lineHeights: {
-          tight: '1.25',
-          normal: '1.5',
-          relaxed: '1.75'
-        },
-        fontFamilies: {
-          sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-          mono: '"SF Mono", Monaco, Inconsolata, "Roboto Mono", monospace'
-        }
-      },
-      spacing: {
-        0: '0px',
-        1: '0.25rem',
-        2: '0.5rem',
-        3: '0.75rem',
-        4: '1rem',
-        5: '1.25rem',
-        6: '1.5rem',
-        8: '2rem',
-        10: '2.5rem',
-        12: '3rem',
-        16: '4rem',
-        20: '5rem',
-        24: '6rem'
-      },
-      shadows: {
-        sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        default: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-        md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-        xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
-      },
-      borderRadius: {
-        none: '0px',
-        sm: '0.125rem',
-        default: '0.25rem',
-        md: '0.375rem',
-        lg: '0.5rem',
-        xl: '0.75rem',
-        '2xl': '1rem',
-        full: '9999px'
-      },
-      breakpoints: {
-        sm: '640px',
-        md: '768px',
-        lg: '1024px',
-        xl: '1280px',
-        '2xl': '1536px'
-      }
+      framework: 'react',
+      stylingSystem: 'tailwind',
+      designTokens: this.designTokens,
+      componentPatterns: this.getComponentPatterns(),
+      fileStructure: this.getFileStructure(),
+      existingCode: '',
+      filePath: '',
     };
   }
 
-  /**
-   * Get file structure for the current project
-   */
+  // ===== PRIVATE HELPER METHODS =====
+
+  private generateDescriptionFromEdits(visualEdits: any[]): string {
+    if (visualEdits.length === 0) return 'Apply visual changes';
+    
+    const changes = visualEdits.flatMap(edit => edit.changes || []);
+    const descriptions = changes.map(change => {
+      const property = change.property;
+      const from = change.before;
+      const to = change.after;
+      
+      if (property.includes('color')) {
+        return `change ${property} from ${from} to ${to}`;
+      } else if (property.includes('size') || property.includes('width') || property.includes('height')) {
+        return `adjust ${property} from ${from} to ${to}`;
+      } else if (property.includes('margin') || property.includes('padding')) {
+        return `modify spacing (${property}) from ${from} to ${to}`;
+      } else {
+        return `update ${property} from ${from} to ${to}`;
+      }
+    });
+    
+    return `Apply the following changes: ${descriptions.join(', ')}`;
+  }
+
+  private extractElementFromEdits(visualEdits: any[]): any {
+    if (visualEdits.length === 0) {
+      return {
+        tagName: 'div',
+        classes: [],
+        textContent: 'Unknown element'
+      };
+    }
+    
+    const firstEdit = visualEdits[0];
+    return {
+      tagName: firstEdit.element?.tagName || 'div',
+      classes: firstEdit.element?.className ? firstEdit.element.className.split(' ') : [],
+      id: firstEdit.element?.id,
+      textContent: firstEdit.element?.textContent
+    };
+  }
+
+  private generateSelector(element: HTMLElement): string {
+    if (element.id) {
+      return `#${element.id}`;
+    }
+    let selector = element.tagName.toLowerCase();
+    if (element.classList.length > 0) {
+      selector += `.${Array.from(element.classList).join('.')}`;
+    }
+    return selector;
+  }
+
   private getFileStructure(): string[] {
     return [
-      'src/',
       'src/components/',
-      'src/services/',
-      'src/types.d.ts',
+      'src/pages/',
+      'src/styles/',
+      'src/utils/',
       'src/App.tsx',
-      'src/App.css',
       'src/index.css',
       'src/main.tsx'
     ];
   }
 
-  /**
-   * Get component patterns for the current project
-   */
   private getComponentPatterns(): Record<string, any> {
     return {
       namingConvention: 'PascalCase',
@@ -384,6 +350,51 @@ export class VisualCodingAgentService {
         children: 'React.ReactNode',
         onClick: '() => void',
         disabled: 'boolean'
+      }
+    };
+  }
+
+  private getDefaultDesignTokens(): DesignTokens {
+    return {
+      colors: {
+        primary: { 500: '#3b82f6', 600: '#2563eb' },
+        secondary: { 500: '#6366f1', 600: '#4f46e5' },
+        gray: { 100: '#f3f4f6', 600: '#4b5563' }
+      },
+      spacing: {
+        '1': '0.25rem', '2': '0.5rem', '3': '0.75rem', '4': '1rem', 
+        '5': '1.25rem', '6': '1.5rem', '8': '2rem', '10': '2.5rem', 
+        '12': '3rem', '16': '4rem'
+      },
+      typography: {
+        fontSizes: {
+          xs: '0.75rem', sm: '0.875rem', base: '1rem', lg: '1.125rem', 
+          xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem'
+        },
+        fontWeights: {
+          normal: '400', medium: '500', semibold: '600', bold: '700'
+        },
+        lineHeights: {
+          none: '1', tight: '1.25', snug: '1.375', normal: '1.5', 
+          relaxed: '1.625', loose: '2'
+        },
+        fontFamilies: {
+          sans: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+          serif: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+          mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+        }
+      },
+      shadows: {
+        sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+      },
+      borderRadius: {
+        none: '0', sm: '0.125rem', md: '0.375rem', lg: '0.5rem', 
+        xl: '0.75rem', full: '9999px'
+      },
+      breakpoints: {
+        sm: '640px', md: '768px', lg: '1024px', xl: '1280px', '2xl': '1536px'
       }
     };
   }

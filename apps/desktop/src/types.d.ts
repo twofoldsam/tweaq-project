@@ -73,6 +73,10 @@ interface ElectronAPI {
   // Environment variables
   getEnvVar: (key: string) => Promise<string | undefined>;
   
+  // Visual Coding Agent
+  initializeVisualAgent: (config: any) => Promise<{ success: boolean; error?: string }>;
+  processVisualRequest: (request: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  
   // Repository Analysis API
   analyzeRepository: () => Promise<{ success: boolean; model?: any; error?: string }>;
   reAnalyzeRepository: () => Promise<{ success: boolean; model?: any; error?: string }>;

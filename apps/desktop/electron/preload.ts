@@ -71,6 +71,10 @@ export interface ElectronAPI {
   
   // Environment variables
   getEnvVar: (key: string) => Promise<string | undefined>;
+  
+  // Visual Coding Agent
+  initializeVisualAgent: (config: any) => Promise<{ success: boolean; error?: string }>;
+  processVisualRequest: (request: any) => Promise<{ success: boolean; data?: any; error?: string }>;
 }
 
 export interface VisualEdit {
@@ -212,7 +216,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   codexGetStatus: () => ipcRenderer.invoke('codex-get-status'),
   
   // Environment variables
-  getEnvVar: (key: string) => ipcRenderer.invoke('get-env-var', key)
+  getEnvVar: (key: string) => ipcRenderer.invoke('get-env-var', key),
+  
+  // Visual Coding Agent
+  initializeVisualAgent: (config: any) => ipcRenderer.invoke('initialize-visual-agent', config),
+  processVisualRequest: (request: any) => ipcRenderer.invoke('process-visual-request', request)
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI
