@@ -43,6 +43,8 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [analysisStatus, setAnalysisStatus] = useState<any>(null);
+  const [codexStatus, setCodexStatus] = useState<{ enabled: boolean; connectedAt: string | null }>({ enabled: false, connectedAt: null });
+  const [codexLoading, setCodexLoading] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -58,6 +60,15 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
       loadConfig();
     }
   }, [repositories]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await window.electronAPI.codexGetStatus();
+        setCodexStatus(s);
+      } catch {}
+    })();
+  }, []);
 
   const checkAuthStatus = async () => {
     try {
@@ -298,6 +309,33 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
       setError(err instanceof Error ? err.message : 'Failed to re-analyze repository');
     } finally {
       setAnalysisLoading(false);
+    }
+  };
+
+  const handleCodexOpen = async () => {
+    setCodexLoading(true);
+    try {
+      await window.electronAPI.codexOpenSetup();
+    } finally {
+      setCodexLoading(false);
+    }
+  };
+
+  const handleCodexMarkConnected = async () => {
+    setCodexLoading(true);
+    try {
+      const res = await window.electronAPI.codexMarkConnected();
+      if (res.success) {
+        const s = await window.electronAPI.codexGetStatus();
+        setCodexStatus(s);
+        setSuccess('Codex connected and saved. You only need to do this once.');
+      } else {
+        setError(res.error || 'Failed to save Codex connection');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save Codex connection');
+    } finally {
+      setCodexLoading(false);
     }
   };
 
@@ -547,6 +585,37 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Codex Integration */}
+      {isAuthenticated && (
+        <div className="settings-section">
+          <h3>Codex Integration</h3>
+          <p>Delegate code edits to OpenAI Codex. This requires a one-time connection in Codex.</p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleCodexOpen}
+              disabled={codexLoading}
+              className="analyze-button"
+            >
+              {codexLoading ? 'Opening Codex…' : (codexStatus.enabled ? 'Reopen Codex' : 'Connect Codex')}
+            </button>
+            {!codexStatus.enabled && (
+              <button
+                onClick={handleCodexMarkConnected}
+                disabled={codexLoading}
+                className="analyze-button"
+              >
+                {codexLoading ? 'Saving…' : "I've connected Codex"}
+              </button>
+            )}
+            {codexStatus.enabled && (
+              <span style={{ fontSize: 12, color: '#198754' }}>
+                Connected{codexStatus.connectedAt ? ` • ${new Date(codexStatus.connectedAt).toLocaleString()}` : ''}
+              </span>
+            )}
+          </div>
         </div>
       )}
 

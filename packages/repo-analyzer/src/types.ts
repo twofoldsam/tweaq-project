@@ -115,10 +115,23 @@ export interface RepoSymbolicModel {
   
   // Transformation Rules
   transformationRules: TransformationRule[];
+  // Design tokens and libraries detected
+  designTokens?: DesignTokens;
+  librariesDetected?: string[];
   
   // Cache metadata
   fileHashes: Map<string, string>;
   lastModified: Date;
+}
+
+export interface DesignTokens {
+  colors?: Record<string, string>;
+  fontSize?: Record<string, string>;
+  spacing?: Record<string, string>;
+  radius?: Record<string, string>;
+  shadows?: Record<string, string>;
+  lineHeight?: Record<string, string>;
+  fontWeight?: Record<string, string>;
 }
 
 export interface ComponentMapping {

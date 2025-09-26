@@ -17,17 +17,19 @@
     "clean": "rimraf dist build"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "electron-store": "^8.1.0",
+    "@anthropic-ai/sdk": "^0.63.1",
+    "@octokit/auth-oauth-device": "^6.0.1",
+    "@octokit/rest": "^20.0.1",
+    "@smart-qa/change-engine": "workspace:*",
     "@smart-qa/github": "workspace:*",
     "@smart-qa/github-remote": "workspace:*",
-    "@smart-qa/change-engine": "workspace:*",
     "@smart-qa/mapping-remote": "workspace:*",
     "@smart-qa/repo-analyzer": "workspace:*",
+    "electron-store": "^8.1.0",
     "keytar": "^7.9.0",
-    "@octokit/rest": "^20.0.1",
-    "@octokit/auth-oauth-device": "^6.0.1"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

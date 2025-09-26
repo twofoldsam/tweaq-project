@@ -140,6 +140,11 @@ export class RepoAnalyzer {
         },
         domMappings,
         transformationRules,
+        designTokens: this.buildDesignTokens({
+          tailwindConfig: stylingPatterns.tailwindConfig,
+          cssVariables: stylingPatterns.variables
+        }),
+        librariesDetected: this.detectLibraries(),
         fileHashes: new Map(), // TODO: Implement file hashing
         lastModified: new Date()
       };
@@ -185,6 +190,35 @@ export class RepoAnalyzer {
     }
   }
 
+  private buildDesignTokens(options: { tailwindConfig?: any; cssVariables: Map<string, string> }) {
+    const tokens: any = {};
+    if (options.tailwindConfig?.theme) {
+      const t = options.tailwindConfig.theme;
+      if (t.fontSize) tokens.fontSize = t.fontSize;
+      if (t.colors) tokens.colors = t.colors;
+      if (t.spacing) tokens.spacing = t.spacing;
+      if (t.borderRadius) tokens.radius = t.borderRadius;
+      if (t.boxShadow) tokens.shadows = t.boxShadow;
+      if (t.lineHeight) tokens.lineHeight = t.lineHeight;
+      if (t.fontWeight) tokens.fontWeight = t.fontWeight;
+    }
+    if (options.cssVariables && options.cssVariables.size > 0) {
+      tokens.colors = tokens.colors || {};
+      for (const [k] of options.cssVariables.entries()) {
+        if (/^--.*(color|brand|primary|secondary|accent|bg|fg)/i.test(k)) {
+          tokens.colors[k.replace(/^--/, '')] = `var(${k})`;
+        }
+      }
+    }
+    return tokens;
+  }
+
+  private detectLibraries(): string[] {
+    const libs: string[] = [];
+    // Placeholder: in a full implementation, inspect package.json and imports
+    libs.push('tailwind');
+    return libs;
+  }
   private async discoverFiles(
     remoteRepo: RemoteRepo,
     config: { owner: string; repo: string; baseBranch: string },

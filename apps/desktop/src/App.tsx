@@ -3,6 +3,7 @@ import './App.css';
 import { GitHubSettings } from './components/GitHubSettings';
 import CDPTest from './components/CDPTest';
 import { LLMSettings } from './components/LLMSettings';
+import VisualCodingAgent from './components/VisualCodingAgent';
 
 interface PageState {
   url: string;
@@ -24,7 +25,7 @@ function App() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState<'github' | 'cdp' | 'llm'>('github');
+  const [activeTab, setActiveTab] = useState<'github' | 'cdp' | 'llm' | 'visual-agent'>('github');
   const [githubAuthState, setGithubAuthState] = useState<{
     isAuthenticated: boolean;
     user: GitHubUser | null;
@@ -251,6 +252,12 @@ function App() {
               >
                 LLM Settings
               </button>
+              <button 
+                className={`tab-button ${activeTab === 'visual-agent' ? 'active' : ''}`}
+                onClick={() => setActiveTab('visual-agent')}
+              >
+                Visual Agent
+              </button>
             </div>
           </div>
         )}
@@ -330,6 +337,11 @@ function App() {
         )}
         {showSettings && activeTab === 'cdp' && <CDPTest />}
         {showSettings && activeTab === 'llm' && <LLMSettings />}
+        {showSettings && activeTab === 'visual-agent' && (
+          <VisualCodingAgent 
+            onClose={() => setShowSettings(false)}
+          />
+        )}
       </main>
     </div>
   );

@@ -68,6 +68,9 @@ export interface ElectronAPI {
   llmSaveConfig: (config: { provider: string; apiKey?: string }) => Promise<{ success: boolean; error?: string }>;
   llmGetConfig: () => Promise<{ provider: string; hasApiKey?: boolean }>;
   llmTestConnection: () => Promise<{ success: boolean; message?: string; error?: string }>;
+  
+  // Environment variables
+  getEnvVar: (key: string) => Promise<string | undefined>;
 }
 
 export interface VisualEdit {
@@ -202,6 +205,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzeRepository: () => ipcRenderer.invoke('analyze-repository'),
   reAnalyzeRepository: () => ipcRenderer.invoke('re-analyze-repository'),
   getAnalysisStatus: () => ipcRenderer.invoke('get-analysis-status')
+  ,
+  // Codex helpers
+  codexOpenSetup: () => ipcRenderer.invoke('codex-open-setup'),
+  codexMarkConnected: () => ipcRenderer.invoke('codex-mark-connected'),
+  codexGetStatus: () => ipcRenderer.invoke('codex-get-status'),
+  
+  // Environment variables
+  getEnvVar: (key: string) => ipcRenderer.invoke('get-env-var', key)
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI

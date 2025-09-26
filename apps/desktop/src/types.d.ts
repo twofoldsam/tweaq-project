@@ -70,10 +70,18 @@ interface ElectronAPI {
   llmGetConfig: () => Promise<{ provider: string; hasApiKey?: boolean }>;
   llmTestConnection: () => Promise<{ success: boolean; message?: string; error?: string }>;
   
+  // Environment variables
+  getEnvVar: (key: string) => Promise<string | undefined>;
+  
   // Repository Analysis API
   analyzeRepository: () => Promise<{ success: boolean; model?: any; error?: string }>;
   reAnalyzeRepository: () => Promise<{ success: boolean; model?: any; error?: string }>;
   getAnalysisStatus: () => Promise<{ hasAnalysis: boolean; repoId?: string; analyzedAt?: Date; componentsCount?: number; rulesCount?: number }>;
+
+  // Codex API
+  codexOpenSetup: () => Promise<{ success: boolean; error?: string }>;
+  codexMarkConnected: () => Promise<{ success: boolean; error?: string }>;
+  codexGetStatus: () => Promise<{ enabled: boolean; connectedAt: string | null }>;
 }
 
 declare global {
