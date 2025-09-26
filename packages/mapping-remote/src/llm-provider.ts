@@ -226,8 +226,8 @@ export class MockLLMProvider extends BaseLLMProvider {
  * OpenAI GPT provider implementation
  */
 export class OpenAIProvider extends BaseLLMProvider {
-  private apiKey: string;
-  private model: string;
+  public apiKey: string;
+  public model: string;
 
   constructor(apiKey: string, model: string = 'gpt-4') {
     super();
@@ -285,10 +285,10 @@ export class OpenAIProvider extends BaseLLMProvider {
  * Anthropic Claude provider implementation  
  */
 export class ClaudeProvider extends BaseLLMProvider {
-  private apiKey: string;
-  private model: string;
+  public apiKey: string;
+  public model: string;
 
-  constructor(apiKey: string, model: string = 'claude-3-sonnet-20240229') {
+  constructor(apiKey: string, model: string = 'claude-sonnet-4-20250514') {
     super();
     this.apiKey = apiKey;
     this.model = model;

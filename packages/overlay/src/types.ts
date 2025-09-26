@@ -63,21 +63,54 @@ export interface PropertiesPanelProps {
   onClose: () => void;
 }
 
-// Enhanced Edit mode types
+// Enhanced Edit mode types - Optimized for Agent Processing
 export interface VisualEdit {
   id: string;
   timestamp: number;
+  sessionId?: string;
+  
+  // Enhanced element context
   element: {
     selector: string;
     tagName: string;
     id: string | undefined;
     className: string | undefined;
+    textContent?: string;
+    computedStyles?: Record<string, string>;
+    boundingRect?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    // Component context
+    componentPath?: string;
+    componentName?: string;
   };
+  
+  // Enhanced changes with categorization
   changes: {
     property: string;
     before: string;
     after: string;
+    category: 'layout' | 'typography' | 'color' | 'spacing' | 'border' | 'background' | 'animation' | 'other';
+    impact: 'visual' | 'structural' | 'behavioral';
+    confidence: number;
   }[];
+  
+  // User intent context
+  intent: {
+    description: string;
+    userAction: 'direct-edit' | 'copy-from' | 'suggested' | 'batch-operation';
+    relatedEdits?: string[];
+  };
+  
+  // Validation context
+  validation?: {
+    applied: boolean;
+    errors?: string[];
+    warnings?: string[];
+  };
 }
 
 export interface PendingEdit {

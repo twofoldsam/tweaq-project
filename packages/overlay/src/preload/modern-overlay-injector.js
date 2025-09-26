@@ -1551,23 +1551,13 @@
     recordEdit() {
       if (!this.selectedElement || this.pendingEdits.size === 0) return;
 
-      const visualEdit = {
-        id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: Date.now(),
-        element: {
-          selector: this.getElementSelector(this.selectedElement),
-          tagName: this.selectedElement.tagName,
-          id: this.selectedElement.id || undefined,
-          className: this.selectedElement.className || undefined,
-        },
-        changes: Array.from(this.pendingEdits.values()).map(edit => ({
-          property: edit.property,
-          before: edit.before,
-          after: edit.after,
-        })),
-      };
+      const visualEdit = this.createOptimizedVisualEdit(
+        this.selectedElement, 
+        this.pendingEdits, 
+        this.getElementSelector(this.selectedElement)
+      );
 
-      console.log('📝 Recorded VisualEdit:', visualEdit);
+      console.log('📝 Recorded Optimized VisualEdit:', visualEdit);
       
       // Add to recorded edits list
       if (!this.recordedEdits) {
@@ -1575,9 +1565,317 @@
       }
       this.recordedEdits.push(visualEdit);
       
+      // Analyze relationships between all edits
+      this.recordedEdits = this.analyzeEditRelationships(this.recordedEdits);
+      
       this.pendingEdits.clear();
       this.renderEditPanel();
       this.renderToolbar(); // Update toolbar to show Confirm button if edits exist
+    }
+
+    // Create optimized visual edit with enhanced context
+    createOptimizedVisualEdit(element, pendingEdits, selector) {
+      // Initialize session if needed
+      if (!this.sessionId) {
+        this.sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        this.sessionStartTime = Date.now();
+      }
+
+      // Get enhanced element information
+      const elementInfo = this.getEnhancedElementInfo(element, selector);
+      
+      // Process and categorize changes
+      const optimizedChanges = Array.from(pendingEdits.values()).map(edit => 
+        this.optimizeChange(edit, element)
+      );
+
+      // Infer user intent
+      const intent = this.inferUserIntent(optimizedChanges, element);
+
+      return {
+        id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+        sessionId: this.sessionId,
+        element: elementInfo,
+        changes: optimizedChanges,
+        intent,
+        validation: {
+          applied: true,
+          errors: [],
+          warnings: []
+        }
+      };
+    }
+
+    // Get enhanced element information
+    getEnhancedElementInfo(element, selector) {
+      // Get computed styles for key properties
+      const computedStyle = window.getComputedStyle(element);
+      const computedStyles = {};
+      
+      // Collect important computed styles
+      const importantStyles = [
+        'display', 'position', 'width', 'height', 'margin', 'padding',
+        'backgroundColor', 'color', 'fontSize', 'fontFamily', 'lineHeight',
+        'border', 'borderRadius', 'boxShadow', 'opacity', 'zIndex'
+      ];
+      
+      importantStyles.forEach(prop => {
+        const value = computedStyle.getPropertyValue(prop);
+        if (value) {
+          computedStyles[prop] = value;
+        }
+      });
+
+      // Get bounding rectangle
+      const rect = element.getBoundingClientRect();
+      const boundingRect = {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height
+      };
+
+      return {
+        selector,
+        tagName: element.tagName,
+        id: element.id || undefined,
+        className: element.className || undefined,
+        textContent: element.textContent?.trim() || undefined,
+        computedStyles,
+        boundingRect,
+        componentPath: this.inferComponentPath(element),
+        componentName: this.inferComponentName(element)
+      };
+    }
+
+    // Optimize a single change with categorization
+    optimizeChange(edit, element) {
+      return {
+        property: edit.property,
+        before: edit.before,
+        after: edit.after,
+        category: this.categorizeProperty(edit.property),
+        impact: this.determineImpact(edit.property, edit.before, edit.after, element),
+        confidence: this.calculateConfidence(edit, element)
+      };
+    }
+
+    // Categorize CSS property
+    categorizeProperty(property) {
+      const colorProps = ['color', 'background-color', 'border-color', 'outline-color', 'text-decoration-color'];
+      const spacingProps = ['margin', 'padding', 'gap', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right', 
+                           'padding-top', 'padding-bottom', 'padding-left', 'padding-right'];
+      const layoutProps = ['display', 'position', 'width', 'height', 'top', 'left', 'right', 'bottom', 
+                          'flex', 'grid', 'float', 'clear', 'overflow', 'z-index'];
+      const typographyProps = ['font-size', 'font-family', 'font-weight', 'line-height', 'text-align', 
+                              'text-decoration', 'letter-spacing', 'word-spacing', 'text-transform'];
+      const borderProps = ['border', 'border-width', 'border-style', 'border-radius', 'outline', 'border-top',
+                          'border-right', 'border-bottom', 'border-left'];
+      const backgroundProps = ['background', 'background-image', 'background-size', 'background-position',
+                              'background-repeat', 'background-attachment'];
+      const animationProps = ['transition', 'animation', 'transform', 'opacity', 'filter'];
+
+      const prop = property.toLowerCase();
+      
+      if (colorProps.some(p => prop.includes(p))) return 'color';
+      if (spacingProps.some(p => prop.includes(p))) return 'spacing';
+      if (layoutProps.some(p => prop.includes(p))) return 'layout';
+      if (typographyProps.some(p => prop.includes(p))) return 'typography';
+      if (borderProps.some(p => prop.includes(p))) return 'border';
+      if (backgroundProps.some(p => prop.includes(p))) return 'background';
+      if (animationProps.some(p => prop.includes(p))) return 'animation';
+      
+      return 'other';
+    }
+
+    // Determine the impact type of a change
+    determineImpact(property, before, after, element) {
+      const structuralProps = ['display', 'position', 'width', 'height', 'flex', 'grid', 'float'];
+      const behavioralProps = ['cursor', 'pointer-events', 'user-select', 'overflow', 'z-index'];
+
+      const prop = property.toLowerCase();
+
+      if (structuralProps.some(p => prop.includes(p))) {
+        return 'structural';
+      }
+      if (behavioralProps.some(p => prop.includes(p))) {
+        return 'behavioral';
+      }
+      return 'visual';
+    }
+
+    // Calculate confidence in the before/after values
+    calculateConfidence(edit, element) {
+      let confidence = 0.8; // Base confidence
+      
+      // Reduce confidence for computed/auto values
+      if (edit.before.includes('auto') || edit.before.includes('inherit') || edit.before.includes('initial')) {
+        confidence -= 0.2;
+      }
+      
+      // Reduce confidence if the before value seems to be a computed value (very precise decimals)
+      if (/\d+\.\d{3,}px/.test(edit.before)) {
+        confidence -= 0.1;
+      }
+      
+      // Increase confidence for explicit units and values
+      if (/^\d+(\.\d{1,2})?(px|em|rem|%|vh|vw)$/.test(edit.after)) {
+        confidence += 0.1;
+      }
+      
+      // Increase confidence for color values
+      if (/^#[0-9a-fA-F]{6}$/.test(edit.after) || /^rgb\(/.test(edit.after) || /^rgba\(/.test(edit.after)) {
+        confidence += 0.1;
+      }
+      
+      // Verify the change was actually applied
+      try {
+        const currentValue = window.getComputedStyle(element).getPropertyValue(edit.property);
+        if (currentValue === edit.after) {
+          confidence += 0.1;
+        }
+      } catch (error) {
+        confidence -= 0.1;
+      }
+      
+      return Math.max(0.1, Math.min(1.0, confidence));
+    }
+
+    // Infer user intent from change patterns
+    inferUserIntent(changes, element) {
+      const categories = changes.map(c => c.category);
+      
+      // Build description based on change patterns
+      const descriptions = [];
+      const categoryCount = {};
+      
+      categories.forEach(cat => {
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+      });
+      
+      Object.entries(categoryCount).forEach(([category, count]) => {
+        if (count === 1) {
+          descriptions.push(`${category} adjustment`);
+        } else {
+          descriptions.push(`${category} modifications (${count} properties)`);
+        }
+      });
+      
+      // Determine user action type
+      let userAction = 'direct-edit';
+      
+      if (changes.length > 5) {
+        userAction = 'batch-operation';
+      } else if (categories.every(cat => cat === categories[0]) && changes.length > 2) {
+        userAction = 'copy-from'; // Likely copying similar styles
+      }
+      
+      return {
+        description: descriptions.join(', ') || 'Visual modification',
+        userAction,
+        relatedEdits: [] // Will be populated by session analysis
+      };
+    }
+
+    // Infer component path from element
+    inferComponentPath(element) {
+      // Look for React component indicators
+      const classes = element.className.split(' ');
+      
+      // Common React component class patterns
+      const componentClass = classes.find(cls => 
+        /^[A-Z]/.test(cls) || // PascalCase
+        cls.includes('component') ||
+        cls.includes('Component') ||
+        cls.includes('-component') ||
+        cls.includes('_component')
+      );
+      
+      if (componentClass) {
+        // Convert class name to likely component path
+        const componentName = componentClass.replace(/[-_]/g, '');
+        return `src/components/${componentName}.tsx`;
+      }
+      
+      // Look for data attributes that might indicate components
+      const dataComponent = element.getAttribute('data-component');
+      if (dataComponent) {
+        return `src/components/${dataComponent}.tsx`;
+      }
+      
+      return undefined;
+    }
+
+    // Infer component name from element
+    inferComponentName(element) {
+      const classes = element.className.split(' ');
+      
+      // Look for PascalCase class names (likely component names)
+      const componentClass = classes.find(cls => /^[A-Z][a-zA-Z]*$/.test(cls));
+      if (componentClass) {
+        return componentClass;
+      }
+      
+      // Look for data attributes
+      const dataComponent = element.getAttribute('data-component');
+      if (dataComponent) {
+        return dataComponent;
+      }
+      
+      return undefined;
+    }
+
+    // Analyze multiple edits to find relationships
+    analyzeEditRelationships(edits) {
+      if (edits.length <= 1) return edits;
+      
+      // Group edits by timing (within 5 seconds = likely related)
+      const timeThreshold = 5000;
+      const groups = [];
+      
+      for (const edit of edits) {
+        let addedToGroup = false;
+        
+        for (const group of groups) {
+          const lastEditInGroup = group[group.length - 1];
+          const timeDiff = edit.timestamp - lastEditInGroup.timestamp;
+          
+          if (timeDiff <= timeThreshold) {
+            // Check if changes are similar (same categories)
+            const editCategories = edit.changes.map(c => c.category);
+            const groupCategories = lastEditInGroup.changes.map(c => c.category);
+            const hasOverlap = editCategories.some(cat => groupCategories.includes(cat));
+            
+            if (hasOverlap) {
+              group.push(edit);
+              addedToGroup = true;
+              break;
+            }
+          }
+        }
+        
+        if (!addedToGroup) {
+          groups.push([edit]);
+        }
+      }
+      
+      // Update related edits for each group
+      return edits.map(edit => {
+        const group = groups.find(g => g.includes(edit));
+        if (group && group.length > 1) {
+          const relatedIds = group.filter(e => e.id !== edit.id).map(e => e.id);
+          return {
+            ...edit,
+            intent: {
+              ...edit.intent,
+              relatedEdits: relatedIds,
+              userAction: group.length > 3 ? 'batch-operation' : edit.intent.userAction
+            }
+          };
+        }
+        return edit;
+      });
     }
 
     async confirmAllEdits() {

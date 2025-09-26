@@ -1,4 +1,33 @@
 import { app, BrowserWindow, BrowserView, ipcMain, shell } from 'electron';
+
+// Load environment variables from .env file
+try {
+  const envPath = path.join(__dirname, '../../..', '.env');
+  console.log(`🔧 Loading .env from: ${envPath}`);
+  const result = require('dotenv').config({ path: envPath });
+  if (result.error) {
+    console.log('❌ Error loading .env:', result.error);
+  } else {
+    console.log('✅ Successfully loaded .env file');
+    console.log(`🔑 ANTHROPIC_API_KEY loaded: ${process.env.ANTHROPIC_API_KEY ? 'YES' : 'NO'}`);
+  }
+} catch (error) {
+  console.log('❌ No .env file found or dotenv not available:', error);
+}
+
+// Guard against undefined electron during module loading
+if (typeof ipcMain === 'undefined') {
+  console.log('⚠️ Electron not ready during module load, deferring IPC setup...');
+}
+
+// Safe IPC handler wrapper
+function safeIpcHandle(channel: string, handler: (...args: any[]) => any) {
+  if (ipcMain && typeof ipcMain.handle === 'function') {
+    ipcMain.handle(channel, handler);
+  } else {
+    console.log(`⚠️ Deferring IPC handler: ${channel}`);
+  }
+}
 import path from 'path';
 import Store from 'electron-store';
 import { GitClient, PRWatcher, type DeploymentPreview } from '../../../packages/github/dist/src/index';
@@ -344,29 +373,33 @@ class ElectronGitClient extends GitClient {
 }
 
 // IPC: Codex connect helpers
-ipcMain.handle('codex-open-setup', async () => {
-  try {
-    // Open Codex Cloud where user connects GitHub
-    shell.openExternal('https://chatgpt.com/codex');
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to open Codex setup' };
-  }
-});
+if (ipcMain) {
+  safeIpcHandle('codex-open-setup', async () => {
+    try {
+      // Open Codex Cloud where user connects GitHub
+      shell.openExternal('https://chatgpt.com/codex');
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to open Codex setup' };
+    }
+  });
 
-ipcMain.handle('codex-mark-connected', async () => {
-  try {
-    (store.set as any)('codex', { enabled: true, connectedAt: new Date().toISOString() });
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to mark Codex connected' };
-  }
-});
+  safeIpcHandle('codex-mark-connected', async () => {
+    try {
+      (store.set as any)('codex', { enabled: true, connectedAt: new Date().toISOString() });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to mark Codex connected' };
+    }
+  });
 
-ipcMain.handle('codex-get-status', async () => {
-  const s = (store.get as any)('codex') as { enabled?: boolean; connectedAt?: string } | undefined;
-  return { enabled: !!s?.enabled, connectedAt: s?.connectedAt || null };
-});
+  safeIpcHandle('codex-get-status', async () => {
+    const s = (store.get as any)('codex') as { enabled?: boolean; connectedAt?: string } | undefined;
+    return { enabled: !!s?.enabled, connectedAt: s?.connectedAt || null };
+  });
+} else {
+  console.log('⚠️ ipcMain not available, skipping Codex IPC handlers');
+}
 
 const gitClient = new ElectronGitClient(GITHUB_CLIENT_ID);
 
@@ -384,7 +417,7 @@ const initializeAuth = async () => {
   }
 };
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+const isDev = process.env.NODE_ENV === 'development' || (app && !app.isPackaged);
 
 let mainWindow: BrowserWindow | null = null;
 let browserView: BrowserView | null = null;
@@ -471,7 +504,7 @@ function createWindow(): void {
   });
 
   // Handle settings toggle
-  ipcMain.handle('toggle-settings', (event, showSettings: boolean) => {
+  safeIpcHandle('toggle-settings', (event, showSettings: boolean) => {
     if (browserView && mainWindow) {
       if (showSettings) {
         // Hide browser view when showing settings
@@ -535,7 +568,7 @@ function createWindow(): void {
 }
 
 // IPC handlers
-ipcMain.handle('navigate', async (event, url: string) => {
+safeIpcHandle('navigate', async (event, url: string) => {
   if (!browserView) return { success: false, error: 'No browser view available' };
   
   try {
@@ -553,11 +586,11 @@ ipcMain.handle('navigate', async (event, url: string) => {
   }
 });
 
-ipcMain.handle('get-current-url', () => {
+safeIpcHandle('get-current-url', () => {
   return browserView?.webContents.getURL() || store.get('lastUrl');
 });
 
-ipcMain.handle('go-back', () => {
+safeIpcHandle('go-back', () => {
   if (browserView?.webContents.canGoBack()) {
     browserView.webContents.goBack();
     return true;
@@ -565,7 +598,7 @@ ipcMain.handle('go-back', () => {
   return false;
 });
 
-ipcMain.handle('go-forward', () => {
+safeIpcHandle('go-forward', () => {
   if (browserView?.webContents.canGoForward()) {
     browserView.webContents.goForward();
     return true;
@@ -573,21 +606,21 @@ ipcMain.handle('go-forward', () => {
   return false;
 });
 
-ipcMain.handle('reload', () => {
+safeIpcHandle('reload', () => {
   browserView?.webContents.reload();
   return true;
 });
 
-ipcMain.handle('can-go-back', () => {
+safeIpcHandle('can-go-back', () => {
   return browserView?.webContents.canGoBack() || false;
 });
 
-ipcMain.handle('can-go-forward', () => {
+safeIpcHandle('can-go-forward', () => {
   return browserView?.webContents.canGoForward() || false;
 });
 
 // GitHub IPC handlers
-ipcMain.handle('github-connect', async () => {
+safeIpcHandle('github-connect', async () => {
   try {
     const result = await gitClient.connectDeviceFlow();
     return { success: true, user: result.user };
@@ -596,7 +629,7 @@ ipcMain.handle('github-connect', async () => {
   }
 });
 
-ipcMain.handle('github-load-stored-token', async () => {
+safeIpcHandle('github-load-stored-token', async () => {
   try {
     const success = await gitClient.loadStoredToken();
     if (success) {
@@ -618,7 +651,7 @@ ipcMain.handle('github-load-stored-token', async () => {
   }
 });
 
-ipcMain.handle('github-disconnect', async () => {
+safeIpcHandle('github-disconnect', async () => {
   try {
     await gitClient.clearStoredToken();
     return { success: true };
@@ -627,7 +660,7 @@ ipcMain.handle('github-disconnect', async () => {
   }
 });
 
-ipcMain.handle('github-is-authenticated', async () => {
+safeIpcHandle('github-is-authenticated', async () => {
   // If not currently authenticated, try to load stored token
   if (!gitClient.isAuthenticated()) {
     await gitClient.loadStoredToken();
@@ -635,16 +668,16 @@ ipcMain.handle('github-is-authenticated', async () => {
   return gitClient.isAuthenticated();
 });
 
-ipcMain.handle('github-save-config', (event, config: { owner: string; repo: string; baseBranch: string; label: string }) => {
+safeIpcHandle('github-save-config', (event, config: { owner: string; repo: string; baseBranch: string; label: string }) => {
   store.set('github', config);
   return { success: true };
 });
 
-ipcMain.handle('github-get-config', () => {
+safeIpcHandle('github-get-config', () => {
   return store.get('github');
 });
 
-ipcMain.handle('github-list-repos', async () => {
+safeIpcHandle('github-list-repos', async () => {
   try {
     if (!gitClient.isAuthenticated()) {
       return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
@@ -677,7 +710,7 @@ ipcMain.handle('github-list-repos', async () => {
   }
 });
 
-ipcMain.handle('github-test-pr', async () => {
+safeIpcHandle('github-test-pr', async () => {
   try {
     const config = store.get('github');
     if (!config) {
@@ -853,7 +886,7 @@ ipcMain.handle('github-test-pr', async () => {
 });
 
 // CDP Runtime Signals IPC handlers
-ipcMain.handle('inject-cdp', async () => {
+safeIpcHandle('inject-cdp', async () => {
   try {
     if (!browserView) {
       return { success: false, error: 'No browser view available' };
@@ -878,7 +911,7 @@ ipcMain.handle('inject-cdp', async () => {
   }
 });
 
-ipcMain.handle('collect-runtime-signals', async (event, options = {}) => {
+safeIpcHandle('collect-runtime-signals', async (event, options = {}) => {
   try {
     if (!browserView) {
       return { success: false, error: 'No browser view available' };
@@ -922,7 +955,7 @@ ipcMain.handle('collect-runtime-signals', async (event, options = {}) => {
 });
 
 // Overlay IPC handlers
-ipcMain.handle('inject-overlay', async (event, options = {}) => {
+safeIpcHandle('inject-overlay', async (event, options = {}) => {
   try {
     if (!browserView) {
       return { success: false, error: 'No browser view available' };
@@ -955,7 +988,7 @@ ipcMain.handle('inject-overlay', async (event, options = {}) => {
   }
 });
 
-ipcMain.handle('remove-overlay', async () => {
+safeIpcHandle('remove-overlay', async () => {
   try {
     if (!browserView) {
       return { success: false, error: 'No browser view available' };
@@ -977,7 +1010,7 @@ ipcMain.handle('remove-overlay', async () => {
   }
 });
 
-ipcMain.handle('toggle-overlay', async (event, options = {}) => {
+safeIpcHandle('toggle-overlay', async (event, options = {}) => {
   try {
     if (!browserView) {
       return { success: false, error: 'No browser view available' };
@@ -1010,7 +1043,7 @@ ipcMain.handle('toggle-overlay', async (event, options = {}) => {
 });
 
 // PR Watcher IPC handlers
-ipcMain.handle('pr-watcher-start', async (event, options: { owner: string; repo: string; prNumber: number }) => {
+safeIpcHandle('pr-watcher-start', async (event, options: { owner: string; repo: string; prNumber: number }) => {
   try {
     const config = store.get('github');
     if (!config) {
@@ -1079,7 +1112,7 @@ ipcMain.handle('pr-watcher-start', async (event, options: { owner: string; repo:
   }
 });
 
-ipcMain.handle('pr-watcher-stop', async (event, watcherKey: string) => {
+safeIpcHandle('pr-watcher-stop', async (event, watcherKey: string) => {
   try {
     const watcher = activePRWatchers.get(watcherKey);
     if (watcher) {
@@ -1094,7 +1127,7 @@ ipcMain.handle('pr-watcher-stop', async (event, watcherKey: string) => {
   }
 });
 
-ipcMain.handle('pr-watcher-get-previews', async (event, watcherKey: string) => {
+safeIpcHandle('pr-watcher-get-previews', async (event, watcherKey: string) => {
   try {
     const previews = previewUrls.get(watcherKey) || [];
     return { success: true, previews };
@@ -1104,7 +1137,7 @@ ipcMain.handle('pr-watcher-get-previews', async (event, watcherKey: string) => {
   }
 });
 
-ipcMain.handle('show-preview-pane', async (event, previewUrl: string) => {
+safeIpcHandle('show-preview-pane', async (event, previewUrl: string) => {
   try {
     if (!mainWindow) {
       return { success: false, error: 'Main window not available' };
@@ -1137,7 +1170,7 @@ ipcMain.handle('show-preview-pane', async (event, previewUrl: string) => {
   }
 });
 
-ipcMain.handle('hide-preview-pane', async () => {
+safeIpcHandle('hide-preview-pane', async () => {
   try {
     if (mainWindow && rightPaneView) {
       mainWindow.removeBrowserView(rightPaneView);
@@ -1151,7 +1184,7 @@ ipcMain.handle('hide-preview-pane', async () => {
 });
 
 // Confirm flow IPC handler
-ipcMain.handle('confirm-changes', async (event, changeSet: VisualEdit[]) => {
+safeIpcHandle('confirm-changes', async (event, changeSet: VisualEdit[]) => {
   try {
     const config = store.get('github');
     if (!config) {
@@ -1329,13 +1362,17 @@ async function initializeLLMProviderForCodeGeneration(): Promise<{ provider: any
                       // Uncomment and add your API key here for development:
                       // 'sk-your-openai-key-here' ||
                       null;
-
+    
     const claudeKey = (llmConfig.claude?.enabled ? llmConfig.claude.apiKey : null) ||
                       process.env.ANTHROPIC_API_KEY || 
                       process.env.CLAUDE_API_KEY ||
                       // Uncomment and add your API key here for development:
                       // 'sk-ant-your-claude-key-here' ||
                       null;
+    
+    console.log(`🔍 Debug API keys - Claude config enabled: ${llmConfig.claude?.enabled}, Claude config key: ${llmConfig.claude?.apiKey ? 'YES' : 'NO'}`);
+    console.log(`🔍 Debug API keys - ANTHROPIC_API_KEY env: ${process.env.ANTHROPIC_API_KEY ? 'YES' : 'NO'}, CLAUDE_API_KEY env: ${process.env.CLAUDE_API_KEY ? 'YES' : 'NO'}`);
+    console.log(`🔍 Debug API keys - Final claudeKey: ${claudeKey ? 'YES' : 'NO'}`);
 
     if (openaiKey) {
       llmProvider = new OpenAIProvider(openaiKey);
@@ -2477,7 +2514,7 @@ async function initializeRealVisualAgent(config: any) {
       initialized: true,
       config: config,
       async processRequest(request: any) {
-        return await processVisualRequestWithLLM(request);
+        return await processVisualRequestWithAgentV3(request);
       }
     };
     
@@ -2528,15 +2565,19 @@ async function callOpenAIForVisualCoding(provider: any, prompt: string): Promise
  * Call Claude API directly for Visual Coding Agent
  */
 async function callClaudeForVisualCoding(provider: any, prompt: string): Promise<string> {
+  console.log(`🔍 Debug Claude API call - Provider:`, provider.constructor.name);
+  console.log(`🔍 Debug Claude API call - API Key exists: ${provider.apiKey ? 'YES' : 'NO'}`);
+  console.log(`🔍 Debug Claude API call - API Key prefix: ${provider.apiKey ? provider.apiKey.substring(0, 20) + '...' : 'NONE'}`);
+  
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${(provider as any).apiKey}`,
+      'x-api-key': (provider as any).apiKey,
       'Content-Type': 'application/json',
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: (provider as any).model || 'claude-3-sonnet-20240229',
+      model: (provider as any).model || 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       temperature: 0.1,
       messages: [
@@ -2559,6 +2600,362 @@ async function callClaudeForVisualCoding(provider: any, prompt: string): Promise
 /**
  * Process visual requests using existing LLM infrastructure
  */
+/**
+ * Create real PR using workspace manager (Phase 1 implementation with safety)
+ */
+async function createRealPRWithWorkspace(changes: any[], config: any, githubToken: string) {
+  console.log('🏗️ Creating REAL PR with workspace manager...');
+  
+  try {
+    // Safety check: Limit number of files
+    if (changes.length > 10) {
+      throw new Error(`Too many files to change (${changes.length}). Maximum allowed: 10 files for safety.`);
+    }
+
+    // Use GitHub API approach (simpler and more reliable)
+    const remoteRepo = new RemoteRepo(githubToken);
+    
+    // Step 1: Get base tree
+    console.log('📥 Getting base repository tree...');
+    const baseRef = await remoteRepo.getRepoTree({
+      owner: config.owner,
+      repo: config.repo,
+      ref: config.baseBranch || 'main'
+    });
+    
+    // Step 2: Create new tree with changes
+    console.log('📝 Creating tree with file changes...');
+    const files = changes.map(change => ({
+      path: change.filePath,
+      content: change.newContent
+    }));
+    
+    const newTree = await remoteRepo.createTree({
+      owner: config.owner,
+      repo: config.repo,
+      baseTreeSha: baseRef.sha,
+      files
+    });
+    
+    // Step 3: Create commit
+    const commitMessage = `🤖 Agent V3: Visual changes implementation
+
+Generated by Agent V3 Two-Agent System
+- Strategic Planning Agent made decisions
+- Coding Implementation Agent generated code
+- ${changes.length} file(s) modified
+
+Changes:
+${changes.map(c => `- ${c.action}: ${c.filePath}`).join('\n')}`;
+
+    console.log('💾 Creating commit...');
+    const commit = await remoteRepo.createCommit({
+      owner: config.owner,
+      repo: config.repo,
+      message: commitMessage,
+      treeSha: newTree.sha,
+      parentSha: baseRef.sha
+    });
+    
+    // Step 4: Create branch
+    const timestamp = Date.now();
+    const branchName = `agent-v3/${timestamp}-visual-changes`;
+    console.log(`🌿 Creating branch: ${branchName}`);
+    
+    const octokit = gitClient.getOctokit();
+    await octokit.rest.git.createRef({
+      owner: config.owner,
+      repo: config.repo,
+      ref: `refs/heads/${branchName}`,
+      sha: commit.sha
+    });
+    
+    // Step 5: Create DRAFT PR for safety
+    console.log('🔀 Creating DRAFT pull request...');
+    const prTitle = `🤖 Agent V3: Visual Changes (${changes.length} files)`;
+    const prBody = `# Agent V3 Implementation
+
+This PR was automatically generated by the Agent V3 Two-Agent System.
+
+## 🧠 Strategic Decisions Made
+- Component analysis and selection
+- Styling approach determination  
+- Change impact assessment
+
+## 🔧 Implementation Details
+- **Files Modified:** ${changes.length}
+- **Branch:** \`${branchName}\`
+- **Commit:** \`${commit.sha.slice(0, 8)}\`
+- **Generated:** ${new Date().toISOString()}
+
+## 📋 Changes Summary
+${changes.map(c => `- **${c.action}** \`${c.filePath}\``).join('\n')}
+
+## ⚠️ Safety Notice
+This is a **DRAFT PR** created with safety measures:
+- Limited to ${changes.length}/10 maximum files
+- No delete operations performed
+- Requires manual review before merging
+
+## 🔍 Next Steps
+1. Review the generated code changes
+2. Test the changes locally
+3. Mark as ready for review when satisfied
+4. Merge when ready
+
+---
+*Generated by Agent V3 - Two-Agent System*`;
+
+    const pr = await remoteRepo.openPR({
+      owner: config.owner,
+      repo: config.repo,
+      base: config.baseBranch || 'main',
+      head: branchName,
+      title: prTitle,
+      body: prBody,
+      labels: ['agent-v3', 'automated', 'visual-changes'],
+      draft: true // SAFETY: Create as draft PR
+    });
+    
+    console.log(`✅ REAL PR created successfully: ${pr.html_url}`);
+    
+    return {
+      success: true,
+      prUrl: pr.html_url,
+      branchName: branchName,
+      commitSha: commit.sha,
+      filesChanged: changes.length,
+      isDraft: true
+    };
+    
+  } catch (error) {
+    console.error('❌ Failed to create real PR:', error);
+    throw error;
+  }
+}
+
+/**
+ * Process visual requests using Agent V3 (Two-Agent System with REAL PR creation)
+ */
+async function processVisualRequestWithAgentV3(request: any) {
+  console.log('🚀 Processing visual request with Agent V3 (Two-Agent System + Real PRs)...');
+
+  try {
+    // Dynamic import of Agent V3
+    const { createAgentV3, validateVisualEdits } = await import('@tweaq/agent-v3');
+
+    // Get GitHub configuration
+    const config = store.get('github');
+    if (!config) {
+      throw new Error('GitHub configuration not found');
+    }
+
+    // Get GitHub token
+    const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
+    if (!githubToken) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Initialize LLM provider
+    const { provider: llmProvider, type: providerType } = await initializeLLMProviderForCodeGeneration();
+    if (!llmProvider) {
+      throw new Error('No LLM provider available');
+    }
+
+    console.log(`🤖 Using ${providerType} provider for Agent V3`);
+
+    // Create GitHub access interface for Agent 2 with REAL PR creation
+    const githubAccess = {
+      readFiles: async (paths: string[]) => {
+        const remoteRepo = new RemoteRepo(githubToken);
+        const fileContents = new Map<string, string>();
+        
+        for (const path of paths) {
+          try {
+            const content = await remoteRepo.readFile({
+              owner: config.owner,
+              repo: config.repo,
+              path: path
+            });
+            fileContents.set(path, content);
+          } catch (error) {
+            console.warn(`⚠️ Could not read ${path}:`, error);
+            
+            // Try to find similar files in the repository
+            console.log(`🔍 Searching for similar files to ${path}...`);
+            try {
+              const repoTree = await remoteRepo.getRepoTree({
+                owner: config.owner,
+                repo: config.repo,
+                ref: config.baseBranch || 'main',
+                recursive: true
+              });
+              
+              // Look for files with similar names
+              const fileName = path.split('/').pop()?.replace('.tsx', '').replace('.ts', '').replace('.jsx', '').replace('.js', '');
+              const similarFiles = repoTree.tree.filter(file => 
+                file.type === 'blob' && 
+                file.path && (
+                  file.path.toLowerCase().includes(fileName?.toLowerCase() || '') ||
+                  fileName?.toLowerCase().includes(file.path.split('/').pop()?.toLowerCase().replace(/\.(tsx?|jsx?)$/, '') || '')
+                )
+              );
+              
+              if (similarFiles.length > 0) {
+                console.log(`🎯 Found similar files:`, similarFiles.map(f => f.path).join(', '));
+                // Try the first similar file
+                const similarContent = await remoteRepo.readFile({
+                  owner: config.owner,
+                  repo: config.repo,
+                  path: similarFiles[0].path!
+                });
+                fileContents.set(similarFiles[0].path!, similarContent);
+                console.log(`✅ Using ${similarFiles[0].path} instead of ${path}`);
+              } else {
+                fileContents.set(path, ''); // Empty content for missing files
+              }
+            } catch (searchError) {
+              console.warn(`❌ Could not search for alternatives to ${path}:`, searchError);
+              fileContents.set(path, ''); // Empty content for missing files
+            }
+          }
+        }
+        
+        return fileContents;
+      },
+
+      writeFiles: async (changes: any[]) => {
+        const result = await createRealPRWithWorkspace(changes, config, githubToken);
+        console.log(`🚀 PR creation result:`, result);
+        // writeFiles should not return anything according to the interface
+      },
+
+      createPR: async (branch: string, title: string, body: string) => {
+        // This is handled by writeFiles now
+        return {
+          success: true,
+          prUrl: `https://github.com/${config.owner}/${config.repo}/compare/${config.baseBranch}...${branch}`,
+          branchName: branch
+        };
+      }
+    };
+
+    // Create Agent V3 instance
+    const agentV3 = createAgentV3({
+      workspace: {
+        owner: config.owner,
+        repo: config.repo,
+        baseBranch: config.baseBranch || 'main',
+        githubToken: githubToken
+      },
+      llmProvider: {
+        generateText: async (prompt: string) => {
+          if (providerType === 'openai') {
+            return await callOpenAIForVisualCoding(llmProvider, prompt);
+          } else if (providerType === 'claude') {
+            return await callClaudeForVisualCoding(llmProvider, prompt);
+          }
+          throw new Error(`Unsupported provider type: ${providerType}`);
+        }
+      },
+      githubAccess,
+      options: {
+        analysisDepth: 'comprehensive',
+        cacheEnabled: true,
+        maxFiles: 500,
+        confidenceThreshold: 0.6
+      }
+    });
+
+    // Initialize Agent V3 system
+    console.log('🔧 Initializing Agent V3 system...');
+    const initResult = await agentV3.initialize();
+    if (!initResult.success) {
+      throw new Error(`Agent V3 initialization failed: ${initResult.error}`);
+    }
+    console.log(`✅ Agent V3 initialized in ${initResult.analysisTime}ms`);
+
+    // Convert request to VisualEdit format
+    const visualEdits = [{
+      id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      element: {
+        selector: request.element?.selector || request.element?.tagName || 'unknown',
+        tagName: request.element?.tagName || 'div',
+        id: request.element?.id,
+        className: request.element?.className,
+        textContent: request.element?.textContent
+      },
+      changes: request.description ? [{
+        property: 'general',
+        before: 'current state',
+        after: request.description,
+        category: 'other' as const,
+        impact: 'visual' as const,
+        confidence: 0.8
+      }] : [],
+      intent: {
+        description: request.description || 'Visual modification',
+        userAction: 'direct-edit' as const
+      },
+      validation: {
+        applied: true
+      }
+    }];
+
+    // Validate visual edits
+    const validation = validateVisualEdits(visualEdits);
+    if (!validation.valid) {
+      console.warn('⚠️ Visual edit validation warnings:', validation.warnings);
+      if (validation.errors.length > 0) {
+        throw new Error(`Invalid visual edits: ${validation.errors.join(', ')}`);
+      }
+    }
+
+    // Process with Agent V3
+    console.log('🎯 Starting Agent V3 two-agent processing...');
+    const result = await agentV3.processVisualEdits(visualEdits);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Agent V3 processing failed');
+    }
+
+    console.log('✅ Agent V3 processing completed:', {
+      agent1Decisions: result.agent1Result.decisions.length,
+      agent1Tickets: result.agent1Result.tickets.length,
+      agent2FileChanges: result.agent2Result.fileChanges.length,
+      agent2PRs: result.agent2Result.prResults.length,
+      totalTime: result.totalProcessingTime
+    });
+
+    // Convert Agent V3 result to expected format
+    return {
+      changes: result.agent2Result.fileChanges.map(change => ({
+        filePath: change.filePath,
+        oldContent: change.oldContent || '',
+        newContent: change.newContent || '',
+        reasoning: change.reasoning,
+        changeType: change.action
+      })),
+      explanation: result.summary,
+      confidence: result.agent1Result.confidence,
+      designPrinciples: [
+        '🧠 Strategic Planning Agent',
+        '🔧 Coding Implementation Agent',
+        '🗺️ Symbolic Repository Analysis',
+        '🎯 Context-Aware Decision Making',
+        '🔄 Two-Agent Coordination',
+        '🚀 REAL PR Creation Enabled!'
+      ],
+      agentV3Result: result
+    };
+
+  } catch (error) {
+    console.warn('⚠️ Agent V3 failed, falling back to original LLM approach:', error);
+    return await processVisualRequestWithLLM(request);
+  }
+}
+
 async function processVisualRequestWithLLM(request: any) {
   console.log('🎨 Processing visual request with Visual Coding Agent...');
   
@@ -2853,7 +3250,7 @@ function generatePRBody(edits: VisualEdit[], fileUpdates: any[]): string {
 }
 
 // Repository Analysis IPC handlers
-ipcMain.handle('analyze-repository', async () => {
+safeIpcHandle('analyze-repository', async () => {
   try {
     const config = store.get('github');
     if (!config) {
@@ -2925,7 +3322,7 @@ ipcMain.handle('analyze-repository', async () => {
 });
 
 // Re-analyze repository (clear cache first)
-ipcMain.handle('re-analyze-repository', async () => {
+safeIpcHandle('re-analyze-repository', async () => {
   try {
     const config = store.get('github');
     if (!config) {
@@ -3007,7 +3404,7 @@ ipcMain.handle('re-analyze-repository', async () => {
   }
 });
 
-ipcMain.handle('get-analysis-status', async () => {
+safeIpcHandle('get-analysis-status', async () => {
   if (currentRepoModel) {
     return {
       hasAnalysis: true,
@@ -3022,7 +3419,7 @@ ipcMain.handle('get-analysis-status', async () => {
 });
 
 // LLM Configuration IPC handlers
-ipcMain.handle('llm-save-config', async (event, config: { provider: string; apiKey?: string }) => {
+safeIpcHandle('llm-save-config', async (event, config: { provider: string; apiKey?: string }) => {
   try {
     // Store API key securely in keychain if provided
     if (config.apiKey) {
@@ -3042,7 +3439,7 @@ ipcMain.handle('llm-save-config', async (event, config: { provider: string; apiK
   }
 });
 
-ipcMain.handle('llm-get-config', async () => {
+safeIpcHandle('llm-get-config', async () => {
   try {
     const config = store.get('llm');
     if (!config) {
@@ -3070,7 +3467,7 @@ ipcMain.handle('llm-get-config', async () => {
   }
 });
 
-ipcMain.handle('llm-test-connection', async () => {
+safeIpcHandle('llm-test-connection', async () => {
   try {
     const config = store.get('llm');
     if (!config || config.provider === 'mock') {
@@ -3128,7 +3525,7 @@ ipcMain.handle('llm-test-connection', async () => {
 });
 
 // Environment variable IPC handler
-ipcMain.handle('get-env-var', async (event, key: string) => {
+safeIpcHandle('get-env-var', async (event, key: string) => {
   try {
     return process.env[key];
   } catch (error) {
@@ -3138,7 +3535,7 @@ ipcMain.handle('get-env-var', async (event, key: string) => {
 });
 
 // Visual Coding Agent IPC handlers
-ipcMain.handle('initialize-visual-agent', async (event, config: any) => {
+safeIpcHandle('initialize-visual-agent', async (event, config: any) => {
   try {
     console.log('🎨 IPC: Initialize Visual Coding Agent');
     return await initializeRealVisualAgent(config);
@@ -3148,7 +3545,7 @@ ipcMain.handle('initialize-visual-agent', async (event, config: any) => {
   }
 });
 
-ipcMain.handle('process-visual-request', async (event, request: any) => {
+safeIpcHandle('process-visual-request', async (event, request: any) => {
   try {
     console.log('🎨 IPC: Process visual request');
     
@@ -3174,7 +3571,7 @@ ipcMain.handle('process-visual-request', async (event, request: any) => {
   }
 });
 
-ipcMain.handle('process-visual-edits', async (event, visualEdits: VisualEdit[], context?: any) => {
+safeIpcHandle('process-visual-edits', async (event, visualEdits: VisualEdit[], context?: any) => {
   try {
     console.log('🎨 Processing visual edits with Visual Coding Agent:', visualEdits.length, 'edits');
     
@@ -3238,7 +3635,8 @@ ipcMain.handle('process-visual-edits', async (event, visualEdits: VisualEdit[], 
   }
 });
 
-app.whenReady().then(async () => {
+if (app && app.whenReady) {
+  app.whenReady().then(async () => {
   createWindow();
   
   // Initialize GitHub authentication
@@ -3249,20 +3647,27 @@ app.whenReady().then(async () => {
       createWindow();
     }
   });
-});
+  });
+} else {
+  console.log('⚠️ Electron app not available, skipping app.whenReady setup');
+}
 
-app.on('window-all-closed', () => {
+if (app && app.on) {
+  app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
-});
+  });
 
-// Clean up on app quit
-app.on('before-quit', () => {
+  // Clean up on app quit
+  app.on('before-quit', () => {
   if (browserView) {
     const currentUrl = browserView.webContents.getURL();
     if (currentUrl) {
       store.set('lastUrl', currentUrl);
     }
   }
-});
+  });
+} else {
+  console.log('⚠️ Electron app events not available');
+}

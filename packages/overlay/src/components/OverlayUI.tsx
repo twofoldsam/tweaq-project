@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { OverlayMode, OverlayState, SelectedElement, ElementInfo, PendingEdit, VisualEdit } from '../types';
+import { createOptimizedVisualEdit, generateElementSelector, initializeSession, analyzeEditRelationships } from '../utils/editOptimizer';
 import Toolbar from './Toolbar';
 // import InfoPanel from './InfoPanel'; // Replaced by Inspector
 // import PropertiesPanel from './PropertiesPanel'; // Replaced by EditPanel
@@ -242,59 +243,34 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
     }));
   }, [state.selectedElement, getElementInfo]);
 
-  // Generate element selector for recording edits
-  const getElementSelector = useCallback((element: HTMLElement): string => {
-    if (element.id) {
-      return `#${element.id}`;
-    }
-    
-    if (element.className && typeof element.className === 'string') {
-      const classes = element.className.trim().split(/\s+/).join('.');
-      if (classes) {
-        return `.${classes}`;
-      }
-    }
-    
-    // Fallback to tag name with nth-child
-    const parent = element.parentElement;
-    if (parent) {
-      const siblings = Array.from(parent.children).filter(el => el.tagName === element.tagName);
-      const index = siblings.indexOf(element);
-      return `${element.tagName.toLowerCase()}:nth-child(${index + 1})`;
-    }
-    
-    return element.tagName.toLowerCase();
+  // Initialize session on first load
+  useEffect(() => {
+    initializeSession();
   }, []);
 
-  // Record the current edits as a VisualEdit
+  // Record the current edits as an optimized VisualEdit
   const handleRecordEdit = useCallback(() => {
     if (!state.selectedElement || pendingEdits.size === 0) return;
 
     const { element } = state.selectedElement;
-    const visualEdit: VisualEdit = {
-      id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-      element: {
-        selector: getElementSelector(element),
-        tagName: element.tagName,
-        id: element.id || undefined,
-        className: element.className || undefined,
-      },
-      changes: Array.from(pendingEdits.values()).map(edit => ({
-        property: edit.property,
-        before: edit.before,
-        after: edit.after,
-      })),
-    };
+    const selector = generateElementSelector(element);
+    
+    // Create optimized visual edit with enhanced context
+    const visualEdit = createOptimizedVisualEdit(element, pendingEdits, selector);
 
-    setVisualEdits(prev => [...prev, visualEdit]);
+    setVisualEdits(prev => {
+      const newEdits = [...prev, visualEdit];
+      // Analyze relationships between edits
+      return analyzeEditRelationships(newEdits);
+    });
+    
     setPendingEdits(new Map()); // Clear pending edits
 
-    console.log('Recorded VisualEdit:', visualEdit);
+    console.log('📝 Recorded Optimized VisualEdit:', visualEdit);
     
     // TODO: Send to backend or store in localStorage
-    // localStorage.setItem('tweaq-visual-edits', JSON.stringify([...visualEdits, visualEdit]));
-  }, [state.selectedElement, pendingEdits, visualEdits, getElementSelector]);
+    // localStorage.setItem('tweaq-visual-edits', JSON.stringify(newEdits));
+  }, [state.selectedElement, pendingEdits, visualEdits]);
 
   // Reset all pending changes
   const handleResetChanges = useCallback(() => {
@@ -435,7 +411,7 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
                 onRecordEdit={handleRecordEdit}
                 onResetChanges={handleResetChanges}
                 onClose={handlePanelClose}
-                elementSelector={getElementSelector(state.selectedElement.element)}
+                elementSelector={generateElementSelector(state.selectedElement.element)}
               />
             )}
           </>
