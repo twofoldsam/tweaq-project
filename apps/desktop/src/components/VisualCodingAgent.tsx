@@ -241,6 +241,29 @@ export function VisualCodingAgent({ onClose }: VisualCodingAgentProps) {
       </div>
 
       <div className="visual-agent-content">
+        {/* Welcome Message */}
+        {!selectedElement && !response && (
+          <div className="welcome-section">
+            <h3>🎨 Welcome to Visual Coding Agent!</h3>
+            <p>Transform any UI element using natural language. Here's how:</p>
+            <ol>
+              <li><strong>Navigate</strong> to any webpage in the browser above</li>
+              <li><strong>Select an element</strong> by clicking the button below</li>
+              <li><strong>Describe your changes</strong> in plain English</li>
+              <li><strong>Get AI-powered code suggestions</strong> instantly!</li>
+            </ol>
+            <div className="example-requests">
+              <h4>Try requests like:</h4>
+              <ul>
+                <li>"Make this button bigger and blue"</li>
+                <li>"Add more spacing around this text"</li>
+                <li>"Make this look more modern"</li>
+                <li>"Change the font to be bold"</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* Element Selection */}
         <div className="selection-section">
           <h3>1. Select Element</h3>

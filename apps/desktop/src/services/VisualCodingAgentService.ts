@@ -6,21 +6,21 @@
  * and provides methods for processing visual design requests.
  */
 
-import { 
-  createVisualCodingAgent, 
-  VisualCodingAgent,
-  type VisualRequest, 
-  type VisualResponse,
-  type DesignContext,
-  type DOMElement,
-  type CodeChange,
-  type Alternative,
-  type DesignTokens,
-  type Framework,
-  type StylingSystem
+// Import types from the TypeScript definitions
+import type { 
+  VisualRequest, 
+  VisualResponse,
+  DesignContext,
+  DOMElement,
+  CodeChange,
+  Alternative,
+  DesignTokens,
+  Framework,
+  StylingSystem
 } from './visual-coding-agent';
 
-// Import the Claude provider directly
+// Import the actual implementation using CommonJS require
+const { createVisualCodingAgent, VisualCodingAgent } = require('./visual-coding-agent');
 const { AnthropicClaudeProvider } = require('./visual-coding-agent/packages/providers/claude');
 
 export interface VisualCodingConfig {

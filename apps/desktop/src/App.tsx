@@ -24,8 +24,8 @@ function App() {
   const [urlInput, setUrlInput] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState<'github' | 'cdp' | 'llm' | 'visual-agent'>('github');
+  const [showSettings, setShowSettings] = useState(true);
+  const [activeTab, setActiveTab] = useState<'github' | 'cdp' | 'llm' | 'visual-agent'>('visual-agent');
   const [githubAuthState, setGithubAuthState] = useState<{
     isAuthenticated: boolean;
     user: GitHubUser | null;
@@ -235,16 +235,16 @@ function App() {
           <div className="settings-title">
             <div className="settings-tabs">
               <button 
+                className={`tab-button ${activeTab === 'visual-agent' ? 'active' : ''} primary-tab`}
+                onClick={() => setActiveTab('visual-agent')}
+              >
+                🎨 Visual Agent
+              </button>
+              <button 
                 className={`tab-button ${activeTab === 'github' ? 'active' : ''}`}
                 onClick={() => setActiveTab('github')}
               >
                 GitHub Settings
-              </button>
-              <button 
-                className={`tab-button ${activeTab === 'cdp' ? 'active' : ''}`}
-                onClick={() => setActiveTab('cdp')}
-              >
-                CDP Test
               </button>
               <button 
                 className={`tab-button ${activeTab === 'llm' ? 'active' : ''}`}
@@ -253,10 +253,10 @@ function App() {
                 LLM Settings
               </button>
               <button 
-                className={`tab-button ${activeTab === 'visual-agent' ? 'active' : ''}`}
-                onClick={() => setActiveTab('visual-agent')}
+                className={`tab-button ${activeTab === 'cdp' ? 'active' : ''}`}
+                onClick={() => setActiveTab('cdp')}
               >
-                Visual Agent
+                CDP Test
               </button>
             </div>
           </div>
@@ -282,7 +282,7 @@ function App() {
               setShowSettings(newShowSettings);
               await window.electronAPI.toggleSettings(newShowSettings);
             }}
-            title="GitHub Settings"
+            title="Visual Coding Agent & Settings"
           >
             ⚙️
           </button>

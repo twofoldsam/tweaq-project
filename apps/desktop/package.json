@@ -6,6 +6,8 @@
   "description": "Smart QA Browser Desktop App",
   "scripts": {
     "dev": "concurrently \"npm run build:electron-main\" \"vite\" \"npm run electron-dev\"",
+    "dev:clean": "./scripts/dev-start.sh",
+    "dev:cleanup": "./scripts/dev-cleanup.sh",
     "build:electron-main": "tsc electron/main.ts electron/preload.ts --outDir dist --target es2020 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck",
     "electron-dev": "sleep 3 && electron . --enable-logging",
     "build": "npm run build:electron-main && vite build && electron-builder",
