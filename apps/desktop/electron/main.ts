@@ -961,10 +961,10 @@ safeIpcHandle('inject-overlay', async (event, options = {}) => {
       return { success: false, error: 'No browser view available' };
     }
 
-    // Read the modern overlay injector script
+    // Read the Figma-style overlay injector script
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/modern-overlay-injector.js'),
+      path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
       'utf8'
     );
 
@@ -1019,7 +1019,7 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
     // First ensure the overlay script is injected
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/modern-overlay-injector.js'),
+      path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
       'utf8'
     );
 
