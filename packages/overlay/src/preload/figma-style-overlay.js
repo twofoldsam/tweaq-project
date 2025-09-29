@@ -393,11 +393,27 @@
         padding: 16px;
         margin-bottom: 12px;
         transition: all 0.2s ease;
+        position: relative;
       }
 
       .tweaq-edit-ticket:hover {
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.15);
+      }
+
+      .tweaq-edit-ticket.processing {
+        border-color: rgba(0, 122, 255, 0.5);
+        background: rgba(0, 122, 255, 0.05);
+      }
+
+      .tweaq-edit-ticket.completed {
+        border-color: rgba(52, 199, 89, 0.5);
+        background: rgba(52, 199, 89, 0.05);
+      }
+
+      .tweaq-edit-ticket.failed {
+        border-color: rgba(255, 59, 48, 0.5);
+        background: rgba(255, 59, 48, 0.05);
       }
 
       .tweaq-ticket-header {
@@ -478,6 +494,79 @@
       .tweaq-ticket-change-after {
         color: #51CF66;
         font-weight: 600;
+      }
+
+      /* Ticket Status */
+      .tweaq-ticket-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .tweaq-ticket-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .tweaq-ticket-status-badge.processing {
+        background: rgba(0, 122, 255, 0.2);
+        color: #0A84FF;
+      }
+
+      .tweaq-ticket-status-badge.completed {
+        background: rgba(52, 199, 89, 0.2);
+        color: #34C759;
+      }
+
+      .tweaq-ticket-status-badge.failed {
+        background: rgba(255, 59, 48, 0.2);
+        color: #FF3B30;
+      }
+
+      .tweaq-spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(10, 132, 255, 0.3);
+        border-top-color: #0A84FF;
+        border-radius: 50%;
+        animation: tweaq-spin 0.8s linear infinite;
+      }
+
+      @keyframes tweaq-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .tweaq-pr-link {
+        color: #0A84FF;
+        text-decoration: none;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+      }
+
+      .tweaq-pr-link:hover {
+        background: rgba(10, 132, 255, 0.1);
+        text-decoration: underline;
+      }
+
+      .tweaq-ticket-error {
+        color: #FF6B6B;
+        font-size: 11px;
+        margin-top: 4px;
       }
 
       /* Confirm Edits Button */
@@ -608,6 +697,7 @@
       this.pendingEdits = new Map();
       this.recordedEdits = [];
       this.currentTab = 'properties'; // 'properties' or 'edits'
+      this.processingEdits = false;
       
       this.overlayContainer = null;
       this.outlineElement = null;
@@ -786,6 +876,9 @@
         `;
       }
 
+      const pendingEdits = this.recordedEdits.filter(edit => edit.status === 'pending');
+      const hasCompletedEdits = this.recordedEdits.some(edit => edit.status === 'completed');
+
       return `
         <div class="tweaq-panel-content">
           <div class="tweaq-edits-list">
@@ -793,32 +886,47 @@
           </div>
         </div>
         
-        <div class="tweaq-confirm-edits-section">
-          <div class="tweaq-confirm-edits-info">
-            <p><strong>${this.recordedEdits.length}</strong> edit${this.recordedEdits.length === 1 ? '' : 's'} ready to be converted into a PR using Agent V4.</p>
+        ${pendingEdits.length > 0 ? `
+          <div class="tweaq-confirm-edits-section">
+            <div class="tweaq-confirm-edits-info">
+              <p><strong>${pendingEdits.length}</strong> edit${pendingEdits.length === 1 ? '' : 's'} ready to be converted into a PR using Agent V4.</p>
+            </div>
+            <button 
+              class="tweaq-confirm-edits-btn" 
+              id="tweaq-confirm-edits"
+              ${this.processingEdits ? 'disabled' : ''}
+            >
+              ${this.processingEdits ? '⏳ Processing...' : '✅ Confirm & Create PR'}
+            </button>
           </div>
-          <button class="tweaq-confirm-edits-btn" id="tweaq-confirm-edits">
-            ✅ Confirm & Create PR
-          </button>
-        </div>
+        ` : hasCompletedEdits ? `
+          <div class="tweaq-confirm-edits-section">
+            <div class="tweaq-confirm-edits-info" style="background: rgba(52, 199, 89, 0.1); border-color: rgba(52, 199, 89, 0.3);">
+              <p style="color: #34C759;">All edits have been processed successfully! ✨</p>
+            </div>
+          </div>
+        ` : ''}
       `;
     }
 
     renderEditTicket(edit, index) {
       const timestamp = new Date(edit.timestamp).toLocaleString();
+      const status = edit.status || 'pending';
       
       return `
-        <div class="tweaq-edit-ticket" data-edit-index="${index}">
+        <div class="tweaq-edit-ticket ${status}" data-edit-index="${index}">
           <div class="tweaq-ticket-header">
             <div>
               <h4 class="tweaq-ticket-element">${edit.elementName}</h4>
               <p class="tweaq-ticket-timestamp">${timestamp}</p>
             </div>
-            <button class="tweaq-ticket-delete" data-delete-index="${index}" title="Delete edit">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M5.28 4.22a.75.75 0 00-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 101.06 1.06L8 9.06l2.72 2.72a.75.75 0 101.06-1.06L9.06 8l2.72-2.72a.75.75 0 00-1.06-1.06L8 6.94 5.28 4.22z"/>
-              </svg>
-            </button>
+            ${status === 'pending' ? `
+              <button class="tweaq-ticket-delete" data-delete-index="${index}" title="Delete edit">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M5.28 4.22a.75.75 0 00-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 101.06 1.06L8 9.06l2.72 2.72a.75.75 0 101.06-1.06L9.06 8l2.72-2.72a.75.75 0 00-1.06-1.06L8 6.94 5.28 4.22z"/>
+                </svg>
+              </button>
+            ` : ''}
           </div>
           <div class="tweaq-ticket-changes">
             ${edit.changes.map(change => `
@@ -830,8 +938,68 @@
               </div>
             `).join('')}
           </div>
+          ${this.renderTicketStatus(edit)}
         </div>
       `;
+    }
+
+    renderTicketStatus(edit) {
+      const status = edit.status || 'pending';
+      
+      if (status === 'pending') {
+        return ''; // No status bar for pending
+      }
+      
+      if (status === 'processing') {
+        return `
+          <div class="tweaq-ticket-status">
+            <div class="tweaq-ticket-status-badge processing">
+              <div class="tweaq-spinner"></div>
+              Processing
+            </div>
+            <span style="color: #888; font-size: 11px;">Agent V4 is analyzing and creating PR...</span>
+          </div>
+        `;
+      }
+      
+      if (status === 'completed') {
+        return `
+          <div class="tweaq-ticket-status">
+            <div class="tweaq-ticket-status-badge completed">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
+              </svg>
+              Completed
+            </div>
+            ${edit.prUrl ? `
+              <a href="${edit.prUrl}" class="tweaq-pr-link" target="_blank" rel="noopener noreferrer">
+                View Pull Request
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M3.75 2a.75.75 0 000 1.5h7.19L1.22 13.22a.75.75 0 101.06 1.06L12 4.56v7.19a.75.75 0 001.5 0v-9a.75.75 0 00-.75-.75h-9z"/>
+                </svg>
+              </a>
+            ` : ''}
+          </div>
+        `;
+      }
+      
+      if (status === 'failed') {
+        return `
+          <div class="tweaq-ticket-status">
+            <div class="tweaq-ticket-status-badge failed">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M5.28 4.22a.75.75 0 00-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 101.06 1.06L8 9.06l2.72 2.72a.75.75 0 101.06-1.06L9.06 8l2.72-2.72a.75.75 0 00-1.06-1.06L8 6.94 5.28 4.22z"/>
+              </svg>
+              Failed
+            </div>
+            ${edit.error ? `
+              <p class="tweaq-ticket-error">${edit.error}</p>
+            ` : ''}
+          </div>
+        `;
+      }
+      
+      return '';
     }
 
     renderDesignSection(element, rect, styles) {
@@ -1109,7 +1277,10 @@
         changes,
         element: element.tagName.toLowerCase(),
         elementId: element.id || null,
-        elementClasses: Array.from(element.classList)
+        elementClasses: Array.from(element.classList),
+        status: 'pending', // pending, processing, completed, failed
+        prUrl: null,
+        error: null
       };
 
       this.recordedEdits.push(edit);
@@ -1127,39 +1298,87 @@
     }
 
     async confirmEdits() {
-      if (this.recordedEdits.length === 0) return;
+      if (this.recordedEdits.length === 0 || this.processingEdits) return;
+
+      this.processingEdits = true;
+
+      // Update all edits to processing status
+      this.recordedEdits.forEach(edit => {
+        if (edit.status === 'pending') {
+          edit.status = 'processing';
+        }
+      });
+      this.renderProperties();
 
       // Prepare edits for Agent V4 with before/after values
-      const editsForAgent = this.recordedEdits.map(edit => ({
-        selector: edit.elementSelector,
-        element: edit.element,
-        elementId: edit.elementId,
-        elementClasses: edit.elementClasses,
-        changes: edit.changes.map(change => ({
-          property: change.property,
-          before: change.before,
-          after: change.after
-        }))
-      }));
+      const editsForAgent = this.recordedEdits
+        .filter(edit => edit.status === 'processing')
+        .map(edit => ({
+          selector: edit.elementSelector,
+          element: edit.element,
+          elementId: edit.elementId,
+          elementClasses: edit.elementClasses,
+          changes: edit.changes.map(change => ({
+            property: change.property,
+            before: change.before,
+            after: change.after
+          }))
+        }));
 
       // Send to Electron main process to trigger Agent V4
       if (window.electronAPI && window.electronAPI.triggerAgentV4) {
         try {
-          await window.electronAPI.triggerAgentV4({
+          const result = await window.electronAPI.triggerAgentV4({
             edits: editsForAgent,
             url: window.location.href
           });
           
-          // Clear recorded edits after successful submission
-          this.recordedEdits = [];
+          if (result.success) {
+            // Update all processing edits to completed
+            this.recordedEdits.forEach(edit => {
+              if (edit.status === 'processing') {
+                edit.status = 'completed';
+                edit.prUrl = result.pr?.url || null;
+              }
+            });
+          } else {
+            // Update all processing edits to failed
+            this.recordedEdits.forEach(edit => {
+              if (edit.status === 'processing') {
+                edit.status = 'failed';
+                edit.error = result.error || 'Failed to create PR';
+              }
+            });
+          }
+          
+          this.processingEdits = false;
           this.renderProperties();
         } catch (error) {
           console.error('Failed to trigger Agent V4:', error);
-          alert('Failed to create PR. Check console for details.');
+          
+          // Update all processing edits to failed
+          this.recordedEdits.forEach(edit => {
+            if (edit.status === 'processing') {
+              edit.status = 'failed';
+              edit.error = error instanceof Error ? error.message : 'Unknown error';
+            }
+          });
+          
+          this.processingEdits = false;
+          this.renderProperties();
         }
       } else {
         console.error('electronAPI.triggerAgentV4 not available');
-        alert('Agent V4 integration not available');
+        
+        this.recordedEdits.forEach(edit => {
+          if (edit.status === 'processing') {
+            edit.status = 'failed';
+            edit.error = 'Agent V4 integration not available';
+          }
+        });
+        
+        this.processingEdits = false;
+        this.renderProperties();
       }
     }
 
