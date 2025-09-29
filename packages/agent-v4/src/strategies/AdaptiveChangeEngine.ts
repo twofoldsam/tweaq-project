@@ -40,10 +40,10 @@ export class AdaptiveChangeEngine {
     validation: ValidationResult;
     executionLog: string[];
   }> {
-    console.log(`🚀 Executing change with ${confidenceAssessment.recommendedApproach} approach...`);
+    console.log(`🚀 Executing change with ${confidenceAssessment.recommendedApproach} approach`);
     
     const executionLog: string[] = [];
-    executionLog.push(`Starting change execution: ${confidenceAssessment.recommendedApproach}`);
+    executionLog.push(`Initializing ${confidenceAssessment.recommendedApproach} strategy`);
     
     // Create strategy based on confidence assessment
     const strategy = this.createStrategy(confidenceAssessment, impactAnalysis);
@@ -57,7 +57,7 @@ export class AdaptiveChangeEngine {
     // Execute with retries and fallbacks
     while (attempt < maxAttempts) {
       try {
-        executionLog.push(`Attempt ${attempt + 1}/${maxAttempts}`);
+        executionLog.push(`Executing attempt ${attempt + 1} of ${maxAttempts}`);
         
         // Execute the strategy
         const result = await this.executeStrategy(
@@ -74,18 +74,18 @@ export class AdaptiveChangeEngine {
         
         // If validation passes, we're done
         if (validation.passed) {
-          executionLog.push('✅ Change execution successful');
+          executionLog.push('✅ Change applied successfully');
           break;
         }
         
         // If validation fails, try fallback strategy
-        executionLog.push(`❌ Validation failed: ${validation.issues.length} issues`);
+        executionLog.push(`⚠️  Validation issues detected (${validation.issues.length}), trying fallback`);
         
         if (strategy.fallbackStrategy && attempt < maxAttempts - 1) {
           strategy.approach = strategy.fallbackStrategy.approach;
           strategy.steps = strategy.fallbackStrategy.steps;
           strategy.validationLevel = strategy.fallbackStrategy.validationLevel;
-          executionLog.push(`🔄 Falling back to ${strategy.approach}`);
+          executionLog.push(`🔄 Switching to ${strategy.approach} strategy`);
         }
         
       } catch (error) {
@@ -103,7 +103,7 @@ export class AdaptiveChangeEngine {
       throw new Error('Change execution failed after all attempts');
     }
     
-    console.log(`✅ Change execution completed with ${strategy.approach} approach`);
+    console.log(`✅ Change execution completed using ${strategy.approach}`);
     
     return {
       fileChanges,
@@ -406,53 +406,38 @@ export class AdaptiveChangeEngine {
     
     // Read the actual file content if not already available
     if (!targetComponent.content) {
-      executionLog.push(`📖 Reading current file content: ${targetComponent.filePath}`);
+      executionLog.push(`Loading file: ${targetComponent.filePath}`);
       try {
-        // For now, we'll need to get file content from the symbolic repo
-        // In a real implementation, this would read from the file system or repository
         const fileContent = await this.readFileContent(targetComponent.filePath, symbolicRepo);
         targetComponent.content = fileContent;
-        executionLog.push(`📖 ✅ Loaded ${fileContent.length} characters from file`);
+        executionLog.push(`File loaded (${fileContent.length} characters)`);
       } catch (error) {
-        executionLog.push(`📖 ❌ Warning: Could not read file content: ${error}`);
+        executionLog.push(`⚠️  Could not read file content: ${error}`);
         targetComponent.content = '// Could not read current file content';
       }
     }
     
-    // 🔍 DEBUG: Log what file content we're actually working with
-    executionLog.push(`🔍 DEBUG: Working with file ${targetComponent.filePath}`);
-    executionLog.push(`🔍 DEBUG: File content length: ${targetComponent.content?.length || 0} characters`);
-    executionLog.push(`🔍 DEBUG: File content preview (first 200 chars): ${(targetComponent.content || '').substring(0, 200)}...`);
-    executionLog.push(`🔍 DEBUG: File content has imports: ${(targetComponent.content || '').includes('import') ? 'YES' : 'NO'}`);
-    executionLog.push(`🔍 DEBUG: File content has exports: ${(targetComponent.content || '').includes('export') ? 'YES' : 'NO'}`);
-    
     if (!targetComponent.content || targetComponent.content.length < 100) {
-      executionLog.push(`🚨 CRITICAL: File content is suspiciously short or missing!`);
-      executionLog.push(`🚨 This will cause the LLM to generate incomplete code.`);
+      executionLog.push(`⚠️  File content appears incomplete - this may affect code generation`);
     }
     
     // Build a confident prompt with rich context
     const prompt = this.buildDirectPrompt(changeIntent, symbolicRepo);
     
     // Generate with LLM
-    executionLog.push(`🔍 PROMPT DEBUG: Sending prompt of ${prompt.length} characters to Claude`);
+    executionLog.push(`Generating code changes...`);
     const generatedCode = await this.llmProvider.generateText(prompt);
-    executionLog.push(`🔍 RAW RESPONSE DEBUG: Claude returned ${generatedCode.length} characters`);
-    executionLog.push(`🔍 RAW RESPONSE PREVIEW: ${generatedCode.substring(0, 500)}...`);
     
     const newContent = this.extractCodeFromResponse(generatedCode);
-    executionLog.push(`🔍 EXTRACTED CODE DEBUG: After extraction: ${newContent.length} characters`);
-    executionLog.push(`Generated ${newContent.length} characters of code`);
+    executionLog.push(`Code generation complete (${newContent.length} characters)`);
     
-    // 🚨 LENGTH CHECK: Try to fix over-deletion with feedback
+    // Validate generated content length
     const originalLength = targetComponent.content?.length || 0;
-    const minAcceptableLength = Math.floor(originalLength * 0.8); // Must be at least 80% of original
+    const minAcceptableLength = Math.floor(originalLength * 0.8);
     
     if (newContent.length < minAcceptableLength) {
-      executionLog.push(`⚠️ FIRST ATTEMPT TOO SHORT: Generated code too short (${newContent.length} chars vs ${originalLength} original, min: ${minAcceptableLength})`);
-      executionLog.push(`🔄 RETRYING with feedback about over-deletion...`);
+      executionLog.push(`⚠️  Generated code appears too short, retrying with preservation feedback`);
       
-      // Retry with specific feedback about the problem
       const retryNewContent = await this.retryWithFeedback(
         targetComponent.content || '',
         changeIntent,
@@ -461,23 +446,22 @@ export class AdaptiveChangeEngine {
         executionLog
       );
       
-      // Check retry result
       if (retryNewContent.length < minAcceptableLength) {
-        executionLog.push(`❌ RETRY FAILED: Still too short (${retryNewContent.length} chars). Falling back to Agent V3.`);
+        executionLog.push(`❌ Retry unsuccessful - falling back to conservative approach`);
         throw new Error(`Generated code is still too short after retry (${retryNewContent.length} chars vs ${originalLength} original). This indicates persistent over-deletion.`);
       }
       
-      executionLog.push(`✅ RETRY SUCCESS: Fixed length ${retryNewContent.length}/${originalLength} chars (${Math.round(retryNewContent.length/originalLength*100)}%)`);
+      executionLog.push(`✅ Retry successful - code preservation validated`);
       return [{
         filePath: targetComponent.filePath,
         action: 'modify',
         oldContent: targetComponent.content || '',
         newContent: retryNewContent,
-        reasoning: `High-confidence direct change with retry fix: ${changeIntent.description}`
+        reasoning: `High-confidence direct change with preservation fix: ${changeIntent.description}`
       }];
     }
     
-    executionLog.push(`✅ Length check passed: ${newContent.length}/${originalLength} chars (${Math.round(newContent.length/originalLength*100)}%)`);
+    executionLog.push(`✅ Code validation passed (${Math.round(newContent.length/originalLength*100)}% of original size)`);
     
     return [{
       filePath: targetComponent.filePath,
@@ -513,15 +497,13 @@ export class AdaptiveChangeEngine {
     
     executionLog.push(`Generated ${newContent.length} characters with guided constraints`);
     
-    // 🚨 LENGTH CHECK: Try to fix over-deletion with feedback
+    // Validate guided generation results
     const originalLength = targetComponent.content?.length || 0;
-    const minAcceptableLength = Math.floor(originalLength * 0.8); // Must be at least 80% of original
+    const minAcceptableLength = Math.floor(originalLength * 0.8);
     
     if (newContent.length < minAcceptableLength) {
-      executionLog.push(`⚠️ GUIDED ATTEMPT TOO SHORT: Generated code too short (${newContent.length} chars vs ${originalLength} original, min: ${minAcceptableLength})`);
-      executionLog.push(`🔄 RETRYING guided approach with feedback...`);
+      executionLog.push(`⚠️  Generated code too short, retrying with constraints`);
       
-      // Retry with specific feedback about the problem
       const retryNewContent = await this.retryWithFeedback(
         targetComponent.content || '',
         changeIntent,
@@ -530,13 +512,12 @@ export class AdaptiveChangeEngine {
         executionLog
       );
       
-      // Check retry result
       if (retryNewContent.length < minAcceptableLength) {
-        executionLog.push(`❌ GUIDED RETRY FAILED: Still too short (${retryNewContent.length} chars). Falling back to Agent V3.`);
+        executionLog.push(`❌ Guided retry unsuccessful - escalating to conservative approach`);
         throw new Error(`Generated code is still too short after guided retry (${retryNewContent.length} chars vs ${originalLength} original). This indicates persistent over-deletion.`);
       }
       
-      executionLog.push(`✅ GUIDED RETRY SUCCESS: Fixed length ${retryNewContent.length}/${originalLength} chars (${Math.round(retryNewContent.length/originalLength*100)}%)`);
+      executionLog.push(`✅ Guided retry successful`);
       return [{
         filePath: targetComponent.filePath,
         action: 'modify',
@@ -546,7 +527,7 @@ export class AdaptiveChangeEngine {
       }];
     }
     
-    executionLog.push(`✅ Length check passed: ${newContent.length}/${originalLength} chars (${Math.round(newContent.length/originalLength*100)}%)`);
+    executionLog.push(`✅ Guided generation validated`);
     
     return [{
       filePath: targetComponent.filePath,
@@ -580,15 +561,13 @@ export class AdaptiveChangeEngine {
     const generatedCode = await this.llmProvider.generateText(prompt);
     const newContent = this.extractCodeFromResponse(generatedCode);
     
-    // 🚨 LENGTH CHECK: Try to fix over-deletion with feedback
+    // Validate conservative generation results
     const originalLength = targetComponent.content?.length || 0;
-    const minAcceptableLength = Math.floor(originalLength * 0.8); // Must be at least 80% of original
+    const minAcceptableLength = Math.floor(originalLength * 0.8);
     
     if (newContent.length < minAcceptableLength) {
-      executionLog.push(`⚠️ CONSERVATIVE ATTEMPT TOO SHORT: Generated code too short (${newContent.length} chars vs ${originalLength} original, min: ${minAcceptableLength})`);
-      executionLog.push(`🔄 RETRYING conservative approach with feedback...`);
+      executionLog.push(`⚠️  Conservative generation too short, applying strict retry`);
       
-      // Retry with specific feedback about the problem
       const retryNewContent = await this.retryWithFeedback(
         targetComponent.content || '',
         changeIntent,
@@ -597,13 +576,12 @@ export class AdaptiveChangeEngine {
         executionLog
       );
       
-      // Check retry result
       if (retryNewContent.length < minAcceptableLength) {
-        executionLog.push(`❌ CONSERVATIVE RETRY FAILED: Still too short (${retryNewContent.length} chars). Falling back to Agent V3.`);
+        executionLog.push(`❌ Conservative retry failed - requesting human review`);
         throw new Error(`Generated code is still too short after conservative retry (${retryNewContent.length} chars vs ${originalLength} original). This indicates persistent over-deletion.`);
       }
       
-      executionLog.push(`✅ CONSERVATIVE RETRY SUCCESS: Fixed length ${retryNewContent.length}/${originalLength} chars (${Math.round(retryNewContent.length/originalLength*100)}%)`);
+      executionLog.push(`✅ Conservative retry successful`);
       return [{
         filePath: targetComponent.filePath,
         action: 'modify',
@@ -623,8 +601,7 @@ export class AdaptiveChangeEngine {
       // Could implement additional conservative measures here
     }
     
-    executionLog.push(`✅ Length check passed: ${newContent.length}/${originalLength} chars (${Math.round(newContent.length/originalLength*100)}%)`);
-    executionLog.push(`Generated ${newContent.length} characters with conservative constraints`);
+    executionLog.push(`✅ Conservative generation validated`);
     
     return [{
       filePath: targetComponent.filePath,
@@ -920,12 +897,7 @@ CONSERVATIVELY MODIFIED CODE:`;
     feedbackMessage: string,
     executionLog: string[]
   ): Promise<string> {
-    executionLog.push(`🔄 Retrying with feedback: ${problemType}`);
-    
-    // 🔍 DEBUG: Log what we're passing to the retry
-    executionLog.push(`🔍 RETRY DEBUG: Original content length: ${originalContent.length} characters`);
-    executionLog.push(`🔍 RETRY DEBUG: Original content preview: ${originalContent.substring(0, 200)}...`);
-    executionLog.push(`🔍 RETRY DEBUG: Change intent: ${changeIntent.description}`);
+    executionLog.push(`Retrying generation with ${problemType} feedback`);
     
     const retryPrompt = `PREVIOUS ATTEMPT FAILED: ${feedbackMessage}
 
@@ -943,14 +915,9 @@ INSTRUCTIONS:
 
 COMPLETE CORRECTED FILE:`;
 
-    executionLog.push(`🔍 RETRY PROMPT DEBUG: Sending retry prompt of ${retryPrompt.length} characters to Claude`);
     const retryResponse = await this.llmProvider.generateText(retryPrompt);
-    executionLog.push(`🔍 RETRY RAW RESPONSE DEBUG: Claude returned ${retryResponse.length} characters`);
-    executionLog.push(`🔍 RETRY RAW RESPONSE PREVIEW: ${retryResponse.substring(0, 500)}...`);
-    
     const retryContent = this.extractCodeFromResponse(retryResponse);
-    executionLog.push(`🔍 RETRY EXTRACTED CODE DEBUG: After extraction: ${retryContent.length} characters`);
-    executionLog.push(`🔄 Retry generated ${retryContent.length} characters (vs ${originalContent.length} original)`);
+    executionLog.push(`Retry complete - generated ${retryContent.length} characters`);
     
     return retryContent;
   }

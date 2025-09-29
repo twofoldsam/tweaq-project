@@ -2596,7 +2596,7 @@ let agentV4Integration: any = null;
  */
 async function initializeAgentV4(config: any) {
   try {
-    console.log('🤖 Initializing Agent V4 (Intelligent Coding Agent)...');
+    console.log('🤖 Initializing Intelligent Coding Agent...');
     
     // Initialize LLM provider
     const { provider: llmProvider, type: providerType } = await initializeLLMProviderForCodeGeneration();
@@ -2604,7 +2604,7 @@ async function initializeAgentV4(config: any) {
       throw new Error('No LLM provider available for Agent V4');
     }
     
-    console.log(`🧠 Agent V4 using ${providerType} provider`);
+    console.log(`🧠 Using ${providerType} AI provider`);
     
     // Dynamic import of Agent V4
     const { createTweaqAgentV4Integration } = await import('../../../packages/agent-v4/dist/integration/TweaqIntegration.js');
@@ -2637,11 +2637,11 @@ async function initializeAgentV4(config: any) {
       }
     });
     
-    console.log('✅ Agent V4 initialized successfully with over-deletion prevention');
+    console.log('✅ Intelligent Coding Agent initialized successfully');
     return { success: true, agent: 'v4' };
   } catch (error) {
-    console.error('❌ Failed to initialize Agent V4:', error);
-    console.log('🔄 Falling back to Agent V3...');
+    console.error('❌ Failed to initialize Intelligent Agent:', error);
+    console.log('🔄 Falling back to standard agent...');
     
     // Fallback to Agent V3
     return await initializeRealVisualAgent(config);
@@ -2653,7 +2653,7 @@ async function initializeAgentV4(config: any) {
  */
 async function initializeRealVisualAgent(config: any) {
   try {
-    console.log('🎨 Initializing Visual Coding Agent (V3)...');
+    console.log('🎨 Initializing Standard Visual Agent...');
     
     visualCodingAgent = {
       initialized: true,
@@ -2663,10 +2663,10 @@ async function initializeRealVisualAgent(config: any) {
       }
     };
     
-    console.log('✅ Visual Coding Agent V3 initialized successfully');
+    console.log('✅ Standard Visual Agent initialized successfully');
     return { success: true, agent: 'v3' };
   } catch (error) {
-    console.error('❌ Failed to initialize Visual Coding Agent:', error);
+    console.error('❌ Failed to initialize Visual Agent:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }

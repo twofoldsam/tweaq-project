@@ -161,7 +161,7 @@ export const Button: React.FC<{ children: React.ReactNode; className?: string }>
 exports.createDefaultContext = createDefaultContext;
 // Test runner
 async function runTests() {
-    console.log('🚀 Starting Visual Coding Agent Test Harness\n');
+    console.log('🚀 Starting Visual Coding Agent Demo\n');
     // Check for API key
     const apiKey = process.env['ANTHROPIC_API_KEY'];
     if (!apiKey) {
@@ -178,9 +178,9 @@ async function runTests() {
         const testCase = testCases[i];
         if (!testCase)
             continue;
-        console.log(`\n📝 Test ${i + 1}/${totalTests}: ${testCase.name}`);
+        console.log(`\n📝 Demo ${i + 1}/${totalTests}: ${testCase.name}`);
         console.log(`Request: "${testCase.description}"`);
-        console.log(`Element: <${testCase.element.tagName}> with classes: [${testCase.element.classes?.join(', ') || 'none'}]`);
+        console.log(`Target: <${testCase.element.tagName}> ${testCase.element.classes ? `(${testCase.element.classes.join(', ')})` : ''}`);
         try {
             const request = {
                 description: testCase.description,
@@ -191,9 +191,9 @@ async function runTests() {
             const startTime = Date.now();
             const response = await agent.processRequest(request);
             const duration = Date.now() - startTime;
-            console.log(`✅ Completed in ${duration}ms`);
-            console.log(`Confidence: ${Math.round(response.confidence * 100)}%`);
-            console.log(`Changes: ${response.changes.length} file(s)`);
+            console.log(`✅ Processing complete (${duration}ms)`);
+            console.log(`🎯 Confidence: ${Math.round(response.confidence * 100)}%`);
+            console.log(`📄 Files modified: ${response.changes.length}`);
             if (response.changes.length > 0) {
                 console.log('\n📄 Generated Changes:');
                 response.changes.forEach((change, idx) => {
@@ -215,24 +215,24 @@ async function runTests() {
             // Basic validation
             if (response.changes.length > 0 && response.explanation && response.confidence > 0) {
                 passedTests++;
-                console.log('✅ Test passed');
+                console.log('✅ Demo successful');
             }
             else {
-                console.log('❌ Test failed - insufficient response');
+                console.log('❌ Demo incomplete - insufficient response');
             }
         }
         catch (error) {
-            console.log(`❌ Test failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.log(`❌ Demo failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
         // Add separator between tests
         console.log('─'.repeat(80));
     }
-    console.log(`\n🎯 Test Results: ${passedTests}/${totalTests} tests passed`);
+    console.log(`\n🎯 Demo Results: ${passedTests}/${totalTests} scenarios completed successfully`);
     if (passedTests === totalTests) {
-        console.log('🎉 All tests passed! The agent is working correctly.');
+        console.log('🎉 All demo scenarios completed successfully! The agent is performing optimally.');
     }
     else {
-        console.log(`⚠️  ${totalTests - passedTests} tests failed. Check the output above for details.`);
+        console.log(`⚠️  ${totalTests - passedTests} scenarios had issues. Review the output above for details.`);
     }
 }
 // Interactive test mode
