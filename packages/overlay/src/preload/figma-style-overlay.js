@@ -345,6 +345,7 @@
   class FigmaStyleOverlay {
     constructor() {
       this.isVisible = false;
+      this.isHiding = false;
       this.selectedElement = null;
       this.hoveredElement = null;
       this.pendingEdits = new Map();
@@ -441,10 +442,10 @@
     }
 
     hidePanel() {
+      // Remove body margin first to prevent content jumping
+      document.body.classList.remove('tweaq-panel-open');
+      // Then slide out panel
       this.propertiesPanel.classList.remove('visible');
-      setTimeout(() => {
-        document.body.classList.remove('tweaq-panel-open');
-      }, 300);
     }
 
     renderProperties() {
@@ -812,8 +813,9 @@
     }
 
     hide() {
-      if (!this.isVisible) return;
+      if (!this.isVisible || this.isHiding) return;
       
+      this.isHiding = true;
       this.removeEventListeners();
       this.hidePanel();
       
@@ -827,6 +829,7 @@
         this.selectedElement = null;
         this.hoveredElement = null;
         this.isVisible = false;
+        this.isHiding = false;
       }, 320); // Slightly longer than CSS transition (300ms)
     }
 
