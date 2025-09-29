@@ -394,27 +394,27 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
         />
 
         {/* Panels */}
-        {state.selectedElement && state.mode === 'measure' && (
-          <div className="tweaq-overlay-panel tweaq-inspector-panel tweaq-panel-visible">
-            <Inspector
-              elementInfo={state.selectedElement.info}
-              onClose={handlePanelClose}
-            />
-          </div>
-        )}
-        {state.selectedElement && state.mode === 'edit' && (
-          <div className="tweaq-overlay-panel tweaq-edit-panel tweaq-panel-visible">
-            <EditPanel
-              elementInfo={state.selectedElement.info}
-              selectedElement={state.selectedElement.element}
-              pendingEdits={pendingEdits}
-              onPropertyChange={handlePropertyChange}
-              onRecordEdit={handleRecordEdit}
-              onResetChanges={handleResetChanges}
-              onClose={handlePanelClose}
-              elementSelector={generateElementSelector(state.selectedElement.element)}
-            />
-          </div>
+        {state.selectedElement && (
+          <>
+            {state.mode === 'measure' && (
+              <Inspector
+                elementInfo={state.selectedElement.info}
+                onClose={handlePanelClose}
+              />
+            )}
+            {state.mode === 'edit' && (
+              <EditPanel
+                elementInfo={state.selectedElement.info}
+                selectedElement={state.selectedElement.element}
+                pendingEdits={pendingEdits}
+                onPropertyChange={handlePropertyChange}
+                onRecordEdit={handleRecordEdit}
+                onResetChanges={handleResetChanges}
+                onClose={handlePanelClose}
+                elementSelector={generateElementSelector(state.selectedElement.element)}
+              />
+            )}
+          </>
         )}
 
         {/* Ruler Tool */}
