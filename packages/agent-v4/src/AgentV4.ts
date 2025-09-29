@@ -13,6 +13,7 @@ import type {
 import { ReasoningEngine } from './intelligence/ReasoningEngine.js';
 import { AdaptiveChangeEngine } from './strategies/AdaptiveChangeEngine.js';
 import { ContextualPromptBuilder } from './prompts/ContextualPromptBuilder.js';
+import { demoLogger } from './utils/DemoLogger.js';
 
 /**
  * Agent V4 - Intelligent coding agent with confidence-based decision making
@@ -52,32 +53,42 @@ export class AgentV4 {
     summary: string;
     error?: string;
   }> {
-    console.log('🚀 Agent V4 starting intelligent processing...');
+    demoLogger.showWorkflowOverview();
     
     try {
       // Phase 1: Comprehensive Analysis
-      console.log('\n🧠 Phase 1: Comprehensive Analysis...');
+      demoLogger.startPhase('1', 'Analyzing Visual Changes & Understanding Intent');
       const analysisResult = await this.performComprehensiveAnalysis(visualEdits[0], symbolicRepo);
+      demoLogger.completePhase('SUCCESS');
       
-      // Phase 2: Intelligent Execution
-      console.log('\n⚡ Phase 2: Intelligent Execution...');
+      // Phase 2: Intelligent Execution  
+      demoLogger.startPhase('2', 'Executing Changes with Intelligent Validation');
       const executionResult = await this.performIntelligentExecution(
         analysisResult.changeIntent,
         analysisResult.confidenceAssessment,
         analysisResult.impactAnalysis,
         symbolicRepo
       );
+      demoLogger.completePhase('SUCCESS');
       
       // Phase 3: Generate Summary
-      console.log('\n📋 Phase 3: Generating Summary...');
+      demoLogger.startPhase('3', 'Generating Summary & Creating Pull Request');
       const summary = this.generateExecutionSummary(
         analysisResult,
         executionResult
       );
+      demoLogger.completePhase('SUCCESS');
       
       const success = executionResult.validation.passed;
       
-      console.log(`✅ Agent V4 processing ${success ? 'completed successfully' : 'completed with issues'}`);
+      // Final summary
+      demoLogger.summary('Processing Results', [
+        { label: 'Status', value: success ? 'SUCCESS' : 'COMPLETED WITH ISSUES' },
+        { label: 'Files Changed', value: executionResult.fileChanges.length },
+        { label: 'Confidence Level', value: `${Math.round(analysisResult.confidenceAssessment.confidence * 100)}%` },
+        { label: 'Strategy Used', value: analysisResult.confidenceAssessment.recommendedApproach },
+        { label: 'Validation Issues', value: executionResult.validation.issues.length }
+      ]);
       
       return {
         success,
@@ -88,7 +99,7 @@ export class AgentV4 {
       };
       
     } catch (error) {
-      console.error('❌ Agent V4 processing failed:', error);
+      demoLogger.error(`Processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       
       return {
         success: false,
@@ -112,19 +123,18 @@ export class AgentV4 {
     impactAnalysis: ChangeImpactAnalysis;
     confidenceAssessment: ChangeConfidenceAssessment;
   }> {
-    console.log('🔍 Performing comprehensive analysis...');
+    demoLogger.step('Understanding visual change requirements...');
     
     const analysisResult = await this.reasoningEngine.analyzeChange(
       visualEdit,
       symbolicRepo
     );
     
-    console.log('📊 Analysis Summary:');
-    console.log(this.reasoningEngine.getAnalysisSummary(
-      analysisResult.changeIntent,
-      analysisResult.impactAnalysis,
-      analysisResult.confidenceAssessment
-    ));
+    demoLogger.step('Analysis complete');
+    demoLogger.metric('Change Type', analysisResult.changeIntent.type);
+    demoLogger.metric('Target Component', analysisResult.changeIntent.targetComponent?.name || 'Unknown');
+    demoLogger.metric('Confidence Level', `${Math.round(analysisResult.confidenceAssessment.confidence * 100)}%`);
+    demoLogger.decision(`Selected strategy: ${analysisResult.confidenceAssessment.recommendedApproach}`, analysisResult.confidenceAssessment.confidence);
     
     return {
       changeIntent: analysisResult.changeIntent,
@@ -147,7 +157,8 @@ export class AgentV4 {
     validation: ValidationResult;
     executionLog: string[];
   }> {
-    console.log(`🎯 Executing with ${confidenceAssessment.recommendedApproach} approach...`);
+    demoLogger.step(`Applying ${confidenceAssessment.recommendedApproach} strategy...`);
+    demoLogger.step('Generating code changes with AI assistance...');
     
     // Execute the change with adaptive strategy
     const executionResult = await this.changeEngine.executeChange(
@@ -157,9 +168,13 @@ export class AgentV4 {
       symbolicRepo
     );
     
-    console.log(`📊 Execution completed: ${executionResult.validation.passed ? 'SUCCESS' : 'ISSUES'}`);
-    console.log(`📝 Changes: ${executionResult.fileChanges.length} files`);
-    console.log(`🔍 Validation: ${executionResult.validation.issues.length} issues, ${executionResult.validation.warnings.length} warnings`);
+    demoLogger.step('Validating generated code...');
+    if (executionResult.validation.passed) {
+      demoLogger.success(`Code changes validated successfully`);
+    } else {
+      demoLogger.warning(`Validation found ${executionResult.validation.issues.length} issues`);
+    }
+    demoLogger.metric('Files Modified', executionResult.fileChanges.length);
     
     return executionResult;
   }

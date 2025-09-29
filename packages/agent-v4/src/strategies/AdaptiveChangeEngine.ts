@@ -11,6 +11,7 @@ import type {
 } from '../types/index.js';
 
 import { SmartValidationEngine } from '../validation/SmartValidationEngine.js';
+import { demoLogger } from '../utils/DemoLogger.js';
 
 /**
  * Adaptive change engine that selects strategies based on confidence
@@ -40,8 +41,6 @@ export class AdaptiveChangeEngine {
     validation: ValidationResult;
     executionLog: string[];
   }> {
-    console.log(`🚀 Executing change with ${confidenceAssessment.recommendedApproach} approach`);
-    
     const executionLog: string[] = [];
     executionLog.push(`Initializing ${confidenceAssessment.recommendedApproach} strategy`);
     
@@ -103,7 +102,6 @@ export class AdaptiveChangeEngine {
       throw new Error('Change execution failed after all attempts');
     }
     
-    console.log(`✅ Change execution completed using ${strategy.approach}`);
     
     return {
       fileChanges,

@@ -2883,7 +2883,7 @@ This is a **DRAFT PR** created with safety measures:
  * Process visual requests using Agent V4 (Intelligent Agent with Over-Deletion Prevention)
  */
 async function processVisualRequestWithAgentV4(request: any) {
-  console.log('🤖 Processing visual request with Agent V4 (Intelligent + Over-Deletion Prevention)...');
+  console.log('🤖 TWEAQ Intelligent Coding Agent - Processing Visual Changes');
 
   try {
     // Extract visual edits from request
@@ -2891,8 +2891,6 @@ async function processVisualRequestWithAgentV4(request: any) {
     if (!visualEdits.length) {
       throw new Error('No visual edits provided');
     }
-
-    console.log(`📝 Processing ${visualEdits.length} visual edits with Agent V4`);
 
     // Get GitHub configuration
     const config = store.get('github');
@@ -2908,7 +2906,6 @@ async function processVisualRequestWithAgentV4(request: any) {
 
     // Initialize repository analyzer to get symbolic context
     const remoteRepo = new RemoteRepo(githubToken);
-    console.log('🔍 Initializing repository analyzer for Agent V4...');
     await initializeRepoAnalyzer(config, remoteRepo);
 
     // Get symbolic repository model
@@ -2917,36 +2914,14 @@ async function processVisualRequestWithAgentV4(request: any) {
       throw new Error('Failed to build symbolic repository model');
     }
 
-    console.log(`📊 Symbolic repo analysis: ${symbolicRepo.components.length} components found`);
-    console.log(`🔍 Repository config: ${config.owner}/${config.repo}@${config.baseBranch || 'main'}`);
-
-    // Debug: Check what's actually in the repository tree
-    try {
-      const repoTree = await remoteRepo.getRepoTree({
-        owner: config.owner,
-        repo: config.repo,
-        ref: config.baseBranch || 'main',
-        recursive: true
-      });
-      console.log(`🌳 Repository tree contains ${repoTree.tree.length} files`);
-      const componentFiles = repoTree.tree.filter((file: any) => 
-        file.path && (file.path.includes('components/') || file.path.endsWith('.tsx') || file.path.endsWith('.ts'))
-      );
-      console.log(`🧩 Component-like files in tree: ${componentFiles.length}`);
-      console.log(`📁 Sample component files:`, componentFiles.slice(0, 5).map((f: any) => f.path));
-    } catch (error) {
-      console.error('❌ Failed to get repository tree:', error);
-    }
 
     // Enhance symbolic repo with actual file content for Agent V4
     const validComponents = [];
-    console.log(`🔄 Processing ${symbolicRepo.components.length} components sequentially...`);
     const maxFiles = 5; // Limit for testing
     for (let i = 0; i < Math.min(symbolicRepo.components.length, maxFiles); i++) {
       const component = symbolicRepo.components[i];
       if (component.filePath && !component.content) {
         try {
-          console.log(`🔍 [${i+1}/${maxFiles}] Attempting to read: ${component.filePath}`);
           
           // Add small delay to avoid rate limiting
           if (i > 0) {
@@ -2961,14 +2936,8 @@ async function processVisualRequestWithAgentV4(request: any) {
           });
           component.content = fileContent;
           validComponents.push(component);
-          console.log(`📖 ✅ Loaded content for ${component.filePath}: ${fileContent.length} chars`);
         } catch (error) {
-          // Log detailed error information
-          console.log(`🔍 ❌ File read failed: ${component.filePath}`);
-          console.log(`🔍    Error: ${error instanceof Error ? error.message : String(error)}`);
-          if (error instanceof Error && error.stack) {
-            console.log(`🔍    Stack: ${error.stack.split('\n')[0]}`);
-          }
+          // Silently skip files that can't be read
         }
       } else {
         validComponents.push(component);
@@ -2977,29 +2946,18 @@ async function processVisualRequestWithAgentV4(request: any) {
     
     // Update symbolic repo with only valid components
     symbolicRepo.components = validComponents;
-    console.log(`📊 Valid components after filtering: ${validComponents.length}`);
 
     // Check if Agent V4 should handle this request
     const recommendation = agentV4Integration.shouldUseAgentV4(visualEdits, symbolicRepo);
-    console.log(`🎯 Agent V4 recommendation: ${recommendation.recommended ? 'YES' : 'NO'} (${(recommendation.confidence * 100).toFixed(1)}%)`);
-    console.log(`💡 Reason: ${recommendation.reason}`);
 
     let result;
     
     if (recommendation.recommended) {
       // Use Agent V4 for intelligent processing
-      console.log('🚀 Using Agent V4 for intelligent processing...');
       result = await agentV4Integration.processVisualEdits(visualEdits, symbolicRepo, {
         enableLogging: true
       });
       
-      console.log('📊 Agent V4 Results:');
-      console.log(`  Success: ${result.success}`);
-      console.log(`  Confidence: ${(result.confidence * 100).toFixed(1)}%`);
-      console.log(`  Approach: ${result.approach}`);
-      console.log(`  Validation: ${result.validation.passed ? 'PASSED' : 'FAILED'}`);
-      console.log(`  Issues: ${result.validation.issues.length}`);
-      console.log(`  File Changes: ${result.fileChanges.length}`);
       
       if (!result.success) {
         console.log('❌ Agent V4 validation failed, issues:');
