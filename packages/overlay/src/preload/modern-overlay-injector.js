@@ -248,56 +248,73 @@
       /* Panels */
       .tweaq-overlay-panel {
         position: fixed;
-        top: 80px;
-        right: 20px;
-        width: 320px;
-        max-height: calc(100vh - 120px);
+        top: 0;
+        right: 0;
+        width: 400px;
+        height: 100vh;
         pointer-events: auto;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-left: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        z-index: 1000001;
+      }
+
+      .tweaq-overlay-panel.tweaq-panel-visible {
+        transform: translateX(0);
       }
 
       .tweaq-panel-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 16px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         background: rgba(0, 0, 0, 0.02);
+        min-height: 64px;
       }
 
       .tweaq-panel-title {
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 600;
         margin: 0;
-        color: #333;
+        color: #1d1d1f;
+        letter-spacing: -0.3px;
       }
 
       .tweaq-panel-close {
         border: none;
         background: transparent;
         cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
+        padding: 8px;
+        border-radius: 8px;
         color: #666;
-        transition: all 0.15s ease;
+        transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .tweaq-panel-close:hover {
-        background: rgba(255, 0, 0, 0.1);
-        color: #dc3545;
+        background: rgba(0, 0, 0, 0.06);
+        color: #333;
+        transform: scale(1.1);
+      }
+
+      .tweaq-panel-close:active {
+        transform: scale(0.95);
       }
 
       .tweaq-panel-content {
         flex: 1;
         overflow-y: auto;
-        padding: 16px;
+        padding: 24px;
       }
 
       /* Preview Controls */
@@ -917,16 +934,16 @@
       }
 
       const panel = document.createElement('div');
-      panel.className = 'tweaq-overlay-panel tweaq-inspector-panel';
+      panel.className = 'tweaq-overlay-panel tweaq-inspector-panel tweaq-panel-visible';
       
       const rect = this.selectedElement.getBoundingClientRect();
       const computedStyles = getComputedStyle(this.selectedElement);
       
       panel.innerHTML = `
         <div class="tweaq-panel-header">
-          <h3 class="tweaq-panel-title">Element Inspector</h3>
-          <button class="tweaq-panel-close">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <h3 class="tweaq-panel-title">Measure</h3>
+          <button class="tweaq-panel-close" title="Close panel">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
             </svg>
           </button>
@@ -1018,15 +1035,15 @@
       }
 
       const panel = document.createElement('div');
-      panel.className = 'tweaq-overlay-panel tweaq-inspector-panel tweaq-edit-panel';
+      panel.className = 'tweaq-overlay-panel tweaq-inspector-panel tweaq-edit-panel tweaq-panel-visible';
       
       const hasChanges = this.pendingEdits.size > 0;
       
       panel.innerHTML = `
         <div class="tweaq-panel-header">
-          <h3 class="tweaq-panel-title">Edit Properties</h3>
-          <button class="tweaq-panel-close">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <h3 class="tweaq-panel-title">Edit</h3>
+          <button class="tweaq-panel-close" title="Close panel">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
             </svg>
           </button>
