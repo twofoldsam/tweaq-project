@@ -449,10 +449,14 @@
         font-size: 12px;
         color: #cccccc;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
-        padding: 6px 10px;
+        padding: 8px 12px;
         background: rgba(0, 0, 0, 0.3);
         border-radius: 4px;
         border-left: 2px solid #007AFF;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
       }
 
       .tweaq-ticket-change-property {
@@ -460,8 +464,20 @@
         font-weight: 600;
       }
 
-      .tweaq-ticket-change-value {
-        color: #FFD60A;
+      .tweaq-ticket-change-before {
+        color: #FF6B6B;
+        text-decoration: line-through;
+        opacity: 0.7;
+      }
+
+      .tweaq-ticket-change-arrow {
+        color: #888888;
+        font-weight: bold;
+      }
+
+      .tweaq-ticket-change-after {
+        color: #51CF66;
+        font-weight: 600;
       }
 
       /* Confirm Edits Button */
@@ -808,7 +824,9 @@
             ${edit.changes.map(change => `
               <div class="tweaq-ticket-change">
                 <span class="tweaq-ticket-change-property">${change.property}</span>: 
-                <span class="tweaq-ticket-change-value">${change.value}</span>
+                <span class="tweaq-ticket-change-before">${change.before}</span>
+                <span class="tweaq-ticket-change-arrow">→</span>
+                <span class="tweaq-ticket-change-after">${change.after}</span>
               </div>
             `).join('')}
           </div>
@@ -1076,10 +1094,11 @@
       const element = this.selectedElement || document.body;
       const changes = [];
 
-      this.pendingEdits.forEach((value, property) => {
+      this.pendingEdits.forEach((change, property) => {
         changes.push({
           property,
-          value
+          before: change.before,
+          after: change.after
         });
       });
 
@@ -1095,6 +1114,7 @@
 
       this.recordedEdits.push(edit);
       this.pendingEdits.clear();
+      this.originalValues.clear();
 
       // Switch to edits tab to show the newly recorded edit
       this.currentTab = 'edits';
@@ -1109,16 +1129,17 @@
     async confirmEdits() {
       if (this.recordedEdits.length === 0) return;
 
-      // Prepare edits for Agent V4
+      // Prepare edits for Agent V4 with before/after values
       const editsForAgent = this.recordedEdits.map(edit => ({
         selector: edit.elementSelector,
         element: edit.element,
         elementId: edit.elementId,
         elementClasses: edit.elementClasses,
-        changes: edit.changes.reduce((acc, change) => {
-          acc[change.property] = change.value;
-          return acc;
-        }, {})
+        changes: edit.changes.map(change => ({
+          property: change.property,
+          before: change.before,
+          after: change.after
+        }))
       }));
 
       // Send to Electron main process to trigger Agent V4
@@ -1156,17 +1177,30 @@
     }
 
     applyProperty(property, value) {
-      if (!this.selectedElement) {
-        // If no element selected, apply to body
-        document.body.style[property] = value;
-      } else {
-        this.selectedElement.style[property] = value;
+      const element = this.selectedElement || document.body;
+      
+      // Store the original value before making the change (if not already stored)
+      if (!this.originalValues) {
+        this.originalValues = new Map();
       }
       
-      // Track the edit
-      this.pendingEdits.set(property, value);
+      if (!this.originalValues.has(property)) {
+        // Get the current computed value before changing
+        const computedStyles = window.getComputedStyle(element);
+        const originalValue = computedStyles[property] || element.style[property] || 'none';
+        this.originalValues.set(property, originalValue);
+      }
       
-      console.log(`Applied ${property}: ${value}`, 'Pending edits:', this.pendingEdits.size);
+      // Apply the change
+      element.style[property] = value;
+      
+      // Track the edit with before/after values
+      this.pendingEdits.set(property, {
+        before: this.originalValues.get(property),
+        after: value
+      });
+      
+      console.log(`Applied ${property}: ${this.originalValues.get(property)} → ${value}`, 'Pending edits:', this.pendingEdits.size);
       
       // Update the record button visibility
       this.updateRecordButtonVisibility();
