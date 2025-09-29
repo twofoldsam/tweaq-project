@@ -4,6 +4,12 @@
 (function() {
   'use strict';
 
+  // Check if already initialized - EARLY EXIT
+  if (window.TweaqOverlay && window.TweaqOverlay._initialized) {
+    console.log('⚠️ TweaqOverlay already loaded, skipping initialization');
+    return;
+  }
+
   // NUCLEAR cleanup - remove EVERYTHING overlay related
   console.log('🧹 Cleaning up old overlay...');
   
@@ -22,15 +28,9 @@
     }
   });
   
-  Object.keys(window).forEach(key => {
-    if (key.toLowerCase().includes('tweaq') || key.toLowerCase().includes('overlay')) {
-      try {
-        delete window[key];
-      } catch (e) {}
-    }
-  });
-  
-  document.body.classList.remove('tweaq-panel-open');
+  if (document.body) {
+    document.body.classList.remove('tweaq-panel-open');
+  }
   
   console.log('✅ Cleanup complete');
 
@@ -840,12 +840,6 @@
   }
 
   // Global API - Singleton pattern
-  // Check if already initialized
-  if (window.TweaqOverlay && window.TweaqOverlay._initialized) {
-    console.log('⚠️ TweaqOverlay already initialized, skipping');
-    return;
-  }
-
   const overlayInstance = new FigmaStyleOverlay();
   
   window.TweaqOverlay = {
@@ -868,5 +862,5 @@
     }
   };
 
-  console.log('✅ Figma-style Tweaq Overlay loaded');
+  console.log('✅ Figma-style Tweaq Overlay loaded and ready');
 })();
