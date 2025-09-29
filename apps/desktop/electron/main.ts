@@ -963,10 +963,18 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
 
     // Agent V4 will have already created the PR through its internal flow
     console.log('✅ Agent V4 processing completed successfully');
+    console.log('📋 Result:', result);
+    
+    // Extract PR URL from the result
+    const prUrl = result.pullRequest?.html_url || result.pullRequest?.url || result.pr?.url;
+    const prNumber = result.pullRequest?.number || result.pr?.number;
     
     return { 
       success: true,
-      pr: result.pr,
+      pr: {
+        url: prUrl,
+        number: prNumber
+      },
       message: 'Visual edits successfully converted to code and PR created!'
     };
   } catch (error) {
