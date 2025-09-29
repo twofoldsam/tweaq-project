@@ -75,6 +75,9 @@ export interface ElectronAPI {
   // Visual Coding Agent
   initializeVisualAgent: (config: any) => Promise<{ success: boolean; error?: string }>;
   processVisualRequest: (request: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  
+  // Agent V4 - Visual Edits to PR
+  triggerAgentV4: (data: { edits: any[]; url: string }) => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
 }
 
 export interface VisualEdit {
@@ -220,7 +223,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Visual Coding Agent
   initializeVisualAgent: (config: any) => ipcRenderer.invoke('initialize-visual-agent', config),
-  processVisualRequest: (request: any) => ipcRenderer.invoke('process-visual-request', request)
+  processVisualRequest: (request: any) => ipcRenderer.invoke('process-visual-request', request),
+  
+  // Agent V4 - Visual Edits to PR
+  triggerAgentV4: (data: { edits: any[]; url: string }) => ipcRenderer.invoke('trigger-agent-v4', data)
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI

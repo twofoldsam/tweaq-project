@@ -149,9 +149,41 @@
 
       /* Panel Header */
       .tweaq-panel-header {
-        padding: 20px 24px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         background: rgba(255, 255, 255, 0.03);
+      }
+
+      .tweaq-panel-tabs {
+        display: flex;
+        gap: 0;
+        padding: 0 24px;
+        padding-top: 16px;
+      }
+
+      .tweaq-tab {
+        padding: 10px 16px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: #888888;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+
+      .tweaq-tab:hover {
+        color: #aaaaaa;
+      }
+
+      .tweaq-tab.active {
+        color: #ffffff;
+        border-bottom-color: #007AFF;
+      }
+
+      .tweaq-tab-content-header {
+        padding: 16px 24px 20px 24px;
       }
 
       .tweaq-panel-title {
@@ -305,6 +337,220 @@
         transition: all 0.15s ease;
       }
 
+      /* Record Edit Button */
+      .tweaq-record-edit-btn {
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0;
+        padding: 16px 24px;
+        background: linear-gradient(to top, rgba(28, 28, 30, 1) 70%, rgba(28, 28, 30, 0));
+        border: none;
+        display: flex;
+        justify-content: center;
+      }
+
+      .tweaq-record-edit-btn button {
+        width: 100%;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #007AFF, #0051D5);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+
+      .tweaq-record-edit-btn button:hover {
+        background: linear-gradient(135deg, #0051D5, #003D99);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+
+      .tweaq-record-edit-btn button:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(0, 122, 255, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+
+      .tweaq-record-edit-btn button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Edit Tickets */
+      .tweaq-edits-list {
+        padding: 16px 24px;
+      }
+
+      .tweaq-edit-ticket {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        transition: all 0.2s ease;
+      }
+
+      .tweaq-edit-ticket:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+
+      .tweaq-ticket-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+      }
+
+      .tweaq-ticket-element {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        margin: 0 0 4px 0;
+      }
+
+      .tweaq-ticket-timestamp {
+        font-size: 11px;
+        color: #888888;
+        margin: 0;
+      }
+
+      .tweaq-ticket-delete {
+        background: transparent;
+        border: none;
+        color: #888888;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .tweaq-ticket-delete:hover {
+        background: rgba(255, 59, 48, 0.2);
+        color: #FF3B30;
+      }
+
+      .tweaq-ticket-changes {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .tweaq-ticket-change {
+        font-size: 12px;
+        color: #cccccc;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        padding: 6px 10px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+        border-left: 2px solid #007AFF;
+      }
+
+      .tweaq-ticket-change-property {
+        color: #64D2FF;
+        font-weight: 600;
+      }
+
+      .tweaq-ticket-change-value {
+        color: #FFD60A;
+      }
+
+      /* Confirm Edits Button */
+      .tweaq-confirm-edits-section {
+        padding: 16px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .tweaq-confirm-edits-info {
+        margin-bottom: 12px;
+        padding: 12px;
+        background: rgba(52, 199, 89, 0.1);
+        border: 1px solid rgba(52, 199, 89, 0.3);
+        border-radius: 6px;
+      }
+
+      .tweaq-confirm-edits-info p {
+        margin: 0;
+        font-size: 12px;
+        color: #34C759;
+        line-height: 1.5;
+      }
+
+      .tweaq-confirm-edits-btn {
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #34C759, #248A3D);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+
+      .tweaq-confirm-edits-btn:hover {
+        background: linear-gradient(135deg, #248A3D, #1A6929);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(52, 199, 89, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+
+      .tweaq-confirm-edits-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(52, 199, 89, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+
+      .tweaq-confirm-edits-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Empty state */
+      .tweaq-empty-state {
+        padding: 48px 24px;
+        text-align: center;
+      }
+
+      .tweaq-empty-state-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.3;
+      }
+
+      .tweaq-empty-state-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #ffffff;
+        margin: 0 0 8px 0;
+      }
+
+      .tweaq-empty-state-text {
+        font-size: 13px;
+        color: #888888;
+        margin: 0;
+        line-height: 1.5;
+      }
+
       .tweaq-color-swatch:hover {
         border-color: rgba(255, 255, 255, 0.3);
         transform: scale(1.05);
@@ -349,6 +595,8 @@
       this.selectedElement = null;
       this.hoveredElement = null;
       this.pendingEdits = new Map();
+      this.recordedEdits = [];
+      this.currentTab = 'properties'; // 'properties' or 'edits'
       
       this.overlayContainer = null;
       this.outlineElement = null;
@@ -449,14 +697,49 @@
     }
 
     renderProperties() {
+      this.propertiesPanel.innerHTML = `
+        <div class="tweaq-panel-header">
+          <div class="tweaq-panel-tabs">
+            <button class="tweaq-tab ${this.currentTab === 'properties' ? 'active' : ''}" data-tab="properties">
+              Properties
+            </button>
+            <button class="tweaq-tab ${this.currentTab === 'edits' ? 'active' : ''}" data-tab="edits">
+              Edits ${this.recordedEdits.length > 0 ? `(${this.recordedEdits.length})` : ''}
+            </button>
+          </div>
+        </div>
+        
+        ${this.currentTab === 'properties' ? this.renderPropertiesTab() : this.renderEditsTab()}
+      `;
+
+      // Attach tab listeners
+      this.propertiesPanel.querySelectorAll('.tweaq-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          this.currentTab = e.target.dataset.tab;
+          this.renderProperties();
+        });
+      });
+
+      if (this.currentTab === 'properties') {
+        // Attach input event listeners for properties
+        this.attachPropertyListeners();
+      } else {
+        // Attach listeners for edits tab
+        this.attachEditsListeners();
+      }
+    }
+
+    renderPropertiesTab() {
       const element = this.selectedElement || document.body;
       const isPage = !this.selectedElement;
       
       const rect = element.getBoundingClientRect();
       const computedStyles = window.getComputedStyle(element);
       
-      this.propertiesPanel.innerHTML = `
-        <div class="tweaq-panel-header">
+      const hasPendingEdits = this.pendingEdits.size > 0;
+      
+      return `
+        <div class="tweaq-tab-content-header">
           <div class="tweaq-panel-title">${isPage ? 'PAGE' : 'ELEMENT'}</div>
           <div class="tweaq-element-name">${this.getElementName()}</div>
         </div>
@@ -467,10 +750,72 @@
           ${this.renderTextSection(element, computedStyles)}
           ${this.renderEffectsSection(element, computedStyles)}
         </div>
+        
+        ${hasPendingEdits ? `
+          <div class="tweaq-record-edit-btn">
+            <button id="tweaq-record-edit">
+              📝 Record Edit
+            </button>
+          </div>
+        ` : ''}
       `;
+    }
 
-      // Attach input event listeners
-      this.attachPropertyListeners();
+    renderEditsTab() {
+      if (this.recordedEdits.length === 0) {
+        return `
+          <div class="tweaq-empty-state">
+            <div class="tweaq-empty-state-icon">📝</div>
+            <h3 class="tweaq-empty-state-title">No Edits Recorded</h3>
+            <p class="tweaq-empty-state-text">Make changes to elements and click "Record Edit" to save them here.</p>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="tweaq-panel-content">
+          <div class="tweaq-edits-list">
+            ${this.recordedEdits.map((edit, index) => this.renderEditTicket(edit, index)).join('')}
+          </div>
+        </div>
+        
+        <div class="tweaq-confirm-edits-section">
+          <div class="tweaq-confirm-edits-info">
+            <p><strong>${this.recordedEdits.length}</strong> edit${this.recordedEdits.length === 1 ? '' : 's'} ready to be converted into a PR using Agent V4.</p>
+          </div>
+          <button class="tweaq-confirm-edits-btn" id="tweaq-confirm-edits">
+            ✅ Confirm & Create PR
+          </button>
+        </div>
+      `;
+    }
+
+    renderEditTicket(edit, index) {
+      const timestamp = new Date(edit.timestamp).toLocaleString();
+      
+      return `
+        <div class="tweaq-edit-ticket" data-edit-index="${index}">
+          <div class="tweaq-ticket-header">
+            <div>
+              <h4 class="tweaq-ticket-element">${edit.elementName}</h4>
+              <p class="tweaq-ticket-timestamp">${timestamp}</p>
+            </div>
+            <button class="tweaq-ticket-delete" data-delete-index="${index}" title="Delete edit">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M5.28 4.22a.75.75 0 00-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 101.06 1.06L8 9.06l2.72 2.72a.75.75 0 101.06-1.06L9.06 8l2.72-2.72a.75.75 0 00-1.06-1.06L8 6.94 5.28 4.22z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="tweaq-ticket-changes">
+            ${edit.changes.map(change => `
+              <div class="tweaq-ticket-change">
+                <span class="tweaq-ticket-change-property">${change.property}</span>: 
+                <span class="tweaq-ticket-change-value">${change.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
     }
 
     renderDesignSection(element, rect, styles) {
@@ -702,6 +1047,114 @@
           colorInput.click();
         });
       });
+
+      // Record edit button
+      const recordBtn = document.getElementById('tweaq-record-edit');
+      if (recordBtn) {
+        recordBtn.addEventListener('click', () => this.recordCurrentEdits());
+      }
+    }
+
+    attachEditsListeners() {
+      // Delete edit buttons
+      const deleteButtons = this.propertiesPanel.querySelectorAll('.tweaq-ticket-delete');
+      deleteButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.currentTarget.dataset.deleteIndex);
+          this.deleteEdit(index);
+        });
+      });
+
+      // Confirm edits button
+      const confirmBtn = document.getElementById('tweaq-confirm-edits');
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => this.confirmEdits());
+      }
+    }
+
+    recordCurrentEdits() {
+      if (this.pendingEdits.size === 0) return;
+
+      const element = this.selectedElement || document.body;
+      const changes = [];
+
+      this.pendingEdits.forEach((value, property) => {
+        changes.push({
+          property,
+          value
+        });
+      });
+
+      const edit = {
+        elementName: this.getElementName(),
+        elementSelector: this.generateElementSelector(element),
+        timestamp: Date.now(),
+        changes,
+        element: element.tagName.toLowerCase(),
+        elementId: element.id || null,
+        elementClasses: Array.from(element.classList)
+      };
+
+      this.recordedEdits.push(edit);
+      this.pendingEdits.clear();
+
+      // Switch to edits tab to show the newly recorded edit
+      this.currentTab = 'edits';
+      this.renderProperties();
+    }
+
+    deleteEdit(index) {
+      this.recordedEdits.splice(index, 1);
+      this.renderProperties();
+    }
+
+    async confirmEdits() {
+      if (this.recordedEdits.length === 0) return;
+
+      // Prepare edits for Agent V4
+      const editsForAgent = this.recordedEdits.map(edit => ({
+        selector: edit.elementSelector,
+        element: edit.element,
+        elementId: edit.elementId,
+        elementClasses: edit.elementClasses,
+        changes: edit.changes.reduce((acc, change) => {
+          acc[change.property] = change.value;
+          return acc;
+        }, {})
+      }));
+
+      // Send to Electron main process to trigger Agent V4
+      if (window.electronAPI && window.electronAPI.triggerAgentV4) {
+        try {
+          await window.electronAPI.triggerAgentV4({
+            edits: editsForAgent,
+            url: window.location.href
+          });
+          
+          // Clear recorded edits after successful submission
+          this.recordedEdits = [];
+          this.renderProperties();
+        } catch (error) {
+          console.error('Failed to trigger Agent V4:', error);
+          alert('Failed to create PR. Check console for details.');
+        }
+      } else {
+        console.error('electronAPI.triggerAgentV4 not available');
+        alert('Agent V4 integration not available');
+      }
+    }
+
+    generateElementSelector(element) {
+      if (element.id) {
+        return `#${element.id}`;
+      }
+      
+      const tag = element.tagName.toLowerCase();
+      const className = element.className 
+        ? `.${Array.from(element.classList).join('.')}` 
+        : '';
+      
+      return `${tag}${className}`;
     }
 
     applyProperty(property, value) {

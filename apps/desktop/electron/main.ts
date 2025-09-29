@@ -885,6 +885,53 @@ safeIpcHandle('github-test-pr', async () => {
   }
 });
 
+// Agent V4 - Visual Edits to PR
+safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: string }) => {
+  try {
+    const config = store.get('github');
+    if (!config) {
+      return { success: false, error: 'No GitHub configuration found. Please configure GitHub settings first.' };
+    }
+
+    if (!gitClient.isAuthenticated()) {
+      return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
+    }
+
+    console.log('🚀 Agent V4: Received visual edits:', data.edits);
+    console.log('🌐 Target URL:', data.url);
+
+    // Create a description of all edits for the PR
+    const editDescriptions = data.edits.map((edit, index) => {
+      const changes = Object.entries(edit.changes)
+        .map(([prop, value]) => `  - ${prop}: ${value}`)
+        .join('\n');
+      return `### Edit ${index + 1}: ${edit.selector}\n${changes}`;
+    }).join('\n\n');
+
+    const branchName = `visual-edits-${Date.now()}`;
+    const prTitle = `Visual Edits from Smart QA`;
+    const prBody = `🎨 Visual changes made using Smart QA\n\n**Target URL:** ${data.url}\n\n## Changes\n\n${editDescriptions}\n\n---\n*This PR was automatically created by Smart QA's Agent V4*`;
+
+    // Note: For now, this is a placeholder implementation
+    // The actual Agent V4 logic will analyze the edits, map them to code,
+    // and create appropriate file changes
+    
+    // TODO: Integrate with Agent V4 to:
+    // 1. Analyze the target URL's source code
+    // 2. Map CSS changes to source files (Tailwind, CSS modules, styled-components, etc.)
+    // 3. Generate appropriate code changes
+    // 4. Create PR with those changes
+
+    return { 
+      success: false, 
+      error: 'Agent V4 integration is not yet fully implemented. This will convert your visual edits into code changes and create a PR.' 
+    };
+  } catch (error) {
+    console.error('Error triggering Agent V4:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to trigger Agent V4' };
+  }
+});
+
 // CDP Runtime Signals IPC handlers
 safeIpcHandle('inject-cdp', async () => {
   try {
