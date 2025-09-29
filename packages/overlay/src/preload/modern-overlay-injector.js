@@ -839,10 +839,13 @@
       await loadReactDependencies();
       injectStyles();
 
-      this.mode = options.initialMode || 'measure';
       this.createOverlayElements();
       this.attachEventListeners();
       this.isVisible = true;
+      
+      // Show panel immediately with page properties
+      this.renderPropertiesPanel();
+      document.body.classList.add('tweaq-panel-open');
     }
 
     createOverlayElements() {
