@@ -1164,14 +1164,23 @@
       }
       
       // Track the edit
-      this.pendingEdits.set(property, {
-        element: this.selectedElement || document.body,
-        property,
-        value,
-        timestamp: Date.now()
-      });
+      this.pendingEdits.set(property, value);
       
-      console.log(`Applied ${property}: ${value}`);
+      console.log(`Applied ${property}: ${value}`, 'Pending edits:', this.pendingEdits.size);
+      
+      // Update the record button visibility
+      this.updateRecordButtonVisibility();
+    }
+
+    updateRecordButtonVisibility() {
+      const recordBtn = document.getElementById('tweaq-record-edit-icon');
+      if (recordBtn) {
+        if (this.pendingEdits.size > 0) {
+          recordBtn.classList.add('visible');
+        } else {
+          recordBtn.classList.remove('visible');
+        }
+      }
     }
 
     rgbToHex(rgb) {
