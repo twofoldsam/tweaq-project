@@ -885,6 +885,107 @@ safeIpcHandle('github-test-pr', async () => {
   }
 });
 
+// Agent V4 - Visual Edits to PR
+safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: string }) => {
+  try {
+    const config = store.get('github');
+    if (!config) {
+      return { success: false, error: 'No GitHub configuration found. Please configure GitHub settings first.' };
+    }
+
+    if (!gitClient.isAuthenticated()) {
+      return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
+    }
+
+    console.log('🚀 Agent V4: Received visual edits:', data.edits);
+    console.log('🌐 Target URL:', data.url);
+
+    // Convert edits to VisualEdit format expected by Agent V4
+    const visualEdits: VisualEdit[] = data.edits.map((edit, index) => ({
+      id: `edit_${Date.now()}_${index}`,
+      timestamp: Date.now(),
+      element: {
+        selector: edit.selector,
+        tagName: edit.element,
+        id: edit.elementId || undefined,
+        className: edit.elementClasses ? edit.elementClasses.join(' ') : undefined
+      },
+      changes: edit.changes.map((change: any) => ({
+        property: change.property,
+        before: change.before,
+        after: change.after,
+        category: 'style' as const,
+        impact: 'visual' as const,
+        confidence: 0.9
+      })),
+      intent: {
+        description: `Visual changes to ${edit.selector}`,
+        userAction: 'direct-edit' as const
+      },
+      validation: {
+        applied: true
+      }
+    }));
+
+    // Initialize Agent V4 if needed
+    if (!agentV4Integration) {
+      console.log('🤖 Initializing Agent V4...');
+      const initResult = await initializeAgentV4({
+        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+        cacheAnalysis: true
+      });
+      
+      if (!initResult.success) {
+        return { 
+          success: false, 
+          error: `Failed to initialize Agent V4: ${(initResult as any).error || 'Unknown error'}` 
+        };
+      }
+    }
+
+    // Process with Agent V4
+    console.log('🎯 Processing visual edits with Agent V4...');
+    const result = await processVisualRequestWithAgentV4({
+      visualEdits: visualEdits,
+      context: {
+        targetUrl: data.url,
+        framework: 'react',
+        stylingSystem: 'auto-detect'
+      }
+    });
+
+    if (!result.success) {
+      return { 
+        success: false, 
+        error: result.error || 'Agent V4 processing failed' 
+      };
+    }
+
+    // Agent V4 will have already created the PR through its internal flow
+    console.log('✅ Agent V4 processing completed successfully');
+    console.log('📋 Result:', result);
+    
+    // Extract PR URL from the result
+    const prUrl = result.pullRequest?.html_url || result.pullRequest?.url || result.pr?.url;
+    const prNumber = result.pullRequest?.number || result.pr?.number;
+    
+    return { 
+      success: true,
+      pr: {
+        url: prUrl,
+        number: prNumber
+      },
+      message: 'Visual edits successfully converted to code and PR created!'
+    };
+  } catch (error) {
+    console.error('❌ Error triggering Agent V4:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to trigger Agent V4' 
+    };
+  }
+});
+
 // CDP Runtime Signals IPC handlers
 safeIpcHandle('inject-cdp', async () => {
   try {
@@ -961,10 +1062,10 @@ safeIpcHandle('inject-overlay', async (event, options = {}) => {
       return { success: false, error: 'No browser view available' };
     }
 
-    // Read the modern overlay injector script
+    // Read the Figma-style overlay injector script
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/modern-overlay-injector.js'),
+      path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
       'utf8'
     );
 
@@ -1019,7 +1120,7 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
     // First ensure the overlay script is injected
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/modern-overlay-injector.js'),
+      path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
       'utf8'
     );
 

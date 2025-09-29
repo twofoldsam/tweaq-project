@@ -245,59 +245,82 @@
         margin-left: 8px;
       }
 
+      /* Body adjustment for panel */
+      body.tweaq-panel-open {
+        margin-right: 400px;
+        transition: margin-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
       /* Panels */
       .tweaq-overlay-panel {
         position: fixed;
-        top: 80px;
-        right: 20px;
-        width: 320px;
-        max-height: calc(100vh - 120px);
+        top: 0;
+        right: 0;
+        width: 400px;
+        height: 100vh;
         pointer-events: auto;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        background: rgba(28, 28, 30, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        z-index: 1000001;
+      }
+
+      .tweaq-overlay-panel.tweaq-panel-visible {
+        transform: translateX(0);
       }
 
       .tweaq-panel-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 16px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-        background: rgba(0, 0, 0, 0.02);
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+        min-height: 64px;
       }
 
       .tweaq-panel-title {
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 600;
         margin: 0;
-        color: #333;
+        color: #ffffff;
+        letter-spacing: -0.3px;
       }
 
       .tweaq-panel-close {
         border: none;
         background: transparent;
         cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        color: #666;
-        transition: all 0.15s ease;
+        padding: 8px;
+        border-radius: 8px;
+        color: #cccccc;
+        transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .tweaq-panel-close:hover {
-        background: rgba(255, 0, 0, 0.1);
-        color: #dc3545;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        transform: scale(1.1);
+      }
+
+      .tweaq-panel-close:active {
+        transform: scale(0.95);
       }
 
       .tweaq-panel-content {
         flex: 1;
         overflow-y: auto;
-        padding: 16px;
+        padding: 24px;
       }
 
       /* Preview Controls */
@@ -465,14 +488,14 @@
       .tweaq-section-title {
         font-size: 12px;
         font-weight: 600;
-        color: #333;
+        color: #ffffff;
         margin: 0 0 8px 0;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
       .tweaq-element-tag {
-        background: rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.05);
         padding: 8px;
         border-radius: 4px;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
@@ -480,18 +503,18 @@
       }
 
       .tweaq-tag-name {
-        color: #007acc;
+        color: #0A84FF;
         font-weight: 600;
       }
 
       .tweaq-element-id {
-        color: #28a745;
+        color: #4ade80;
         font-weight: 600;
         margin-left: 4px;
       }
 
       .tweaq-element-classes {
-        color: #6f42c1;
+        color: #a78bfa;
         font-weight: 600;
         margin-left: 4px;
       }
@@ -509,14 +532,14 @@
 
       .tweaq-info-label {
         font-size: 11px;
-        color: #666;
+        color: #cccccc;
         min-width: 80px;
         font-weight: 500;
       }
 
       .tweaq-info-value {
         font-size: 11px;
-        color: #333;
+        color: #ffffff;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
         flex: 1;
         word-break: break-all;
@@ -546,7 +569,7 @@
       .tweaq-property-label {
         font-size: 11px;
         font-weight: 500;
-        color: #333;
+        color: #cccccc;
         min-width: 60px;
       }
 
@@ -555,20 +578,21 @@
       .tweaq-edit-number-inline {
         flex: 1;
         padding: 4px 6px;
-        border: 1px solid rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 3px;
         font-size: 11px;
-        background: white;
-        color: #333;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
       }
 
       .tweaq-edit-input-inline:focus,
       .tweaq-edit-select-inline:focus,
       .tweaq-edit-number-inline:focus {
         outline: none;
-        border-color: #007acc;
-        box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
-        color: #000;
+        border-color: #0A84FF;
+        box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.3);
+        background: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
       }
 
       .tweaq-edit-input-wrapper {
@@ -580,7 +604,7 @@
 
       .tweaq-unit-inline {
         font-size: 10px;
-        color: #666;
+        color: #cccccc;
       }
 
       .tweaq-edit-color-inline {
@@ -712,7 +736,7 @@
       .tweaq-edit-button {
         flex: 1;
         padding: 8px 12px;
-        border: 1px solid rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 4px;
         font-size: 11px;
         font-weight: 500;
@@ -721,23 +745,24 @@
       }
 
       .tweaq-edit-reset {
-        background: white;
-        color: #666;
+        background: rgba(255, 255, 255, 0.1);
+        color: #cccccc;
+        border-color: rgba(255, 255, 255, 0.2);
       }
 
       .tweaq-edit-reset:hover:not(:disabled) {
-        background: #f8f9fa;
-        color: #333;
+        background: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
       }
 
       .tweaq-edit-record {
-        background: #007acc;
+        background: #0A84FF;
         color: white;
-        border-color: #007acc;
+        border-color: #0A84FF;
       }
 
       .tweaq-edit-record:hover:not(:disabled) {
-        background: #0056b3;
+        background: #0066CC;
       }
 
       .tweaq-edit-button:disabled {
@@ -814,10 +839,13 @@
       await loadReactDependencies();
       injectStyles();
 
-      this.mode = options.initialMode || 'measure';
       this.createOverlayElements();
       this.attachEventListeners();
       this.isVisible = true;
+      
+      // Show panel immediately with page properties
+      this.renderPropertiesPanel();
+      document.body.classList.add('tweaq-panel-open');
     }
 
     createOverlayElements() {
@@ -917,16 +945,16 @@
       }
 
       const panel = document.createElement('div');
-      panel.className = 'tweaq-overlay-panel tweaq-inspector-panel';
+      panel.className = 'tweaq-overlay-panel tweaq-inspector-panel tweaq-panel-visible';
       
       const rect = this.selectedElement.getBoundingClientRect();
       const computedStyles = getComputedStyle(this.selectedElement);
       
       panel.innerHTML = `
         <div class="tweaq-panel-header">
-          <h3 class="tweaq-panel-title">Element Inspector</h3>
-          <button class="tweaq-panel-close">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <h3 class="tweaq-panel-title">Measure</h3>
+          <button class="tweaq-panel-close" title="Close panel">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
             </svg>
           </button>
@@ -1007,6 +1035,9 @@
       });
 
       this.overlayContainer.appendChild(panel);
+      
+      // Add body class to push content
+      document.body.classList.add('tweaq-panel-open');
     }
 
     renderEditPanel() {
@@ -1018,15 +1049,15 @@
       }
 
       const panel = document.createElement('div');
-      panel.className = 'tweaq-overlay-panel tweaq-inspector-panel tweaq-edit-panel';
+      panel.className = 'tweaq-overlay-panel tweaq-inspector-panel tweaq-edit-panel tweaq-panel-visible';
       
       const hasChanges = this.pendingEdits.size > 0;
       
       panel.innerHTML = `
         <div class="tweaq-panel-header">
-          <h3 class="tweaq-panel-title">Edit Properties</h3>
-          <button class="tweaq-panel-close">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <h3 class="tweaq-panel-title">Edit</h3>
+          <button class="tweaq-panel-close" title="Close panel">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
             </svg>
           </button>
@@ -1100,6 +1131,9 @@
       });
 
       this.overlayContainer.appendChild(panel);
+      
+      // Add body class to push content
+      document.body.classList.add('tweaq-panel-open');
     }
 
     renderPreviewControls() {
@@ -2061,6 +2095,9 @@
       if (existingPanel) {
         existingPanel.remove();
       }
+      
+      // Remove body class to restore layout
+      document.body.classList.remove('tweaq-panel-open');
     }
 
     attachEventListeners() {

@@ -118,11 +118,11 @@ const Inspector: React.FC<InspectorProps> = ({ elementInfo, designTokens, onClos
   );
 
   return (
-    <div className="tweaq-overlay-panel tweaq-inspector-panel">
+    <div className="tweaq-overlay-panel tweaq-inspector-panel tweaq-panel-visible">
       <div className="tweaq-panel-header">
-        <h3 className="tweaq-panel-title">Inspect</h3>
-        <button className="tweaq-panel-close" onClick={onClose} title="Close inspector">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <h3 className="tweaq-panel-title">Measure</h3>
+        <button className="tweaq-panel-close" onClick={onClose} title="Close panel">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
           </svg>
         </button>

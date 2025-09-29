@@ -118,56 +118,73 @@
 /* Panels */
 .tweaq-overlay-panel {
   position: fixed;
-  top: 80px;
-  right: 20px;
-  width: 280px;
-  max-height: calc(100vh - 120px);
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100vh;
   pointer-events: auto;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 1000001;
+}
+
+.tweaq-overlay-panel.tweaq-panel-visible {
+  transform: translateX(0);
 }
 
 .tweaq-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   background: rgba(0, 0, 0, 0.02);
+  min-height: 64px;
 }
 
 .tweaq-panel-title {
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 600;
   margin: 0;
-  color: #333;
+  color: #1d1d1f;
+  letter-spacing: -0.3px;
 }
 
 .tweaq-panel-close {
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 8px;
+  border-radius: 8px;
   color: #666;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tweaq-panel-close:hover {
-  background: rgba(255, 0, 0, 0.1);
-  color: #dc3545;
+  background: rgba(0, 0, 0, 0.06);
+  color: #333;
+  transform: scale(1.1);
+}
+
+.tweaq-panel-close:active {
+  transform: scale(0.95);
 }
 
 .tweaq-panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 24px;
 }
 
 /* Panel tabs */
@@ -374,7 +391,7 @@
       }
 
       .tweaq-inspector-section {
-        padding: 16px;
+        padding: 20px;
         border-bottom: 1px solid rgba(0, 0, 0, 0.06);
       }
 
@@ -645,7 +662,7 @@
 
       /* Edit Panel Styles */
       .tweaq-edit-panel {
-        width: 320px;
+        width: 400px;
       }
 
       .tweaq-edit-tabs {
@@ -907,8 +924,8 @@
         }
 
         .tweaq-overlay-panel {
-          background: rgba(30, 30, 30, 0.95);
-          border-color: rgba(255, 255, 255, 0.1);
+          background: rgba(28, 28, 30, 0.98);
+          border-left-color: rgba(255, 255, 255, 0.1);
         }
 
         .tweaq-panel-header {
@@ -927,8 +944,8 @@
 
         .tweaq-panel-close:hover,
         .tweaq-close-btn:hover {
-          background: rgba(255, 0, 0, 0.2);
-          color: #ff6b6b;
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
         }
 
         .tweaq-mode-toggle {
@@ -1199,14 +1216,13 @@
         }
         
         .tweaq-overlay-panel {
-          top: 70px;
-          right: 10px;
-          left: 10px;
-          width: auto;
+          width: 100%;
+          max-width: 90vw;
         }
 
-        .tweaq-ruler-panel {
-          top: 70px;
+        .tweaq-edit-panel {
+          width: 100%;
+          max-width: 90vw;
         }
 
         .tweaq-dimension-grid {
