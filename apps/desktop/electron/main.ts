@@ -900,35 +900,81 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
     console.log('🚀 Agent V4: Received visual edits:', data.edits);
     console.log('🌐 Target URL:', data.url);
 
-    // Create a description of all edits for the PR
-    const editDescriptions = data.edits.map((edit, index) => {
-      const changes = Object.entries(edit.changes)
-        .map(([prop, value]) => `  - ${prop}: ${value}`)
-        .join('\n');
-      return `### Edit ${index + 1}: ${edit.selector}\n${changes}`;
-    }).join('\n\n');
+    // Convert edits to VisualEdit format expected by Agent V4
+    const visualEdits: VisualEdit[] = data.edits.map((edit, index) => ({
+      id: `edit_${Date.now()}_${index}`,
+      timestamp: Date.now(),
+      element: {
+        selector: edit.selector,
+        tagName: edit.element,
+        id: edit.elementId || undefined,
+        className: edit.elementClasses ? edit.elementClasses.join(' ') : undefined
+      },
+      changes: edit.changes.map((change: any) => ({
+        property: change.property,
+        before: change.before,
+        after: change.after,
+        category: 'style' as const,
+        impact: 'visual' as const,
+        confidence: 0.9
+      })),
+      intent: {
+        description: `Visual changes to ${edit.selector}`,
+        userAction: 'direct-edit' as const
+      },
+      validation: {
+        applied: true
+      }
+    }));
 
-    const branchName = `visual-edits-${Date.now()}`;
-    const prTitle = `Visual Edits from Smart QA`;
-    const prBody = `🎨 Visual changes made using Smart QA\n\n**Target URL:** ${data.url}\n\n## Changes\n\n${editDescriptions}\n\n---\n*This PR was automatically created by Smart QA's Agent V4*`;
+    // Initialize Agent V4 if needed
+    if (!agentV4Integration) {
+      console.log('🤖 Initializing Agent V4...');
+      const initResult = await initializeAgentV4({
+        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+        cacheAnalysis: true
+      });
+      
+      if (!initResult.success) {
+        return { 
+          success: false, 
+          error: `Failed to initialize Agent V4: ${(initResult as any).error || 'Unknown error'}` 
+        };
+      }
+    }
 
-    // Note: For now, this is a placeholder implementation
-    // The actual Agent V4 logic will analyze the edits, map them to code,
-    // and create appropriate file changes
+    // Process with Agent V4
+    console.log('🎯 Processing visual edits with Agent V4...');
+    const result = await processVisualRequestWithAgentV4({
+      visualEdits: visualEdits,
+      context: {
+        targetUrl: data.url,
+        framework: 'react',
+        stylingSystem: 'auto-detect'
+      }
+    });
+
+    if (!result.success) {
+      return { 
+        success: false, 
+        error: result.error || 'Agent V4 processing failed' 
+      };
+    }
+
+    // Agent V4 will have already created the PR through its internal flow
+    console.log('✅ Agent V4 processing completed successfully');
     
-    // TODO: Integrate with Agent V4 to:
-    // 1. Analyze the target URL's source code
-    // 2. Map CSS changes to source files (Tailwind, CSS modules, styled-components, etc.)
-    // 3. Generate appropriate code changes
-    // 4. Create PR with those changes
-
     return { 
-      success: false, 
-      error: 'Agent V4 integration is not yet fully implemented. This will convert your visual edits into code changes and create a PR.' 
+      success: true,
+      pr: result.pr,
+      message: 'Visual edits successfully converted to code and PR created!'
     };
   } catch (error) {
-    console.error('Error triggering Agent V4:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to trigger Agent V4' };
+    console.error('❌ Error triggering Agent V4:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to trigger Agent V4' 
+    };
   }
 });
 
