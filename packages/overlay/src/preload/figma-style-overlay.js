@@ -840,26 +840,33 @@
   }
 
   // Global API - Singleton pattern
-  if (!window.TweaqOverlay) {
-    const overlayInstance = new FigmaStyleOverlay();
-    
-    window.TweaqOverlay = {
-      inject(options) {
-        console.log('TweaqOverlay.inject called');
-        return overlayInstance.inject(options);
-      },
-      
-      toggle(options) {
-        console.log('TweaqOverlay.toggle called');
-        return overlayInstance.toggle(options);
-      },
-      
-      remove() {
-        console.log('TweaqOverlay.remove called');
-        return overlayInstance.remove();
-      }
-    };
+  // Check if already initialized
+  if (window.TweaqOverlay && window.TweaqOverlay._initialized) {
+    console.log('⚠️ TweaqOverlay already initialized, skipping');
+    return;
   }
+
+  const overlayInstance = new FigmaStyleOverlay();
+  
+  window.TweaqOverlay = {
+    _initialized: true,
+    _instance: overlayInstance,
+    
+    inject(options) {
+      console.log('TweaqOverlay.inject called');
+      return overlayInstance.inject(options);
+    },
+    
+    toggle(options) {
+      console.log('TweaqOverlay.toggle called, current isVisible:', overlayInstance.isVisible);
+      return overlayInstance.toggle(options);
+    },
+    
+    remove() {
+      console.log('TweaqOverlay.remove called');
+      return overlayInstance.remove();
+    }
+  };
 
   console.log('✅ Figma-style Tweaq Overlay loaded');
 })();
