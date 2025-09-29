@@ -135,10 +135,16 @@
         transform: translateX(100%);
         transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         z-index: 1000001;
+        will-change: transform;
       }
 
       .tweaq-properties-panel.visible {
         transform: translateX(0);
+      }
+
+      /* Ensure content stays within panel during animation */
+      .tweaq-properties-panel * {
+        will-change: auto;
       }
 
       /* Panel Header */
@@ -811,6 +817,7 @@
       this.removeEventListeners();
       this.hidePanel();
       
+      // Wait for slide-out animation to complete before cleanup
       setTimeout(() => {
         if (this.overlayContainer) this.overlayContainer.remove();
         if (this.outlineElement) this.outlineElement.remove();
@@ -820,7 +827,7 @@
         this.selectedElement = null;
         this.hoveredElement = null;
         this.isVisible = false;
-      }, 300);
+      }, 320); // Slightly longer than CSS transition (300ms)
     }
 
     toggle(options = {}) {
