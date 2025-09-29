@@ -112,7 +112,7 @@ export class LLMCodeAdapter implements LLMProvider {
       },
       body: JSON.stringify({
         model: this.externalProvider.model || 'claude-3-sonnet-20240229',
-        max_tokens: 4000,
+        max_tokens: 64000, // Maximum for Claude 4 Sonnet
         temperature: 0.1,
         messages: [
           {

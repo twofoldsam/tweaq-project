@@ -1,4 +1,28 @@
 import { app, BrowserWindow, BrowserView, ipcMain, shell } from 'electron';
+import path from 'path';
+
+// Guard against undefined electron during module loading
+if (typeof ipcMain === 'undefined') {
+  console.log('⚠️ Electron not ready during module load, deferring IPC setup...');
+}
+
+// Safe IPC handler wrapper
+function safeIpcHandle(channel: string, handler: (...args: any[]) => any) {
+  if (ipcMain && typeof ipcMain.handle === 'function') {
+    ipcMain.handle(channel, handler);
+  } else {
+    console.log(`⚠️ Deferring IPC handler: ${channel}`);
+  }
+}
+import Store from 'electron-store';
+import { GitClient, PRWatcher, type DeploymentPreview } from '../../../packages/github/dist/src/index';
+import { createOAuthDeviceAuth } from '@octokit/auth-oauth-device';
+import { Octokit } from '@octokit/rest';
+import * as keytar from 'keytar';
+import { RemoteRepo, LocalRepo } from '../../../packages/github-remote/dist/index.js';
+import { InMemoryPatcher, LLMCodeAdapter, ClaudeAgentAdapter } from '../../../packages/change-engine/dist/src/index.js';
+import { MappingEngine, MockLLMProvider, OpenAIProvider, ClaudeProvider, buildRepoIndex, getDeterministicHints } from '../../../packages/mapping-remote/dist/index.js';
+import { RepoAnalyzer, RepoSymbolicModel } from '../../../packages/repo-analyzer/dist/index.js';
 
 // Load environment variables from .env file
 try {
@@ -14,30 +38,6 @@ try {
 } catch (error) {
   console.log('❌ No .env file found or dotenv not available:', error);
 }
-
-// Guard against undefined electron during module loading
-if (typeof ipcMain === 'undefined') {
-  console.log('⚠️ Electron not ready during module load, deferring IPC setup...');
-}
-
-// Safe IPC handler wrapper
-function safeIpcHandle(channel: string, handler: (...args: any[]) => any) {
-  if (ipcMain && typeof ipcMain.handle === 'function') {
-    ipcMain.handle(channel, handler);
-  } else {
-    console.log(`⚠️ Deferring IPC handler: ${channel}`);
-  }
-}
-import path from 'path';
-import Store from 'electron-store';
-import { GitClient, PRWatcher, type DeploymentPreview } from '../../../packages/github/dist/src/index';
-import { createOAuthDeviceAuth } from '@octokit/auth-oauth-device';
-import { Octokit } from '@octokit/rest';
-import * as keytar from 'keytar';
-import { RemoteRepo, LocalRepo } from '../../../packages/github-remote/dist/index.js';
-import { InMemoryPatcher, LLMCodeAdapter, ClaudeAgentAdapter } from '../../../packages/change-engine/dist/src/index.js';
-import { MappingEngine, MockLLMProvider, OpenAIProvider, ClaudeProvider, buildRepoIndex, getDeterministicHints } from '../../../packages/mapping-remote/dist/index.js';
-import { RepoAnalyzer, RepoSymbolicModel } from '../../../packages/repo-analyzer/dist/index.js';
 
 interface StoreSchema {
   lastUrl: string;
@@ -1374,18 +1374,18 @@ async function initializeLLMProviderForCodeGeneration(): Promise<{ provider: any
     console.log(`🔍 Debug API keys - ANTHROPIC_API_KEY env: ${process.env.ANTHROPIC_API_KEY ? 'YES' : 'NO'}, CLAUDE_API_KEY env: ${process.env.CLAUDE_API_KEY ? 'YES' : 'NO'}`);
     console.log(`🔍 Debug API keys - Final claudeKey: ${claudeKey ? 'YES' : 'NO'}`);
 
-    if (openaiKey) {
-      llmProvider = new OpenAIProvider(openaiKey);
-      const source = llmConfig.openai?.enabled ? 'config file' : 
-                     process.env.OPENAI_API_KEY ? 'environment variable' : 'hardcoded';
-      console.log(`🤖 Using OpenAI provider for code generation (from ${source})`);
-      return { provider: llmProvider, type: 'openai', apiKey: openaiKey };
-    } else if (claudeKey) {
+    if (claudeKey) {
       llmProvider = new ClaudeProvider(claudeKey);
       const source = llmConfig.claude?.enabled ? 'config file' : 
                      (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) ? 'environment variable' : 'hardcoded';
       console.log(`🤖 Using Claude provider for code generation (from ${source})`);
       return { provider: llmProvider, type: 'claude', apiKey: claudeKey };
+    } else if (openaiKey) {
+      llmProvider = new OpenAIProvider(openaiKey);
+      const source = llmConfig.openai?.enabled ? 'config file' : 
+                     process.env.OPENAI_API_KEY ? 'environment variable' : 'hardcoded';
+      console.log(`🤖 Using OpenAI provider for code generation (from ${source})`);
+      return { provider: llmProvider, type: 'openai', apiKey: openaiKey };
     } else {
       // Fallback to UI configuration if no environment variables
       const uiLlmConfig = store.get('llm') || { provider: 'mock' };
@@ -1659,6 +1659,93 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
 }
 
 // Initialize repository analyzer for the configured GitHub repo
+/**
+ * Get symbolic repository model for Agent V4
+ */
+async function getSymbolicRepoModel(config: any, remoteRepo: RemoteRepo): Promise<any> {
+  try {
+    console.log('🔍 Building symbolic repository model...');
+    
+    // Use existing repo analyzer
+    const { RepoAnalyzer } = await import('../../../packages/repo-analyzer/dist/index.js');
+    const analyzer = new RepoAnalyzer();
+    
+    const analysisResult = await analyzer.analyzeRepository(remoteRepo, config, {
+      includeNodeModules: false,
+      maxFileSize: 100000,
+      supportedExtensions: ['.tsx', '.jsx', '.ts', '.js', '.vue', '.svelte'],
+      analysisDepth: 'deep',
+      cacheEnabled: true,
+      parallelProcessing: true
+    });
+    
+    if (analysisResult.success && analysisResult.model) {
+      console.log(`✅ Symbolic repo model built: ${analysisResult.stats.componentsFound} components found`);
+      return analysisResult.model;
+    } else {
+      console.warn('⚠️ Failed to build symbolic repo model, using fallback');
+      // Return a minimal fallback model
+      return {
+        repoId: `${config.owner}/${config.repo}`,
+        analyzedAt: new Date(),
+        version: '1.0.0',
+        primaryFramework: 'react',
+        frameworkVersions: { react: '18.0.0' },
+        stylingApproach: 'tailwind',
+        tailwindConfig: undefined,
+        cssVariables: new Map(),
+        customClasses: new Map(),
+        components: [],
+        componentPatterns: {
+          filePattern: /\.(tsx|jsx)$/,
+          importPatterns: [],
+          exportPatterns: [],
+          namingConvention: 'PascalCase'
+        },
+        stylingPatterns: {
+          fontSize: { pattern: 'text-{size}', confidence: 0.5 },
+          color: { pattern: 'text-{color}', confidence: 0.5 },
+          spacing: { pattern: 'p-{size}', confidence: 0.5 },
+          layout: { pattern: 'flex', confidence: 0.5 }
+        },
+        designTokens: undefined,
+        buildSystem: { type: 'vite', configPath: '' },
+        testingFramework: undefined
+      };
+    }
+  } catch (error) {
+    console.error('❌ Failed to get symbolic repo model:', error);
+    // Return minimal fallback
+    return {
+      repoId: `${config.owner}/${config.repo}`,
+      analyzedAt: new Date(),
+      version: '1.0.0',
+      primaryFramework: 'react',
+      frameworkVersions: { react: '18.0.0' },
+      stylingApproach: 'tailwind',
+      tailwindConfig: undefined,
+      cssVariables: new Map(),
+      customClasses: new Map(),
+      components: [],
+      componentPatterns: {
+        filePattern: /\.(tsx|jsx)$/,
+        importPatterns: [],
+        exportPatterns: [],
+        namingConvention: 'PascalCase'
+      },
+      stylingPatterns: {
+        fontSize: { pattern: 'text-{size}', confidence: 0.3 },
+        color: { pattern: 'text-{color}', confidence: 0.3 },
+        spacing: { pattern: 'p-{size}', confidence: 0.3 },
+        layout: { pattern: 'flex', confidence: 0.3 }
+      },
+      designTokens: undefined,
+      buildSystem: { type: 'vite', configPath: '' },
+      testingFramework: undefined
+    };
+  }
+}
+
 async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Promise<void> {
   console.log('🔍 Initializing repository analyzer with hybrid approach...');
   
@@ -1680,7 +1767,7 @@ async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Prom
         baseBranch: config.baseBranch
       },
       {
-        cacheEnabled: true,
+        cacheEnabled: false, // Disable cache to ensure fresh analysis
         analysisDepth: 'comprehensive',
         parallelProcessing: true
       }
@@ -2502,13 +2589,71 @@ ${intent.tailwindChanges && Array.isArray(intent.tailwindChanges) ? intent.tailw
 // to avoid CommonJS module resolution issues
 
 let visualCodingAgent: any = null;
+let agentV4Integration: any = null;
+
+/**
+ * Initialize Agent V4 (Intelligent Coding Agent with Over-Deletion Prevention)
+ */
+async function initializeAgentV4(config: any) {
+  try {
+    console.log('🤖 Initializing Agent V4 (Intelligent Coding Agent)...');
+    
+    // Initialize LLM provider
+    const { provider: llmProvider, type: providerType } = await initializeLLMProviderForCodeGeneration();
+    if (!llmProvider) {
+      throw new Error('No LLM provider available for Agent V4');
+    }
+    
+    console.log(`🧠 Agent V4 using ${providerType} provider`);
+    
+    // Dynamic import of Agent V4
+    const { createTweaqAgentV4Integration } = await import('../../../packages/agent-v4/dist/integration/TweaqIntegration.js');
+    
+    // Create Agent V4 integration with proper LLM interface
+    const wrappedProvider = {
+      generateText: async (prompt: string) => {
+        if (providerType === 'openai') {
+          return await callOpenAIForVisualCoding(llmProvider, prompt);
+        } else if (providerType === 'claude') {
+          return await callClaudeForVisualCoding(llmProvider, prompt);
+        }
+        throw new Error(`Unsupported provider type: ${providerType}`);
+      }
+    };
+    
+    agentV4Integration = createTweaqAgentV4Integration(wrappedProvider, {
+      validation: {
+        enableSyntaxCheck: true,
+        enableIntentAlignment: true,
+        enablePreservationCheck: true,
+        enableScopeCheck: true, // Critical for over-deletion prevention
+        enableBuildCheck: false,
+        strictMode: false
+      },
+      strategies: {
+        maxRetries: 3,
+        fallbackEnabled: true,
+        humanReviewThreshold: 0.3
+      }
+    });
+    
+    console.log('✅ Agent V4 initialized successfully with over-deletion prevention');
+    return { success: true, agent: 'v4' };
+  } catch (error) {
+    console.error('❌ Failed to initialize Agent V4:', error);
+    console.log('🔄 Falling back to Agent V3...');
+    
+    // Fallback to Agent V3
+    return await initializeRealVisualAgent(config);
+  }
+}
 
 /**
  * Initialize the Visual Coding Agent using existing LLM infrastructure
  */
 async function initializeRealVisualAgent(config: any) {
   try {
-    console.log('🎨 Initializing Visual Coding Agent...');
+    console.log('🎨 Initializing Visual Coding Agent (V3)...');
     
     visualCodingAgent = {
       initialized: true,
@@ -2518,8 +2663,8 @@ async function initializeRealVisualAgent(config: any) {
       }
     };
     
-    console.log('✅ Visual Coding Agent initialized successfully');
-    return { success: true };
+    console.log('✅ Visual Coding Agent V3 initialized successfully');
+    return { success: true, agent: 'v3' };
   } catch (error) {
     console.error('❌ Failed to initialize Visual Coding Agent:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -2578,7 +2723,7 @@ async function callClaudeForVisualCoding(provider: any, prompt: string): Promise
     },
     body: JSON.stringify({
       model: (provider as any).model || 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
+      max_tokens: 64000, // Maximum for Claude 4 Sonnet
       temperature: 0.1,
       messages: [
         {
@@ -2731,6 +2876,196 @@ This is a **DRAFT PR** created with safety measures:
   } catch (error) {
     console.error('❌ Failed to create real PR:', error);
     throw error;
+  }
+}
+
+/**
+ * Process visual requests using Agent V4 (Intelligent Agent with Over-Deletion Prevention)
+ */
+async function processVisualRequestWithAgentV4(request: any) {
+  console.log('🤖 Processing visual request with Agent V4 (Intelligent + Over-Deletion Prevention)...');
+
+  try {
+    // Extract visual edits from request
+    const visualEdits = request.visualEdits || [];
+    if (!visualEdits.length) {
+      throw new Error('No visual edits provided');
+    }
+
+    console.log(`📝 Processing ${visualEdits.length} visual edits with Agent V4`);
+
+    // Get GitHub configuration
+    const config = store.get('github');
+    if (!config) {
+      throw new Error('GitHub configuration not found');
+    }
+
+    // Get GitHub token
+    const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
+    if (!githubToken) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Initialize repository analyzer to get symbolic context
+    const remoteRepo = new RemoteRepo(githubToken);
+    console.log('🔍 Initializing repository analyzer for Agent V4...');
+    await initializeRepoAnalyzer(config, remoteRepo);
+
+    // Get symbolic repository model
+    const symbolicRepo = await getSymbolicRepoModel(config, remoteRepo);
+    if (!symbolicRepo) {
+      throw new Error('Failed to build symbolic repository model');
+    }
+
+    console.log(`📊 Symbolic repo analysis: ${symbolicRepo.components.length} components found`);
+    console.log(`🔍 Repository config: ${config.owner}/${config.repo}@${config.baseBranch || 'main'}`);
+
+    // Debug: Check what's actually in the repository tree
+    try {
+      const repoTree = await remoteRepo.getRepoTree({
+        owner: config.owner,
+        repo: config.repo,
+        ref: config.baseBranch || 'main',
+        recursive: true
+      });
+      console.log(`🌳 Repository tree contains ${repoTree.tree.length} files`);
+      const componentFiles = repoTree.tree.filter((file: any) => 
+        file.path && (file.path.includes('components/') || file.path.endsWith('.tsx') || file.path.endsWith('.ts'))
+      );
+      console.log(`🧩 Component-like files in tree: ${componentFiles.length}`);
+      console.log(`📁 Sample component files:`, componentFiles.slice(0, 5).map((f: any) => f.path));
+    } catch (error) {
+      console.error('❌ Failed to get repository tree:', error);
+    }
+
+    // Enhance symbolic repo with actual file content for Agent V4
+    const validComponents = [];
+    console.log(`🔄 Processing ${symbolicRepo.components.length} components sequentially...`);
+    const maxFiles = 5; // Limit for testing
+    for (let i = 0; i < Math.min(symbolicRepo.components.length, maxFiles); i++) {
+      const component = symbolicRepo.components[i];
+      if (component.filePath && !component.content) {
+        try {
+          console.log(`🔍 [${i+1}/${maxFiles}] Attempting to read: ${component.filePath}`);
+          
+          // Add small delay to avoid rate limiting
+          if (i > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+          const fileContent = await remoteRepo.readFile({
+            owner: config.owner,
+            repo: config.repo,
+            path: component.filePath,
+            ref: config.baseBranch || 'main'
+          });
+          component.content = fileContent;
+          validComponents.push(component);
+          console.log(`📖 ✅ Loaded content for ${component.filePath}: ${fileContent.length} chars`);
+        } catch (error) {
+          // Log detailed error information
+          console.log(`🔍 ❌ File read failed: ${component.filePath}`);
+          console.log(`🔍    Error: ${error instanceof Error ? error.message : String(error)}`);
+          if (error instanceof Error && error.stack) {
+            console.log(`🔍    Stack: ${error.stack.split('\n')[0]}`);
+          }
+        }
+      } else {
+        validComponents.push(component);
+      }
+    }
+    
+    // Update symbolic repo with only valid components
+    symbolicRepo.components = validComponents;
+    console.log(`📊 Valid components after filtering: ${validComponents.length}`);
+
+    // Check if Agent V4 should handle this request
+    const recommendation = agentV4Integration.shouldUseAgentV4(visualEdits, symbolicRepo);
+    console.log(`🎯 Agent V4 recommendation: ${recommendation.recommended ? 'YES' : 'NO'} (${(recommendation.confidence * 100).toFixed(1)}%)`);
+    console.log(`💡 Reason: ${recommendation.reason}`);
+
+    let result;
+    
+    if (recommendation.recommended) {
+      // Use Agent V4 for intelligent processing
+      console.log('🚀 Using Agent V4 for intelligent processing...');
+      result = await agentV4Integration.processVisualEdits(visualEdits, symbolicRepo, {
+        enableLogging: true
+      });
+      
+      console.log('📊 Agent V4 Results:');
+      console.log(`  Success: ${result.success}`);
+      console.log(`  Confidence: ${(result.confidence * 100).toFixed(1)}%`);
+      console.log(`  Approach: ${result.approach}`);
+      console.log(`  Validation: ${result.validation.passed ? 'PASSED' : 'FAILED'}`);
+      console.log(`  Issues: ${result.validation.issues.length}`);
+      console.log(`  File Changes: ${result.fileChanges.length}`);
+      
+      if (!result.success) {
+        console.log('❌ Agent V4 validation failed, issues:');
+        result.validation.issues.forEach((issue: any) => {
+          console.log(`  - ${issue.type}: ${issue.message}`);
+        });
+        
+        // If Agent V4 fails due to over-deletion or other issues, don't fallback
+        // This is the key feature - preventing bad changes
+        return {
+          success: false,
+          error: 'Agent V4 prevented potentially harmful changes',
+          details: {
+            agent: 'v4',
+            confidence: result.confidence,
+            approach: result.approach,
+            validation: result.validation,
+            summary: result.summary
+          }
+        };
+      }
+      
+    } else {
+      // Fallback to Agent V3 for low-confidence scenarios
+      console.log('🔄 Agent V4 not recommended, falling back to Agent V3...');
+      return await processVisualRequestWithAgentV3(request);
+    }
+
+    // If Agent V4 succeeded, create PR with the changes
+    if (result.success && result.fileChanges.length > 0) {
+      console.log('🚀 Creating PR with Agent V4 changes...');
+      
+      // Convert Agent V4 file changes to the expected format for createRealPRWithWorkspace
+      const changes = result.fileChanges.map((change: any) => ({
+        filePath: change.filePath || change.path,
+        newContent: change.newContent || change.content,
+        action: change.changeType || change.action || 'update'
+      }));
+
+      // Create PR using existing infrastructure
+      const prResult = await createRealPRWithWorkspace(changes, config, githubToken);
+      
+      return {
+        success: true,
+        agent: 'v4',
+        confidence: result.confidence,
+        approach: result.approach,
+        validation: result.validation,
+        summary: result.summary,
+        fileChanges: result.fileChanges,
+        pullRequest: prResult,
+        message: 'Agent V4 successfully processed changes with over-deletion prevention'
+      };
+    }
+
+    return {
+      success: false,
+      error: 'No changes generated by Agent V4'
+    };
+
+  } catch (error) {
+    console.error('❌ Agent V4 processing failed:', error);
+    
+    // Fallback to Agent V3 on error
+    console.log('🔄 Falling back to Agent V3 due to Agent V4 error...');
+    return await processVisualRequestWithAgentV3(request);
   }
 }
 
@@ -3067,15 +3402,17 @@ ${request.description}
 async function getFileUpdatesWithVisualAgent(codeIntents: CodeIntent[], config: any, remoteRepo: RemoteRepo, visualEdits: VisualEdit[]) {
   console.log('🎨 Processing with Visual Coding Agent...');
   
-  // Initialize agent if needed
-  if (!visualCodingAgent) {
-    const initResult = await initializeRealVisualAgent({
+  // Initialize Agent V4 first, fallback to V3 if needed
+  if (!agentV4Integration) {
+    console.log('🤖 Initializing Agent V4 for edit processing...');
+    const initResult = await initializeAgentV4({
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       cacheAnalysis: true
     });
     
     if (!initResult.success) {
-      throw new Error(`Failed to initialize Visual Coding Agent: ${initResult.error}`);
+      console.log('⚠️ Agent V4 initialization failed, will use Agent V3 fallback');
+      // Don't throw error, just continue to Agent V3 fallback
     }
   }
   
@@ -3104,8 +3441,60 @@ async function getFileUpdatesWithVisualAgent(codeIntents: CodeIntent[], config: 
     codeIntents: codeIntents
   };
   
-  // Process with Visual Coding Agent
-  const agentResponse = await visualCodingAgent.processRequest({
+  // Process with Agent V4 if available, otherwise fallback to V3
+  let agentResponse;
+  
+  if (agentV4Integration) {
+    console.log('🚀 Using Agent V4 for processing...');
+    
+    // Get symbolic repository model for Agent V4
+    await initializeRepoAnalyzer(config, remoteRepo);
+    const symbolicRepo = await getSymbolicRepoModel(config, remoteRepo);
+    
+    if (!symbolicRepo) {
+      throw new Error('Failed to build symbolic repository model for Agent V4');
+    }
+    
+    // Process with Agent V4
+    const v4Response = await processVisualRequestWithAgentV4({
+      visualEdits: visualEdits,
+      context: designContext
+    });
+    
+    if (v4Response.success) {
+      console.log('✅ Agent V4 processing successful');
+      // Convert Agent V4 response to expected format
+      const fileUpdates = (v4Response.fileChanges || []).map((change: any) => ({
+        path: change.path.startsWith('/') ? change.path.substring(1) : change.path,
+        oldContent: change.oldContent || '',
+        newContent: change.content,
+        reasoning: change.reasoning || 'Agent V4 generated change',
+        changeType: change.action || 'update'
+      }));
+      
+      return fileUpdates;
+    } else {
+      console.log('⚠️ Agent V4 processing failed, falling back to Agent V3...');
+      // Continue to Agent V3 fallback below
+    }
+  }
+  
+  // Fallback to Agent V3 processing
+  console.log('🔄 Using Agent V3 for processing...');
+  
+  // Initialize Agent V3 if needed
+  if (!visualCodingAgent) {
+    const initResult = await initializeRealVisualAgent({
+      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+      cacheAnalysis: true
+    });
+    
+    if (!initResult.success) {
+      throw new Error(`Failed to initialize Agent V3: ${(initResult as any).error || 'Unknown error'}`);
+    }
+  }
+  
+  agentResponse = await visualCodingAgent.processRequest({
     description: `Apply visual changes: ${description}`,
     element: selectedElement,
     context: designContext,
@@ -3534,11 +3923,11 @@ safeIpcHandle('get-env-var', async (event, key: string) => {
   }
 });
 
-// Visual Coding Agent IPC handlers
+// Visual Coding Agent IPC handlers - Now using Agent V4 as primary
 safeIpcHandle('initialize-visual-agent', async (event, config: any) => {
   try {
-    console.log('🎨 IPC: Initialize Visual Coding Agent');
-    return await initializeRealVisualAgent(config);
+    console.log('🤖 IPC: Initialize Visual Coding Agent (trying Agent V4 first)');
+    return await initializeAgentV4(config);
   } catch (error) {
     console.error('❌ IPC: Failed to initialize Visual Coding Agent:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -3547,22 +3936,32 @@ safeIpcHandle('initialize-visual-agent', async (event, config: any) => {
 
 safeIpcHandle('process-visual-request', async (event, request: any) => {
   try {
-    console.log('🎨 IPC: Process visual request');
+    console.log('🤖 IPC: Process visual request (Agent V4 primary)');
     
-    if (!visualCodingAgent) {
-      // Auto-initialize if needed
-      const initResult = await initializeRealVisualAgent({
+    // Try Agent V4 first
+    if (!agentV4Integration && !visualCodingAgent) {
+      // Auto-initialize Agent V4 if needed
+      const initResult = await initializeAgentV4({
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
         cacheAnalysis: true
       });
       
       if (!initResult.success) {
-        return { success: false, error: `Agent not initialized: ${initResult.error}` };
+        return { success: false, error: `Agent not initialized: ${(initResult as any).error || 'Unknown error'}` };
       }
     }
     
-    // Process the request with the real agent
-    const response = await visualCodingAgent.processRequest(request);
+    // Process the request with Agent V4 (or fallback to V3)
+    let response;
+    if (agentV4Integration) {
+      console.log('🚀 Using Agent V4 for request processing');
+      response = await processVisualRequestWithAgentV4(request);
+    } else if (visualCodingAgent) {
+      console.log('🔄 Using Agent V3 fallback for request processing');
+      response = await visualCodingAgent.processRequest(request);
+    } else {
+      throw new Error('No agent available for processing');
+    }
     
     return { success: true, data: response };
   } catch (error) {

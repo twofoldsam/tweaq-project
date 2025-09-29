@@ -246,7 +246,7 @@ Return ONLY the complete modified file content. Do not include explanations, com
       },
       body: JSON.stringify({
         model: 'claude-3-5-sonnet-20241022', // Latest Claude 3.5 Sonnet
-        max_tokens: 4000,
+        max_tokens: 64000, // Maximum for Claude 4 Sonnet
         temperature: 0.1, // Low temperature for consistent code generation
         messages: [
           {

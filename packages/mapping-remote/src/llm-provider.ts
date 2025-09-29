@@ -307,7 +307,7 @@ export class ClaudeProvider extends BaseLLMProvider {
         },
         body: JSON.stringify({
           model: this.model,
-          max_tokens: 2000,
+          max_tokens: 64000, // Maximum for Claude 4 Sonnet
           temperature: 0.1,
           messages: [
             {

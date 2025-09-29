@@ -1,0 +1,27 @@
+{
+  "name": "@tweaq/agent-v4",
+  "version": "1.0.0",
+  "description": "Intelligent Agent V4 with multi-modal reasoning and confidence-based decision making",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.6.0",
+    "typescript": "^5.2.2"
+  },
+  "keywords": [
+    "agent",
+    "ai",
+    "code-generation",
+    "frontend",
+    "visual-coding"
+  ],
+  "author": "Tweaq Team",
+  "license": "MIT"
+}
