@@ -245,6 +245,12 @@
         margin-left: 8px;
       }
 
+      /* Body adjustment for panel */
+      body.tweaq-panel-open {
+        margin-right: 400px;
+        transition: margin-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
       /* Panels */
       .tweaq-overlay-panel {
         position: fixed;
@@ -253,11 +259,11 @@
         width: 400px;
         height: 100vh;
         pointer-events: auto;
-        background: rgba(255, 255, 255, 0.98);
+        background: rgba(28, 28, 30, 0.98);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border-left: 1px solid rgba(0, 0, 0, 0.1);
-        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -275,8 +281,8 @@
         align-items: center;
         justify-content: space-between;
         padding: 20px 24px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-        background: rgba(0, 0, 0, 0.02);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
         min-height: 64px;
       }
 
@@ -284,7 +290,7 @@
         font-size: 18px;
         font-weight: 600;
         margin: 0;
-        color: #1d1d1f;
+        color: #ffffff;
         letter-spacing: -0.3px;
       }
 
@@ -294,7 +300,7 @@
         cursor: pointer;
         padding: 8px;
         border-radius: 8px;
-        color: #666;
+        color: #cccccc;
         transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         display: flex;
         align-items: center;
@@ -302,8 +308,8 @@
       }
 
       .tweaq-panel-close:hover {
-        background: rgba(0, 0, 0, 0.06);
-        color: #333;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
         transform: scale(1.1);
       }
 
@@ -482,14 +488,14 @@
       .tweaq-section-title {
         font-size: 12px;
         font-weight: 600;
-        color: #333;
+        color: #ffffff;
         margin: 0 0 8px 0;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
       .tweaq-element-tag {
-        background: rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.05);
         padding: 8px;
         border-radius: 4px;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
@@ -497,18 +503,18 @@
       }
 
       .tweaq-tag-name {
-        color: #007acc;
+        color: #0A84FF;
         font-weight: 600;
       }
 
       .tweaq-element-id {
-        color: #28a745;
+        color: #4ade80;
         font-weight: 600;
         margin-left: 4px;
       }
 
       .tweaq-element-classes {
-        color: #6f42c1;
+        color: #a78bfa;
         font-weight: 600;
         margin-left: 4px;
       }
@@ -526,14 +532,14 @@
 
       .tweaq-info-label {
         font-size: 11px;
-        color: #666;
+        color: #cccccc;
         min-width: 80px;
         font-weight: 500;
       }
 
       .tweaq-info-value {
         font-size: 11px;
-        color: #333;
+        color: #ffffff;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
         flex: 1;
         word-break: break-all;
@@ -563,7 +569,7 @@
       .tweaq-property-label {
         font-size: 11px;
         font-weight: 500;
-        color: #333;
+        color: #cccccc;
         min-width: 60px;
       }
 
@@ -572,20 +578,21 @@
       .tweaq-edit-number-inline {
         flex: 1;
         padding: 4px 6px;
-        border: 1px solid rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 3px;
         font-size: 11px;
-        background: white;
-        color: #333;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
       }
 
       .tweaq-edit-input-inline:focus,
       .tweaq-edit-select-inline:focus,
       .tweaq-edit-number-inline:focus {
         outline: none;
-        border-color: #007acc;
-        box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
-        color: #000;
+        border-color: #0A84FF;
+        box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.3);
+        background: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
       }
 
       .tweaq-edit-input-wrapper {
@@ -597,7 +604,7 @@
 
       .tweaq-unit-inline {
         font-size: 10px;
-        color: #666;
+        color: #cccccc;
       }
 
       .tweaq-edit-color-inline {
@@ -729,7 +736,7 @@
       .tweaq-edit-button {
         flex: 1;
         padding: 8px 12px;
-        border: 1px solid rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 4px;
         font-size: 11px;
         font-weight: 500;
@@ -738,23 +745,24 @@
       }
 
       .tweaq-edit-reset {
-        background: white;
-        color: #666;
+        background: rgba(255, 255, 255, 0.1);
+        color: #cccccc;
+        border-color: rgba(255, 255, 255, 0.2);
       }
 
       .tweaq-edit-reset:hover:not(:disabled) {
-        background: #f8f9fa;
-        color: #333;
+        background: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
       }
 
       .tweaq-edit-record {
-        background: #007acc;
+        background: #0A84FF;
         color: white;
-        border-color: #007acc;
+        border-color: #0A84FF;
       }
 
       .tweaq-edit-record:hover:not(:disabled) {
-        background: #0056b3;
+        background: #0066CC;
       }
 
       .tweaq-edit-button:disabled {
@@ -1024,6 +1032,9 @@
       });
 
       this.overlayContainer.appendChild(panel);
+      
+      // Add body class to push content
+      document.body.classList.add('tweaq-panel-open');
     }
 
     renderEditPanel() {
@@ -1117,6 +1128,9 @@
       });
 
       this.overlayContainer.appendChild(panel);
+      
+      // Add body class to push content
+      document.body.classList.add('tweaq-panel-open');
     }
 
     renderPreviewControls() {
@@ -2078,6 +2092,9 @@
       if (existingPanel) {
         existingPanel.remove();
       }
+      
+      // Remove body class to restore layout
+      document.body.classList.remove('tweaq-panel-open');
     }
 
     attachEventListeners() {
