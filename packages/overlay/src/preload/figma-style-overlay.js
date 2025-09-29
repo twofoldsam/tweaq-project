@@ -806,20 +806,30 @@
     }
 
     hide() {
+      if (!this.isVisible) return;
+      
       this.removeEventListeners();
       this.hidePanel();
       
       setTimeout(() => {
         if (this.overlayContainer) this.overlayContainer.remove();
         if (this.outlineElement) this.outlineElement.remove();
+        this.overlayContainer = null;
+        this.outlineElement = null;
+        this.propertiesPanel = null;
+        this.selectedElement = null;
+        this.hoveredElement = null;
         this.isVisible = false;
       }, 300);
     }
 
     toggle(options = {}) {
+      console.log('Toggle called, isVisible:', this.isVisible);
       if (this.isVisible) {
+        console.log('Hiding overlay');
         this.hide();
       } else {
+        console.log('Showing overlay');
         this.inject(options);
       }
     }
@@ -829,31 +839,27 @@
     }
   }
 
-  // Global API
-  window.TweaqOverlay = {
-    instance: null,
+  // Global API - Singleton pattern
+  if (!window.TweaqOverlay) {
+    const overlayInstance = new FigmaStyleOverlay();
     
-    inject(options) {
-      if (!this.instance) {
-        this.instance = new FigmaStyleOverlay();
+    window.TweaqOverlay = {
+      inject(options) {
+        console.log('TweaqOverlay.inject called');
+        return overlayInstance.inject(options);
+      },
+      
+      toggle(options) {
+        console.log('TweaqOverlay.toggle called');
+        return overlayInstance.toggle(options);
+      },
+      
+      remove() {
+        console.log('TweaqOverlay.remove called');
+        return overlayInstance.remove();
       }
-      return this.instance.inject(options);
-    },
-    
-    toggle(options) {
-      if (!this.instance) {
-        this.instance = new FigmaStyleOverlay();
-      }
-      return this.instance.toggle(options);
-    },
-    
-    remove() {
-      if (this.instance) {
-        this.instance.remove();
-        this.instance = null;
-      }
-    }
-  };
+    };
+  }
 
   console.log('✅ Figma-style Tweaq Overlay loaded');
 })();
