@@ -201,6 +201,50 @@
         color: #ffffff;
         margin: 0;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
+        flex: 1;
+      }
+
+      .tweaq-element-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .tweaq-record-edit-icon-btn {
+        background: linear-gradient(135deg, #34C759, #248A3D);
+        border: none;
+        border-radius: 6px;
+        padding: 6px 8px;
+        cursor: pointer;
+        color: #ffffff;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        opacity: 0;
+        transform: scale(0.8);
+        pointer-events: none;
+      }
+
+      .tweaq-record-edit-icon-btn.visible {
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+      }
+
+      .tweaq-record-edit-icon-btn:hover {
+        background: linear-gradient(135deg, #248A3D, #1A6929);
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(52, 199, 89, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+
+      .tweaq-record-edit-icon-btn:active {
+        transform: scale(0.95);
+        box-shadow: 0 1px 4px rgba(52, 199, 89, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
       }
 
       /* Panel Content */
@@ -335,55 +379,6 @@
         border: 1px solid rgba(255, 255, 255, 0.15);
         cursor: pointer;
         transition: all 0.15s ease;
-      }
-
-      /* Record Edit Button */
-      .tweaq-record-edit-btn {
-        position: sticky;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        margin: 0;
-        padding: 16px 24px;
-        background: linear-gradient(to top, rgba(28, 28, 30, 1) 70%, rgba(28, 28, 30, 0));
-        border: none;
-        display: flex;
-        justify-content: center;
-      }
-
-      .tweaq-record-edit-btn button {
-        width: 100%;
-        padding: 12px 20px;
-        background: linear-gradient(135deg, #007AFF, #0051D5);
-        color: #ffffff;
-        border: none;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      }
-
-      .tweaq-record-edit-btn button:hover {
-        background: linear-gradient(135deg, #0051D5, #003D99);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-      }
-
-      .tweaq-record-edit-btn button:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 4px rgba(0, 122, 255, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-      }
-
-      .tweaq-record-edit-btn button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
       }
 
       /* Edit Tickets */
@@ -741,7 +736,18 @@
       return `
         <div class="tweaq-tab-content-header">
           <div class="tweaq-panel-title">${isPage ? 'PAGE' : 'ELEMENT'}</div>
-          <div class="tweaq-element-name">${this.getElementName()}</div>
+          <div class="tweaq-element-header">
+            <div class="tweaq-element-name">${this.getElementName()}</div>
+            <button 
+              class="tweaq-record-edit-icon-btn ${hasPendingEdits ? 'visible' : ''}" 
+              id="tweaq-record-edit-icon"
+              title="Record this edit"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
+              </svg>
+            </button>
+          </div>
         </div>
         
         <div class="tweaq-panel-content">
@@ -750,14 +756,6 @@
           ${this.renderTextSection(element, computedStyles)}
           ${this.renderEffectsSection(element, computedStyles)}
         </div>
-        
-        ${hasPendingEdits ? `
-          <div class="tweaq-record-edit-btn">
-            <button id="tweaq-record-edit">
-              📝 Record Edit
-            </button>
-          </div>
-        ` : ''}
       `;
     }
 
@@ -1048,10 +1046,10 @@
         });
       });
 
-      // Record edit button
-      const recordBtn = document.getElementById('tweaq-record-edit');
-      if (recordBtn) {
-        recordBtn.addEventListener('click', () => this.recordCurrentEdits());
+      // Record edit icon button
+      const recordIconBtn = document.getElementById('tweaq-record-edit-icon');
+      if (recordIconBtn) {
+        recordIconBtn.addEventListener('click', () => this.recordCurrentEdits());
       }
     }
 
