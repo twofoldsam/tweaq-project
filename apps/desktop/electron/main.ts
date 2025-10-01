@@ -1055,6 +1055,93 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
   }
 });
 
+// Conversational Intelligence IPC handler
+let conversationalIntelligence: any = null;
+
+safeIpcHandle('analyze-conversation-message', async (event, data: { message: string; conversationState?: any }) => {
+  try {
+    console.log('🗣️ Analyzing conversation message:', data.message.substring(0, 50) + '...');
+    
+    // Initialize conversational intelligence if needed
+    if (!conversationalIntelligence) {
+      console.log('🤖 Initializing Conversational Intelligence...');
+      
+      const providerType = (store.get('llm.provider') as string) || 'openai';
+      const apiKey = providerType === 'claude' 
+        ? process.env.ANTHROPIC_API_KEY 
+        : process.env.OPENAI_API_KEY;
+      
+      if (!apiKey) {
+        return { success: false, error: `No API key found for ${providerType}` };
+      }
+      
+      // Dynamic import of ConversationalIntelligence
+      const { ConversationalIntelligence } = await import('../../../packages/agent-v4/dist/conversation/index.js');
+      
+      // Create provider wrapper
+      const wrappedProvider = {
+        async generateText(prompt: string): Promise<string> {
+          if (providerType === 'claude') {
+            const { default: Anthropic } = await import('@anthropic-ai/sdk');
+            const anthropic = new Anthropic({ apiKey });
+            const message = await anthropic.messages.create({
+              model: 'claude-3-5-sonnet-20241022',
+              max_tokens: 2000,
+              messages: [{ role: 'user', content: prompt }]
+            });
+            return message.content[0].type === 'text' ? message.content[0].text : '';
+          } else {
+            // @ts-ignore - Dynamic import
+            const { default: OpenAI } = await import('openai');
+            const openai = new OpenAI({ apiKey });
+            const completion = await openai.chat.completions.create({
+              model: 'gpt-4',
+              messages: [{ role: 'user', content: prompt }],
+              max_tokens: 2000
+            });
+            return completion.choices[0]?.message?.content || '';
+          }
+        }
+      };
+      
+      conversationalIntelligence = new ConversationalIntelligence(wrappedProvider);
+      console.log('✅ Conversational Intelligence initialized');
+    }
+    
+    // If we have existing state, deserialize it
+    let state = data.conversationState;
+    
+    // If this is the first message, start a new conversation
+    if (!state) {
+      console.log('🆕 Starting new conversation');
+      state = conversationalIntelligence.startConversation(data.message);
+    }
+    
+    // Analyze the message
+    console.log('🧠 Analyzing message with conversation context...');
+    const analysis = await conversationalIntelligence.analyzeMessage(data.message, state);
+    
+    console.log('✅ Analysis complete');
+    console.log(`   Completeness: ${(analysis.completeness * 100).toFixed(1)}%`);
+    console.log(`   Next Action: ${analysis.nextAction}`);
+    console.log(`   Response: ${analysis.response.substring(0, 100)}...`);
+    
+    return {
+      success: true,
+      analysis: {
+        ...analysis,
+        conversationState: state // Return updated state
+      }
+    };
+  } catch (error) {
+    console.error('❌ Error analyzing conversation:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to analyze conversation'
+    };
+  }
+});
+
 // CDP Runtime Signals IPC handlers
 safeIpcHandle('inject-cdp', async () => {
   try {

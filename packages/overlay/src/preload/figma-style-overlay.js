@@ -920,6 +920,156 @@
         cursor: not-allowed;
       }
 
+      /* Chat Messages */
+      .tweaq-chat-message {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 12px;
+        border-radius: 8px;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      .tweaq-chat-message.user {
+        background: rgba(102, 126, 234, 0.15);
+        border-left: 3px solid #667eea;
+      }
+
+      .tweaq-chat-message.assistant {
+        background: rgba(255, 255, 255, 0.05);
+        border-left: 3px solid #999;
+      }
+
+      .tweaq-message-role {
+        font-size: 11px;
+        font-weight: 600;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .tweaq-message-content {
+        color: #fff;
+        font-size: 14px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      .tweaq-chat-welcome {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        text-align: center;
+        opacity: 0.6;
+      }
+
+      .tweaq-chat-loading {
+        text-align: center;
+        padding: 16px;
+        color: #999;
+        font-style: italic;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+      }
+
+      /* Confirmation UI */
+      .tweaq-chat-confirmation {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        background: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        border-radius: 8px;
+      }
+
+      .tweaq-confirmation-header {
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+      }
+
+      .tweaq-confirmation-tickets {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .tweaq-confirmation-ticket {
+        display: flex;
+        align-items: start;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+      }
+
+      .tweaq-ticket-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+
+      .tweaq-ticket-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .tweaq-ticket-instruction {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .tweaq-ticket-meta {
+        color: #999;
+        font-size: 11px;
+      }
+
+      .tweaq-confirmation-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .tweaq-btn-primary,
+      .tweaq-btn-secondary {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .tweaq-btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .tweaq-btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      .tweaq-btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+
+      .tweaq-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
       .tweaq-chat-examples {
         margin-top: 4px;
       }
@@ -975,8 +1125,11 @@
       // Mode: 'chat' (default) or 'select'
       this.mode = 'chat';
       
-      // Chat state
-      this.naturalLanguageEdits = [];
+      // Conversational Intelligence state
+      this.conversationState = null;
+      this.conversationMessages = [];
+      this.awaitingResponse = false;
+      this.readyTickets = null; // ReadyTicket[] when conversation is complete
       
       // Bind methods
       this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -1105,23 +1258,47 @@
     }
 
     renderChatView() {
-      const instructionsList = this.naturalLanguageEdits.length > 0
-        ? this.naturalLanguageEdits.map((edit, index) => `
-            <div class="tweaq-instruction-item" data-index="${index}">
-              <div class="tweaq-instruction-content">
-                <div class="tweaq-instruction-text">${edit.instruction}</div>
-                ${edit.targetElement ? `<div class="tweaq-instruction-target">→ ${edit.targetElement.selector}</div>` : ''}
+      // Render conversation messages
+      const messagesHTML = this.conversationMessages.length > 0
+        ? this.conversationMessages.map(msg => {
+            const isUser = msg.role === 'user';
+            return `
+              <div class="tweaq-chat-message ${isUser ? 'user' : 'assistant'}">
+                <div class="tweaq-message-role">${isUser ? '👤 You' : '🤖 AI'}</div>
+                <div class="tweaq-message-content">${this.escapeHtml(msg.content)}</div>
               </div>
-              <button class="tweaq-instruction-remove" data-index="${index}">✕</button>
-            </div>
-          `).join('')
+            `;
+          }).join('')
         : `
-          <div class="tweaq-empty-instructions">
-            <p style="font-size: 32px; margin: 0 0 8px 0;">💬</p>
-            <p style="margin: 0 0 4px 0; font-weight: 600;">No instructions yet</p>
-            <p style="color: #888; font-size: 12px; margin: 0;">Tell the agent what you want to change</p>
+          <div class="tweaq-chat-welcome">
+            <div style="font-size: 24px; margin-bottom: 8px;">💬</div>
+            <p style="color: #999; font-size: 14px;">Start a conversation to make changes</p>
           </div>
         `;
+
+      // Show confirmation UI if we have ready tickets
+      const confirmationHTML = this.readyTickets && this.readyTickets.length > 0 
+        ? `
+          <div class="tweaq-chat-confirmation">
+            <div class="tweaq-confirmation-header">Ready to create tickets?</div>
+            <div class="tweaq-confirmation-tickets">
+              ${this.readyTickets.map(ticket => `
+                <div class="tweaq-confirmation-ticket">
+                  <div class="tweaq-ticket-icon">📝</div>
+                  <div class="tweaq-ticket-info">
+                    <div class="tweaq-ticket-instruction">${this.escapeHtml(ticket.instruction)}</div>
+                    <div class="tweaq-ticket-meta">Target: ${ticket.target.identifier} • Confidence: ${(ticket.confidence * 100).toFixed(0)}%</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="tweaq-confirmation-actions">
+              <button class="tweaq-btn-secondary tweaq-cancel-conversation-btn">Cancel</button>
+              <button class="tweaq-btn-primary tweaq-confirm-conversation-btn">Create Tickets</button>
+            </div>
+          </div>
+        `
+        : '';
 
       // Cursor/Select icon SVG
       const selectIcon = `
@@ -1141,25 +1318,34 @@
           </div>
         </div>
         <div class="tweaq-panel-content" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1;">
-          <div class="tweaq-instructions-list">
-            ${instructionsList}
+          <div class="tweaq-chat-messages-container" style="flex: 1; display: flex; flex-direction: column; gap: 12px; min-height: 200px; overflow-y: auto;">
+            ${messagesHTML}
+            ${this.awaitingResponse ? '<div class="tweaq-chat-loading">🤔 Thinking...</div>' : ''}
           </div>
-          <div class="tweaq-chat-input-wrapper">
-            <textarea 
-              class="tweaq-chat-input" 
-              placeholder="Describe the change you want to make..." 
-              rows="3"
-            ></textarea>
-            <button class="tweaq-chat-send-btn">Add Instruction</button>
-          </div>
-          <div class="tweaq-chat-examples">
-            <div class="tweaq-examples-label">Examples:</div>
-            <div class="tweaq-example-chips">
-              <button class="tweaq-example-chip">Make the copy more friendly</button>
-              <button class="tweaq-example-chip">Condense this section</button>
-              <button class="tweaq-example-chip">Rework the layout to be more modern</button>
+          ${confirmationHTML}
+          ${!this.readyTickets ? `
+            <div class="tweaq-chat-input-wrapper">
+              <textarea 
+                class="tweaq-chat-input" 
+                placeholder="${this.conversationMessages.length === 0 ? 'Describe the change you want to make...' : 'Type your message...'}" 
+                rows="3"
+                ${this.awaitingResponse ? 'disabled' : ''}
+              ></textarea>
+              <button class="tweaq-chat-send-btn" ${this.awaitingResponse ? 'disabled' : ''}>
+                ${this.conversationMessages.length === 0 ? 'Start Conversation' : 'Send'}
+              </button>
             </div>
-          </div>
+            ${this.conversationMessages.length === 0 ? `
+              <div class="tweaq-chat-examples">
+                <div class="tweaq-examples-label">Examples:</div>
+                <div class="tweaq-example-chips">
+                  <button class="tweaq-example-chip">Make the copy more friendly</button>
+                  <button class="tweaq-example-chip">Condense the footer</button>
+                  <button class="tweaq-example-chip">Make buttons more vibrant</button>
+                </div>
+              </div>
+            ` : ''}
+          ` : ''}
         </div>
       `;
 
@@ -1167,6 +1353,8 @@
       const modeToggleBtn = this.propertiesPanel.querySelector('.tweaq-mode-toggle-btn');
       const sendBtn = this.propertiesPanel.querySelector('.tweaq-chat-send-btn');
       const input = this.propertiesPanel.querySelector('.tweaq-chat-input');
+      const confirmBtn = this.propertiesPanel.querySelector('.tweaq-confirm-conversation-btn');
+      const cancelBtn = this.propertiesPanel.querySelector('.tweaq-cancel-conversation-btn');
       
       if (modeToggleBtn) {
         modeToggleBtn.addEventListener('click', () => {
@@ -1189,6 +1377,18 @@
         });
       }
 
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+          this.confirmConversation();
+        });
+      }
+
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          this.cancelConversation();
+        });
+      }
+
       this.propertiesPanel.querySelectorAll('.tweaq-example-chip').forEach(chip => {
         chip.addEventListener('click', () => {
           if (input) {
@@ -1197,48 +1397,173 @@
           }
         });
       });
-
-      this.propertiesPanel.querySelectorAll('.tweaq-instruction-remove').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const index = parseInt(e.target.getAttribute('data-index'));
-          this.removeInstruction(index);
-        });
-      });
     }
 
-    addInstruction() {
+    async addInstruction() {
       const input = this.propertiesPanel.querySelector('.tweaq-chat-input');
       if (!input) return;
       
-      const instruction = input.value.trim();
+      const message = input.value.trim();
       
-      if (!instruction) return;
+      if (!message) return;
 
-      // Create a natural language edit ticket (similar to property edits)
-      const editTicket = {
-        id: `nl_${Date.now()}`,
-        type: 'natural-language-instruction',
-        instruction: instruction,
-        description: instruction,
-        targetElement: null,
-        selector: 'page',
-        changes: [{
-          type: 'natural-language',
-          instruction: instruction
-        }],
-        timestamp: Date.now(),
-        status: 'pending' // Same as property edits
-      };
+      // Add user message to conversation
+      this.conversationMessages.push({
+        role: 'user',
+        content: message,
+        timestamp: Date.now()
+      });
 
-      // Add to recorded edits (same array as property changes)
-      this.recordedEdits.push(editTicket);
       input.value = '';
+      this.awaitingResponse = true;
+      this.renderChatView();
+
+      try {
+        // Analyze message through conversational intelligence
+        console.log('🗣️ Sending message to conversational intelligence...');
+        const result = await window.electronAPI.analyzeConversationMessage({
+          message,
+          conversationState: this.conversationState
+        });
+
+        if (!result.success) {
+          console.error('❌ Conversation analysis failed:', result.error);
+          this.conversationMessages.push({
+            role: 'assistant',
+            content: `Sorry, I encountered an error: ${result.error}`,
+            timestamp: Date.now()
+          });
+          this.awaitingResponse = false;
+          this.renderChatView();
+          return;
+        }
+
+        const analysis = result.analysis;
+        
+        // Update conversation state
+        this.conversationState = analysis.conversationState;
+
+        // Add AI response
+        this.conversationMessages.push({
+          role: 'assistant',
+          content: analysis.response,
+          timestamp: Date.now()
+        });
+
+        console.log(`✅ Analysis complete - Completeness: ${(analysis.completeness * 100).toFixed(1)}%`);
+        console.log(`   Next Action: ${analysis.nextAction}`);
+
+        // If ready for confirmation, create ready tickets
+        if (analysis.nextAction === 'confirm') {
+          this.createReadyTickets();
+        }
+
+        this.awaitingResponse = false;
+        this.renderChatView();
+        
+        // Scroll to bottom
+        const messagesContainer = this.propertiesPanel.querySelector('.tweaq-chat-messages-container');
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+      } catch (error) {
+        console.error('❌ Error in conversation:', error);
+        this.conversationMessages.push({
+          role: 'assistant',
+          content: `Sorry, something went wrong: ${error.message}`,
+          timestamp: Date.now()
+        });
+        this.awaitingResponse = false;
+        this.renderChatView();
+      }
+    }
+
+    createReadyTickets() {
+      const { target, action } = this.conversationState.extractedInfo;
       
-      console.log('💬 Added natural language instruction as edit ticket:', editTicket);
-      
-      // Switch to Edits tab to show the new instruction
+      if (!target || !action) {
+        console.error('Cannot create tickets: missing target or action');
+        return;
+      }
+
+      // Create ready tickets (one per target identifier)
+      this.readyTickets = target.identifiers.map(identifier => {
+        const specificsStr = action.specifics.join(' and ');
+        return {
+          instruction: `Make the ${identifier} ${specificsStr}`,
+          target: {
+            type: target.type,
+            identifier
+          },
+          action: {
+            type: action.type,
+            specifics: action.specifics
+          },
+          confidence: Math.min(target.confidence, action.confidence)
+        };
+      });
+
+      console.log('✅ Created ready tickets:', this.readyTickets);
+    }
+
+    confirmConversation() {
+      if (!this.readyTickets || this.readyTickets.length === 0) return;
+
+      console.log('✅ User confirmed conversation - creating edit tickets');
+
+      // Convert ready tickets to edit tickets
+      this.readyTickets.forEach(ticket => {
+        const editTicket = {
+          id: `nl_${Date.now()}_${Math.random()}`,
+          type: 'natural-language-instruction',
+          instruction: ticket.instruction,
+          description: ticket.instruction,
+          targetElement: {
+            selector: ticket.target.identifier,
+            type: ticket.target.type
+          },
+          selector: ticket.target.identifier,
+          changes: [{
+            type: 'natural-language',
+            instruction: ticket.instruction,
+            specifics: ticket.action.specifics
+          }],
+          timestamp: Date.now(),
+          status: 'pending',
+          confidence: ticket.confidence
+        };
+
+        this.recordedEdits.push(editTicket);
+      });
+
+      // Reset conversation
+      this.conversationState = null;
+      this.conversationMessages = [];
+      this.readyTickets = null;
+
+      // Switch to Edits tab to show new tickets
       this.currentTab = 'edits';
       this.renderPanel();
+
+      console.log(`📝 Created ${this.recordedEdits.length} edit tickets from conversation`);
+    }
+
+    cancelConversation() {
+      console.log('❌ User cancelled conversation');
+      
+      // Reset conversation
+      this.conversationState = null;
+      this.conversationMessages = [];
+      this.readyTickets = null;
+
+      this.renderChatView();
+    }
+
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
 
     removeInstruction(index) {

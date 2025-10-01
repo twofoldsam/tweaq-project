@@ -78,6 +78,9 @@ export interface ElectronAPI {
   
   // Agent V4 - Visual Edits to PR
   triggerAgentV4: (data: { edits: any[]; url: string }) => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
+  
+  // Conversational Intelligence API
+  analyzeConversationMessage: (data: { message: string; conversationState?: any }) => Promise<{ success: boolean; analysis?: any; error?: string }>;
 }
 
 export interface VisualEdit {
@@ -229,7 +232,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   triggerAgentV4: (data: { edits: any[]; url: string }) => ipcRenderer.invoke('trigger-agent-v4', data),
   
   // Agent V4 - Combined Edits (Visual + Natural Language) to PR
-  processCombinedEdits: (request: any) => ipcRenderer.invoke('process-combined-edits', request)
+  processCombinedEdits: (request: any) => ipcRenderer.invoke('process-combined-edits', request),
+  
+  // Conversational Intelligence API implementations
+  analyzeConversationMessage: (data: { message: string; conversationState?: any }) => ipcRenderer.invoke('analyze-conversation-message', data)
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI
