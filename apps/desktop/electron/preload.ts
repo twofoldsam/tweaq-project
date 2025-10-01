@@ -226,7 +226,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   processVisualRequest: (request: any) => ipcRenderer.invoke('process-visual-request', request),
   
   // Agent V4 - Visual Edits to PR
-  triggerAgentV4: (data: { edits: any[]; url: string }) => ipcRenderer.invoke('trigger-agent-v4', data)
+  triggerAgentV4: (data: { edits: any[]; url: string }) => ipcRenderer.invoke('trigger-agent-v4', data),
+  
+  // Agent V4 - Combined Edits (Visual + Natural Language) to PR
+  processCombinedEdits: (request: any) => ipcRenderer.invoke('process-combined-edits', request)
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI

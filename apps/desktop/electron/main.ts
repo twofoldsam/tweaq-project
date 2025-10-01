@@ -986,6 +986,75 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
   }
 });
 
+// Agent V4 - Combined Edits (Visual + Natural Language) to PR
+safeIpcHandle('process-combined-edits', async (event, request: any) => {
+  try {
+    const config = store.get('github');
+    if (!config) {
+      return { success: false, error: 'No GitHub configuration found. Please configure GitHub settings first.' };
+    }
+
+    if (!gitClient.isAuthenticated()) {
+      return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
+    }
+
+    console.log('🚀 Agent V4 Combined: Received combined edit request');
+    console.log('📊 Visual edits:', request.visualEdits?.length || 0);
+    console.log('💬 Natural language instructions:', request.naturalLanguageEdits?.length || 0);
+
+    // Initialize Agent V4 if needed
+    if (!agentV4Integration) {
+      console.log('🤖 Initializing Agent V4...');
+      const initResult = await initializeAgentV4({
+        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+        cacheAnalysis: true
+      });
+      
+      if (!initResult.success) {
+        return { 
+          success: false, 
+          error: `Failed to initialize Agent V4: ${(initResult as any).error || 'Unknown error'}` 
+        };
+      }
+    }
+
+    // Process with Agent V4 Combined Editing
+    console.log('🎯 Processing combined edits with Agent V4...');
+    const result = await processCombinedEditsWithAgentV4(request);
+
+    if (!result.success) {
+      return { 
+        success: false, 
+        error: result.error || 'Agent V4 combined processing failed' 
+      };
+    }
+
+    // Agent V4 will have already created the PR through its internal flow
+    console.log('✅ Agent V4 combined processing completed successfully');
+    console.log('📋 Result:', result);
+    
+    // Extract PR URL from the result
+    const prUrl = result.pullRequest?.html_url || result.pullRequest?.url || result.pr?.url;
+    const prNumber = result.pullRequest?.number || result.pr?.number;
+    
+    return { 
+      success: true,
+      pr: {
+        url: prUrl,
+        number: prNumber
+      },
+      summary: result.summary,
+      message: 'Combined edits successfully converted to code and PR created!'
+    };
+  } catch (error) {
+    console.error('❌ Error processing combined edits:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to process combined edits' 
+    };
+  }
+});
+
 // CDP Runtime Signals IPC handlers
 safeIpcHandle('inject-cdp', async () => {
   try {
@@ -3125,6 +3194,150 @@ async function processVisualRequestWithAgentV4(request: any) {
     // Fallback to Agent V3 on error
     console.log('🔄 Falling back to Agent V3 due to Agent V4 error...');
     return await processVisualRequestWithAgentV3(request);
+  }
+}
+
+/**
+ * Process combined edits (visual + natural language) using Agent V4
+ */
+async function processCombinedEditsWithAgentV4(request: any) {
+  console.log('🤖 TWEAQ Intelligent Agent - Processing Combined Edits (Visual + Natural Language)');
+
+  try {
+    // Extract edits from request
+    const visualEdits = request.visualEdits || [];
+    const naturalLanguageEdits = request.naturalLanguageEdits || [];
+    
+    if (visualEdits.length === 0 && naturalLanguageEdits.length === 0) {
+      throw new Error('No edits provided');
+    }
+
+    console.log(`📊 Processing ${visualEdits.length} visual edits and ${naturalLanguageEdits.length} NL instructions`);
+
+    // Get GitHub configuration
+    const config = store.get('github');
+    if (!config) {
+      throw new Error('GitHub configuration not found');
+    }
+
+    // Get GitHub token
+    const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
+    if (!githubToken) {
+      throw new Error('GitHub token not found');
+    }
+
+    // Initialize repository analyzer to get symbolic context
+    const remoteRepo = new RemoteRepo(githubToken);
+    await initializeRepoAnalyzer(config, remoteRepo);
+
+    // Get symbolic repository model
+    const symbolicRepo = await getSymbolicRepoModel(config, remoteRepo);
+    if (!symbolicRepo) {
+      throw new Error('Failed to build symbolic repository model');
+    }
+
+    // Enhance symbolic repo with actual file content for Agent V4
+    const validComponents = [];
+    const maxFiles = 5; // Limit for testing
+    for (let i = 0; i < Math.min(symbolicRepo.components.length, maxFiles); i++) {
+      const component = symbolicRepo.components[i];
+      if (component.filePath && !component.content) {
+        try {
+          // Add small delay to avoid rate limiting
+          if (i > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+          const fileContent = await remoteRepo.readFile({
+            owner: config.owner,
+            repo: config.repo,
+            path: component.filePath,
+            ref: config.baseBranch || 'main'
+          });
+          component.content = fileContent;
+          validComponents.push(component);
+        } catch (error) {
+          // Silently skip files that can't be read
+        }
+      } else {
+        validComponents.push(component);
+      }
+    }
+    
+    // Update symbolic repo with only valid components
+    symbolicRepo.components = validComponents;
+
+    // Build combined request in the format expected by Agent V4
+    const combinedRequest = {
+      visualEdits: visualEdits,
+      naturalLanguageEdits: naturalLanguageEdits,
+      metadata: request.metadata || {
+        sessionId: `session_${Date.now()}`,
+        submittedAt: Date.now()
+      }
+    };
+
+    // Process with Agent V4's combined editing method
+    console.log('🎯 Calling Agent V4 processCombinedEdits...');
+    const result = await agentV4Integration.processCombinedEdits(combinedRequest, symbolicRepo, {
+      enableLogging: true
+    });
+    
+    if (!result.success) {
+      console.log('❌ Agent V4 combined validation failed, issues:');
+      if (result.validation?.issues) {
+        result.validation.issues.forEach((issue: any) => {
+          console.log(`  - ${issue.type}: ${issue.message}`);
+        });
+      }
+      
+      return {
+        success: false,
+        error: 'Agent V4 prevented potentially harmful changes',
+        details: {
+          agent: 'v4-combined',
+          confidence: result.confidence,
+          validation: result.validation,
+          summary: result.summary
+        }
+      };
+    }
+
+    // If Agent V4 succeeded, create PR with the changes
+    if (result.success && result.fileChanges.length > 0) {
+      console.log('🚀 Creating PR with Agent V4 combined changes...');
+      console.log(`📝 ${result.fileChanges.length} files modified`);
+      
+      // Convert Agent V4 file changes to the expected format for createRealPRWithWorkspace
+      const changes = result.fileChanges.map((change: any) => ({
+        filePath: change.filePath || change.path,
+        newContent: change.newContent || change.content,
+        action: change.changeType || change.action || 'update'
+      }));
+
+      // Create PR using existing infrastructure
+      const prResult = await createRealPRWithWorkspace(changes, config, githubToken);
+      
+      return {
+        success: true,
+        agent: 'v4-combined',
+        summary: result.summary,
+        fileChanges: result.fileChanges,
+        analyses: result.analyses,
+        execution: result.execution,
+        pullRequest: prResult,
+        message: `Agent V4 successfully processed ${visualEdits.length} visual edits and ${naturalLanguageEdits.length} natural language instructions`
+      };
+    }
+
+    return {
+      success: false,
+      error: 'No changes generated by Agent V4'
+    };
+
+  } catch (error) {
+    console.error('❌ Agent V4 combined processing failed:', error);
+    throw error;
   }
 }
 

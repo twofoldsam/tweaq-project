@@ -1,4 +1,4 @@
-import type { VisualEdit, RepoSymbolicModel } from '../types/index.js';
+import type { VisualEdit, CombinedEditRequest, RepoSymbolicModel } from '../types/index.js';
 import { AgentV4, defaultAgentV4Config } from '../AgentV4.js';
 import type { AgentV4Config } from '../types/index.js';
 
@@ -108,6 +108,57 @@ export class TweaqAgentV4Integration {
     }
   }
   
+  /**
+   * Process combined edits (visual + natural language) using Agent V4
+   */
+  async processCombinedEdits(
+    request: CombinedEditRequest,
+    symbolicRepo: RepoSymbolicModel,
+    options: {
+      dryRun?: boolean;
+      enableLogging?: boolean;
+    } = {}
+  ): Promise<{
+    success: boolean;
+    fileChanges: any[];
+    summary: string;
+    analyses: any[];
+    execution: any;
+    error?: string;
+  }> {
+    const { dryRun = false, enableLogging = true } = options;
+    
+    if (enableLogging) {
+      console.log('🤖 Agent V4 Integration: Processing combined edits...');
+      console.log(`📊 ${request.visualEdits.length} visual edits, ${request.naturalLanguageEdits.length} NL instructions`);
+    }
+    
+    try {
+      const result = await this.agent.processCombinedEdits(request, symbolicRepo);
+      
+      return {
+        success: result.success,
+        fileChanges: this.convertFileChanges(result.fileChanges),
+        summary: result.summary,
+        analyses: result.analyses || [],
+        execution: result.execution || {},
+        error: result.error
+      };
+      
+    } catch (error) {
+      console.error('❌ Agent V4 Combined Integration error:', error);
+      
+      return {
+        success: false,
+        fileChanges: [],
+        summary: 'Agent V4 combined processing failed',
+        analyses: [],
+        execution: {},
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   /**
    * Check if Agent V4 should be used for this request
    */
