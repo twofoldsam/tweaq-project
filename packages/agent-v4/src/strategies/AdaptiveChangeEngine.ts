@@ -7,7 +7,9 @@ import type {
   ChangeStrategy,
   ChangeStep,
   ChangeApproach,
-  ValidationResult
+  ValidationResult,
+  ComponentStructure,
+  NaturalLanguageEdit
 } from '../types/index.js';
 
 import { SmartValidationEngine } from '../validation/SmartValidationEngine.js';
@@ -482,6 +484,13 @@ export class AdaptiveChangeEngine {
     executionLog.push('Using guided generation with impact analysis');
     
     const targetComponent = changeIntent.targetComponent;
+    
+    // Handle natural language instructions without a specific target component
+    if (!targetComponent && changeIntent.naturalLanguageEdit) {
+      executionLog.push('⚠️  No specific target component - using LLM to identify relevant files');
+      return this.generateBroadNLChanges(changeIntent, symbolicRepo, executionLog);
+    }
+    
     if (!targetComponent) {
       throw new Error('No target component identified');
     }
@@ -536,6 +545,326 @@ export class AdaptiveChangeEngine {
     }];
   }
   
+  /**
+   * Generate changes for broad natural language instructions without specific target
+   * This is the SMART analysis that interprets instructions across the entire page
+   */
+  private async generateBroadNLChanges(
+    changeIntent: ChangeIntent,
+    symbolicRepo: RepoSymbolicModel,
+    executionLog: string[]
+  ): Promise<FileChange[]> {
+    const nlEdit = changeIntent.naturalLanguageEdit;
+    if (!nlEdit) {
+      throw new Error('No natural language edit provided');
+    }
+
+    executionLog.push(`🧠 SMART ANALYSIS: "${nlEdit.instruction}"`);
+
+    // PHASE 1: Understand the instruction type and intent
+    const instructionAnalysis = this.analyzeInstructionIntent(nlEdit.instruction, executionLog);
+    
+    // PHASE 2: Intelligently identify relevant components using repo structure
+    const relevantComponents = this.identifyRelevantComponents(
+      instructionAnalysis,
+      symbolicRepo,
+      executionLog
+    );
+
+    if (relevantComponents.length === 0) {
+      executionLog.push('⚠️  No relevant components identified - instruction may be too vague');
+      return [];
+    }
+
+    executionLog.push(`✅ Identified ${relevantComponents.length} relevant component(s)`);
+
+    // PHASE 3: Generate intelligent, targeted changes
+    return this.generateIntelligentChanges(
+      nlEdit,
+      instructionAnalysis,
+      relevantComponents,
+      symbolicRepo,
+      executionLog
+    );
+  }
+
+  /**
+   * Analyze the instruction to understand what type of change is needed
+   */
+  private analyzeInstructionIntent(instruction: string, executionLog: string[]): {
+    type: 'content' | 'styling' | 'layout' | 'structure' | 'mixed';
+    scope: 'narrow' | 'moderate' | 'broad';
+    keywords: string[];
+    targets: string[];
+  } {
+    const lower = instruction.toLowerCase();
+    
+    // Detect instruction type
+    let type: 'content' | 'styling' | 'layout' | 'structure' | 'mixed' = 'mixed';
+    
+    if (lower.match(/copy|text|wording|tone|friendly|professional|casual|formal/)) {
+      type = 'content';
+    } else if (lower.match(/color|size|font|padding|margin|spacing|vibrant|bold|style/)) {
+      type = 'styling';
+    } else if (lower.match(/condense|spread|arrange|organize|layout|position|align/)) {
+      type = 'layout';
+    } else if (lower.match(/add|remove|reorganize|restructure|rework/)) {
+      type = 'structure';
+    }
+
+    // Detect scope
+    let scope: 'narrow' | 'moderate' | 'broad' = 'moderate';
+    if (lower.match(/all|every|entire|page|site|throughout/)) {
+      scope = 'broad';
+    } else if (lower.match(/this|that|the\s\w+(?:\s\w+)?$/)) {
+      scope = 'narrow';
+    }
+
+    // Extract target elements
+    const targets: string[] = [];
+    const targetMatches = lower.match(/\b(button|footer|header|nav|hero|card|form|input|list|menu|sidebar|modal|dialog|banner|section)\b/g);
+    if (targetMatches) {
+      targets.push(...targetMatches);
+    }
+
+    // Extract key action words
+    const keywords: string[] = [];
+    const keywordMatches = lower.match(/\b(friendly|vibrant|condensed|professional|modern|clean|bold|subtle|minimal|elegant)\b/g);
+    if (keywordMatches) {
+      keywords.push(...keywordMatches);
+    }
+
+    executionLog.push(`   Type: ${type}, Scope: ${scope}, Targets: [${targets.join(', ')}]`);
+
+    return { type, scope, keywords, targets };
+  }
+
+  /**
+   * Intelligently identify which components are relevant to the instruction
+   */
+  private identifyRelevantComponents(
+    analysis: { type: string; scope: string; keywords: string[]; targets: string[] },
+    symbolicRepo: RepoSymbolicModel,
+    executionLog: string[]
+  ): ComponentStructure[] {
+    const relevant: Array<{ component: ComponentStructure; score: number; reason: string }> = [];
+
+    for (const component of symbolicRepo.components) {
+      let score = 0;
+      const reasons: string[] = [];
+
+      const componentNameLower = component.name.toLowerCase();
+      const filePathLower = component.filePath.toLowerCase();
+      const content = (component.content || '').toLowerCase();
+
+      // Score based on target keywords in component name/path
+      for (const target of analysis.targets) {
+        if (componentNameLower.includes(target) || filePathLower.includes(target)) {
+          score += 50;
+          reasons.push(`matches target "${target}"`);
+        }
+      }
+
+      // Score based on instruction type
+      if (analysis.type === 'content') {
+        // Look for components with significant text content
+        const textContentRatio = this.estimateTextContentRatio(content);
+        if (textContentRatio > 0.3) {
+          score += 30;
+          reasons.push('has significant text content');
+        }
+      } else if (analysis.type === 'styling') {
+        // Look for components with styling patterns
+        if (content.includes('classname') || content.includes('style') || content.includes('css')) {
+          score += 20;
+          reasons.push('contains styling');
+        }
+      } else if (analysis.type === 'layout') {
+        // Look for container/layout components
+        if (componentNameLower.match(/layout|container|wrapper|section|grid|flex/)) {
+          score += 40;
+          reasons.push('is a layout component');
+        }
+      }
+
+      // Boost for main/page-level components
+      if (componentNameLower.match(/^(app|page|home|main|index)/)) {
+        score += 15;
+        reasons.push('is a page-level component');
+      }
+
+      // Boost for components with many exports/usage (likely important)
+      if (component.exports && component.exports.length > 0) {
+        score += 10;
+        reasons.push('is exported/reusable');
+      }
+
+      if (score > 0) {
+        relevant.push({ component, score, reason: reasons.join(', ') });
+      }
+    }
+
+    // Sort by score (highest first) and take top 5
+    relevant.sort((a, b) => b.score - a.score);
+    const topRelevant = relevant.slice(0, 5);
+
+    executionLog.push(`   Relevance scores:`);
+    topRelevant.forEach(({ component, score, reason }) => {
+      executionLog.push(`     • ${component.name} (${score} pts): ${reason}`);
+    });
+
+    return topRelevant.map(r => r.component);
+  }
+
+  /**
+   * Estimate how much of a component is text content vs code structure
+   */
+  private estimateTextContentRatio(content: string): number {
+    // Look for JSX text content patterns
+    const textMatches = content.match(/>\s*[A-Z][^<>{}]+\s*</g);
+    const textLength = textMatches ? textMatches.join('').length : 0;
+    return textLength / Math.max(content.length, 1);
+  }
+
+  /**
+   * Generate intelligent, targeted changes for the identified components
+   */
+  private async generateIntelligentChanges(
+    nlEdit: NaturalLanguageEdit,
+    analysis: { type: string; scope: string; keywords: string[]; targets: string[] },
+    components: ComponentStructure[],
+    symbolicRepo: RepoSymbolicModel,
+    executionLog: string[]
+  ): Promise<FileChange[]> {
+    executionLog.push(`🎯 Generating smart changes for ${components.length} component(s)...`);
+
+    const fileChanges: FileChange[] = [];
+
+    for (const component of components) {
+      executionLog.push(`   📝 Processing: ${component.name}`);
+      
+      // Build a context-aware prompt that's specific to the component
+      const smartPrompt = this.buildSmartModificationPrompt(
+        nlEdit,
+        analysis,
+        component,
+        symbolicRepo
+      );
+
+      try {
+        const generatedCode = await this.llmProvider.generateText(smartPrompt);
+        const newContent = this.extractCodeFromResponse(generatedCode);
+        
+        // Intelligent validation
+        const validation = this.validateIntelligentChange(
+          component.content || '',
+          newContent,
+          analysis,
+          executionLog
+        );
+
+        if (!validation.passed) {
+          executionLog.push(`   ⚠️  Validation failed: ${validation.reason}, skipping`);
+          continue;
+        }
+
+        fileChanges.push({
+          filePath: component.filePath,
+          action: 'modify',
+          oldContent: component.content || '',
+          newContent,
+          reasoning: `Smart NL modification (${analysis.type}): "${nlEdit.instruction}"`
+        });
+        
+        executionLog.push(`   ✅ Generated ${newContent.length} chars (was ${(component.content || '').length})`);
+      } catch (error) {
+        executionLog.push(`   ❌ Error: ${error instanceof Error ? error.message : 'Unknown'}`);
+      }
+    }
+
+    return fileChanges;
+  }
+
+  /**
+   * Build a smart, context-aware prompt for modifying a component
+   */
+  private buildSmartModificationPrompt(
+    nlEdit: NaturalLanguageEdit,
+    analysis: { type: string; keywords: string[] },
+    component: ComponentStructure,
+    symbolicRepo: RepoSymbolicModel
+  ): string {
+    const styleContext = symbolicRepo.stylingPatterns 
+      ? `\nStyle System:\n${JSON.stringify(symbolicRepo.stylingPatterns, null, 2).substring(0, 500)}`
+      : '';
+
+    return `You are an expert React developer making a SMART, TARGETED modification.
+
+INSTRUCTION: "${nlEdit.instruction}"
+
+CHANGE TYPE: ${analysis.type}
+KEY QUALITIES: ${analysis.keywords.join(', ') || 'N/A'}
+
+CURRENT COMPONENT (${component.name}):
+\`\`\`typescript
+${component.content || '// Content not available'}
+\`\`\`
+${styleContext}
+
+CRITICAL REQUIREMENTS:
+1. Make ONLY the changes needed for the instruction
+2. Preserve ALL functionality, imports, exports, types, props
+3. Preserve the component structure and logic
+4. If changing text: Make it ${analysis.keywords.join(', ') || 'better'}
+5. If changing styles: Use the existing design system/patterns
+6. Return the COMPLETE modified file (not just snippets)
+
+OUTPUT REQUIREMENTS:
+- Return ONLY code, no explanations or markdown formatting
+- Ensure the file is syntactically valid
+- Keep the same overall file length (±30%)
+- Preserve all TypeScript types and interfaces
+
+Return the complete modified component:`;
+  }
+
+  /**
+   * Validate that an intelligent change is reasonable
+   */
+  private validateIntelligentChange(
+    oldContent: string,
+    newContent: string,
+    analysis: { type: string },
+    executionLog: string[]
+  ): { passed: boolean; reason?: string } {
+    // Check: Not too short
+    if (newContent.length < oldContent.length * 0.5) {
+      return { passed: false, reason: 'Generated code too short (possible over-deletion)' };
+    }
+
+    // Check: Not too long
+    if (newContent.length > oldContent.length * 2) {
+      return { passed: false, reason: 'Generated code too long (possible over-generation)' };
+    }
+
+    // Check: Still has imports
+    if (oldContent.includes('import') && !newContent.includes('import')) {
+      return { passed: false, reason: 'Missing imports' };
+    }
+
+    // Check: Still has exports
+    if (oldContent.includes('export') && !newContent.includes('export')) {
+      return { passed: false, reason: 'Missing exports' };
+    }
+
+    // Check: Not just whitespace
+    if (newContent.trim().length < 50) {
+      return { passed: false, reason: 'Generated content too minimal' };
+    }
+
+    return { passed: true };
+  }
+
   /**
    * Generate changes with low confidence (conservative approach)
    */

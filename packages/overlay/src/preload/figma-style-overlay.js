@@ -1821,17 +1821,21 @@
       // Separate property edits and natural language instructions
       const propertyEdits = this.recordedEdits
         .filter(edit => edit.status === 'processing' && edit.type !== 'natural-language-instruction')
-        .map(edit => ({
-          selector: edit.elementSelector,
-          element: edit.element,
-          elementId: edit.elementId,
-          elementClasses: edit.elementClasses,
-          changes: edit.changes.map(change => ({
-            property: change.property,
-            before: change.before,
-            after: change.after
-          }))
-        }));
+        .map(edit => {
+          console.log('🔍 Raw property edit:', edit);
+          console.log('🔍 elementSelector:', edit.elementSelector);
+          return {
+            selector: edit.elementSelector,
+            element: edit.element,
+            elementId: edit.elementId,
+            elementClasses: edit.elementClasses,
+            changes: edit.changes.map(change => ({
+              property: change.property,
+              before: change.before,
+              after: change.after
+            }))
+          };
+        });
 
       const naturalLanguageEdits = this.recordedEdits
         .filter(edit => edit.status === 'processing' && edit.type === 'natural-language-instruction')
