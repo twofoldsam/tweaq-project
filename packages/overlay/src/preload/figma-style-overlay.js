@@ -100,41 +100,34 @@
         color: #ffffff;
       }
 
-      .tweaq-chat-btn {
+      .tweaq-mode-toggle-btn {
         border: none;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: rgba(255, 255, 255, 0.1);
         color: white;
         cursor: pointer;
-        padding: 6px 12px;
+        padding: 6px;
         border-radius: 6px;
-        font-size: 13px;
-        font-weight: 600;
         transition: all 0.15s ease;
         display: flex;
         align-items: center;
-        gap: 6px;
-      }
-
-      .tweaq-chat-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-      }
-
-      .tweaq-chat-btn.active {
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-      }
-
-      .tweaq-chat-badge {
-        display: inline-flex;
-        align-items: center;
         justify-content: center;
-        min-width: 16px;
-        height: 16px;
-        padding: 0 4px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        font-size: 11px;
-        font-weight: 700;
+        width: 32px;
+        height: 32px;
+      }
+
+      .tweaq-mode-toggle-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+      }
+
+      .tweaq-mode-toggle-btn.active {
+        background: linear-gradient(135deg, #0A84FF 0%, #0066CC 100%);
+        box-shadow: 0 2px 8px rgba(10, 132, 255, 0.4);
+      }
+
+      .tweaq-mode-toggle-btn svg {
+        width: 20px;
+        height: 20px;
       }
 
       .tweaq-close-btn {
@@ -968,16 +961,16 @@
       this.hoveredElement = null;
       this.pendingEdits = new Map();
       this.recordedEdits = [];
-      this.currentTab = 'properties'; // 'properties' or 'edits'
       this.processingEdits = false;
       
       this.overlayContainer = null;
       this.outlineElement = null;
       this.propertiesPanel = null;
-      this.chatPanel = null;
+      
+      // Mode: 'chat' (default) or 'select'
+      this.mode = 'chat';
       
       // Chat state
-      this.isChatOpen = false;
       this.naturalLanguageEdits = [];
       
       // Bind methods
@@ -994,9 +987,9 @@
       this.attachEventListeners();
       this.isVisible = true;
       
-      // Show panel immediately with page properties
+      // Show panel immediately with CHAT view (default mode)
       this.showPanel();
-      this.renderProperties();
+      this.renderPanel();
     }
 
     createOverlayElements() {
@@ -1030,16 +1023,16 @@
       
       const elementName = this.getElementName();
       
-      const chatBadge = this.naturalLanguageEdits.length > 0 
-        ? `<span class="tweaq-chat-badge">${this.naturalLanguageEdits.length}</span>`
-        : '';
+      const modeIcon = this.mode === 'chat' 
+        ? `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10L10 2L18 10L10 18L2 10Z"/><circle cx="10" cy="10" r="2" fill="white"/></svg>`
+        : `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M8 2L18 7V13L8 18L2 13V7L8 2Z"/></svg>`;
 
       toolbar.innerHTML = `
-        <span class="tweaq-selection-name">${elementName}</span>
-        <button class="tweaq-chat-btn ${this.isChatOpen ? 'active' : ''}" title="Open chat for natural language instructions">
-          💬 Chat${chatBadge}
+        <button class="tweaq-mode-toggle-btn ${this.mode === 'select' ? 'active' : ''}" title="${this.mode === 'chat' ? 'Switch to Select mode' : 'Back to Chat mode'}">
+          ${modeIcon}
         </button>
-        <button class="tweaq-close-btn" title="Close inspector">
+        <span class="tweaq-selection-name">${this.mode === 'chat' ? 'Chat' : elementName}</span>
+        <button class="tweaq-close-btn" title="Close">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
           </svg>
@@ -1047,8 +1040,8 @@
       `;
 
       toolbar.addEventListener('click', (e) => {
-        if (e.target.closest('.tweaq-chat-btn')) {
-          this.toggleChat();
+        if (e.target.closest('.tweaq-mode-toggle-btn')) {
+          this.toggleMode();
         } else if (e.target.closest('.tweaq-close-btn')) {
           this.hide();
         }
@@ -1069,37 +1062,43 @@
       return `${tag}${id}${className}`;
     }
 
-    toggleChat() {
-      this.isChatOpen = !this.isChatOpen;
-      console.log('💬 Chat toggled:', this.isChatOpen);
+    toggleMode() {
+      this.mode = this.mode === 'chat' ? 'select' : 'chat';
+      console.log('🔄 Mode switched to:', this.mode);
       
-      if (!this.chatPanel) {
-        this.createChatPanel();
+      if (this.mode === 'chat') {
+        // Clear selection when going back to chat
+        this.selectedElement = null;
+        this.updateOutline(null);
       }
       
-      if (this.isChatOpen) {
-        this.chatPanel.classList.add('visible');
+      this.renderToolbar();
+      this.renderPanel();
+    }
+
+    showPanel() {
+      document.body.classList.add('tweaq-panel-open');
+      setTimeout(() => {
+        this.propertiesPanel.classList.add('visible');
+      }, 10);
+    }
+
+    hidePanel() {
+      // Remove body margin first to prevent content jumping
+      document.body.classList.remove('tweaq-panel-open');
+      // Then slide out panel
+      this.propertiesPanel.classList.remove('visible');
+    }
+
+    renderPanel() {
+      if (this.mode === 'chat') {
+        this.renderChatView();
       } else {
-        this.chatPanel.classList.remove('visible');
+        this.renderProperties();
       }
-      
-      this.renderToolbar(); // Update badge
-      this.renderChatPanel();
     }
 
-    createChatPanel() {
-      if (this.chatPanel) return;
-      
-      this.chatPanel = document.createElement('div');
-      this.chatPanel.className = 'tweaq-chat-panel';
-      this.overlayContainer.appendChild(this.chatPanel);
-      
-      this.renderChatPanel();
-    }
-
-    renderChatPanel() {
-      if (!this.chatPanel) return;
-      
+    renderChatView() {
       const instructionsList = this.naturalLanguageEdits.length > 0
         ? this.naturalLanguageEdits.map((edit, index) => `
             <div class="tweaq-instruction-item" data-index="${index}">
@@ -1112,17 +1111,17 @@
           `).join('')
         : `
           <div class="tweaq-empty-instructions">
-            <p>💡 No instructions yet</p>
-            <p style="color: #666; font-size: 12px;">Tell the agent what you want to change</p>
+            <p style="font-size: 32px; margin: 0 0 8px 0;">💬</p>
+            <p style="margin: 0 0 4px 0; font-weight: 600;">No instructions yet</p>
+            <p style="color: #888; font-size: 12px; margin: 0;">Tell the agent what you want to change</p>
           </div>
         `;
 
-      this.chatPanel.innerHTML = `
-        <div class="tweaq-chat-header">
-          <div class="tweaq-chat-title">💬 Instructions</div>
-          <button class="tweaq-chat-close">✕</button>
+      this.propertiesPanel.innerHTML = `
+        <div class="tweaq-panel-header">
+          <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #fff;">Chat</h3>
         </div>
-        <div class="tweaq-chat-content">
+        <div class="tweaq-panel-content" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1;">
           <div class="tweaq-instructions-list">
             ${instructionsList}
           </div>
@@ -1146,28 +1145,28 @@
       `;
 
       // Add event listeners
-      this.chatPanel.querySelector('.tweaq-chat-close').addEventListener('click', () => {
-        this.toggleChat();
-      });
-
-      this.chatPanel.querySelector('.tweaq-chat-send-btn').addEventListener('click', () => {
+      const sendBtn = this.propertiesPanel.querySelector('.tweaq-chat-send-btn');
+      const input = this.propertiesPanel.querySelector('.tweaq-chat-input');
+      
+      sendBtn.addEventListener('click', () => {
         this.addInstruction();
       });
 
-      this.chatPanel.querySelector('.tweaq-chat-input').addEventListener('keydown', (e) => {
+      input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           this.addInstruction();
         }
       });
 
-      this.chatPanel.querySelectorAll('.tweaq-example-chip').forEach(chip => {
+      this.propertiesPanel.querySelectorAll('.tweaq-example-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-          this.chatPanel.querySelector('.tweaq-chat-input').value = chip.textContent;
+          input.value = chip.textContent;
+          input.focus();
         });
       });
 
-      this.chatPanel.querySelectorAll('.tweaq-instruction-remove').forEach(btn => {
+      this.propertiesPanel.querySelectorAll('.tweaq-instruction-remove').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const index = parseInt(e.target.getAttribute('data-index'));
           this.removeInstruction(index);
@@ -1176,26 +1175,20 @@
     }
 
     addInstruction() {
-      const input = this.chatPanel.querySelector('.tweaq-chat-input');
+      const input = this.propertiesPanel.querySelector('.tweaq-chat-input');
+      if (!input) return;
+      
       const instruction = input.value.trim();
       
       if (!instruction) return;
-      
-      const selectedSelector = this.selectedElement 
-        ? this.getElementName()
-        : undefined;
 
       const newEdit = {
         id: `nl_${Date.now()}`,
         type: 'natural-language',
         instruction,
-        targetElement: selectedSelector ? {
-          selector: selectedSelector,
-          tagName: this.selectedElement.tagName.toLowerCase(),
-          className: this.selectedElement.className
-        } : undefined,
+        targetElement: null,
         context: {
-          scope: selectedSelector ? 'element' : 'page',
+          scope: 'page',
           userIntent: instruction
         },
         timestamp: Date.now()
@@ -1206,30 +1199,14 @@
       
       console.log('💬 Added natural language instruction:', newEdit);
       
-      this.renderChatPanel();
-      this.renderToolbar(); // Update badge
+      this.renderPanel();
     }
 
     removeInstruction(index) {
       this.naturalLanguageEdits.splice(index, 1);
       console.log('🗑️ Removed instruction at index:', index);
       
-      this.renderChatPanel();
-      this.renderToolbar(); // Update badge
-    }
-
-    showPanel() {
-      document.body.classList.add('tweaq-panel-open');
-      setTimeout(() => {
-        this.propertiesPanel.classList.add('visible');
-      }, 10);
-    }
-
-    hidePanel() {
-      // Remove body margin first to prevent content jumping
-      document.body.classList.remove('tweaq-panel-open');
-      // Then slide out panel
-      this.propertiesPanel.classList.remove('visible');
+      this.renderPanel();
     }
 
     renderProperties() {
@@ -1885,7 +1862,7 @@
     }
 
     handleMouseMove(e) {
-      if (!this.isVisible) return;
+      if (!this.isVisible || this.mode !== 'select') return;
       
       // Don't highlight elements in the overlay
       if (e.target.closest('.tweaq-overlay-container') || 
@@ -1900,7 +1877,7 @@
     }
 
     handleClick(e) {
-      if (!this.isVisible) return;
+      if (!this.isVisible || this.mode !== 'select') return;
       
       // Don't select elements in the overlay
       if (e.target.closest('.tweaq-overlay-container') || 
@@ -1914,17 +1891,18 @@
       
       this.selectedElement = e.target;
       this.updateOutline(this.selectedElement);
-      this.renderProperties();
+      this.renderPanel();
       this.renderToolbar();
     }
 
     handleKeyDown(e) {
       if (e.key === 'Escape') {
-        if (this.selectedElement) {
-          // First escape: deselect element
+        if (this.selectedElement && this.mode === 'select') {
+          // First escape: deselect element and go back to chat
+          this.mode = 'chat';
           this.selectedElement = null;
           this.updateOutline(null);
-          this.renderProperties();
+          this.renderPanel();
           this.renderToolbar();
         } else {
           // Second escape: hide overlay
