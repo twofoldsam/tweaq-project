@@ -1066,41 +1066,28 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
     if (!conversationalIntelligence) {
       console.log('🤖 Initializing Conversational Intelligence...');
       
-      const providerType = (store.get('llm.provider') as string) || 'openai';
-      const apiKey = providerType === 'claude' 
-        ? process.env.ANTHROPIC_API_KEY 
-        : process.env.OPENAI_API_KEY;
+      // Force Claude for conversational intelligence (same as Agent V4)
+      const providerType = 'claude';
+      const apiKey = process.env.ANTHROPIC_API_KEY;
       
       if (!apiKey) {
-        return { success: false, error: `No API key found for ${providerType}` };
+        return { success: false, error: 'No Anthropic API key found. Please set ANTHROPIC_API_KEY environment variable.' };
       }
       
       // Dynamic import of ConversationalIntelligence
       const { ConversationalIntelligence } = await import('../../../packages/agent-v4/dist/conversation/index.js');
       
-      // Create provider wrapper
+      // Create Claude provider wrapper
       const wrappedProvider = {
         async generateText(prompt: string): Promise<string> {
-          if (providerType === 'claude') {
-            const { default: Anthropic } = await import('@anthropic-ai/sdk');
-            const anthropic = new Anthropic({ apiKey });
-            const message = await anthropic.messages.create({
-              model: 'claude-3-5-sonnet-20241022',
-              max_tokens: 2000,
-              messages: [{ role: 'user', content: prompt }]
-            });
-            return message.content[0].type === 'text' ? message.content[0].text : '';
-          } else {
-            // @ts-ignore - Dynamic import
-            const { default: OpenAI } = await import('openai');
-            const openai = new OpenAI({ apiKey });
-            const completion = await openai.chat.completions.create({
-              model: 'gpt-4',
-              messages: [{ role: 'user', content: prompt }],
-              max_tokens: 2000
-            });
-            return completion.choices[0]?.message?.content || '';
-          }
+          const { default: Anthropic } = await import('@anthropic-ai/sdk');
+          const anthropic = new Anthropic({ apiKey });
+          const message = await anthropic.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2000,
+            messages: [{ role: 'user', content: prompt }]
+          });
+          return message.content[0].type === 'text' ? message.content[0].text : '';
         }
       };
       
