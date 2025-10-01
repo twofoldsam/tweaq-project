@@ -18,6 +18,36 @@ export interface VisualEdit {
   };
 }
 
+// Natural language instruction from chat interface
+export interface NaturalLanguageEdit {
+  id: string;
+  type: 'natural-language';
+  instruction: string;
+  targetElement?: {
+    selector: string;
+    tagName: string;
+    className?: string;
+    textContent?: string;
+  };
+  context?: {
+    currentState?: string;
+    userIntent?: string;
+    scope?: 'element' | 'component' | 'section' | 'page';
+  };
+  timestamp?: number;
+}
+
+// Combined edit request - supports both visual tweaks and natural language instructions
+export interface CombinedEditRequest {
+  visualEdits: VisualEdit[];
+  naturalLanguageEdits: NaturalLanguageEdit[];
+  metadata?: {
+    sessionId?: string;
+    submittedAt?: number;
+    context?: string;
+  };
+}
+
 export interface ComponentStructure {
   name: string;
   filePath: string;
@@ -92,12 +122,14 @@ export interface ChangeIntent {
   type: string;
   description: string;
   visualEdit?: VisualEdit;
+  naturalLanguageEdit?: NaturalLanguageEdit;
   targetComponent?: ComponentStructure;
   changeScope?: any;
   relatedChanges?: any[];
   confidence: number;
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
   priority: 'low' | 'medium' | 'high';
+  instructionType?: 'visual' | 'natural-language' | 'hybrid';
 }
 
 export interface FileChange {

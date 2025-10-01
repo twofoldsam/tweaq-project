@@ -3,6 +3,7 @@ export { AgentV4, createAgentV4, defaultAgentV4Config } from './AgentV4.js';
 
 // Core intelligence exports
 export { ReasoningEngine } from './intelligence/ReasoningEngine.js';
+export { NaturalLanguageAnalyzer } from './intelligence/NaturalLanguageAnalyzer.js';
 export { VisualChangeAnalyzer } from './intelligence/VisualChangeAnalyzer.js';
 export { CodeIntelligenceEngine } from './intelligence/CodeIntelligenceEngine.js';
 export { ChangeConfidenceEngine } from './intelligence/ChangeConfidenceEngine.js';
