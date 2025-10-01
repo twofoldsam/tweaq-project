@@ -1077,14 +1077,14 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
       // Dynamic import of ConversationalIntelligence
       const { ConversationalIntelligence } = await import('../../../packages/agent-v4/dist/conversation/index.js');
       
-      // Create Claude provider wrapper
+      // Create Claude provider wrapper (same model as Agent V4)
       const wrappedProvider = {
         async generateText(prompt: string): Promise<string> {
           const { default: Anthropic } = await import('@anthropic-ai/sdk');
           const anthropic = new Anthropic({ apiKey });
           const message = await anthropic.messages.create({
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 2000,
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 8000,
             messages: [{ role: 'user', content: prompt }]
           });
           return message.content[0].type === 'text' ? message.content[0].text : '';
