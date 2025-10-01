@@ -101,33 +101,38 @@
       }
 
       .tweaq-mode-toggle-btn {
-        border: none;
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.8);
         cursor: pointer;
-        padding: 6px;
-        border-radius: 6px;
-        transition: all 0.15s ease;
+        padding: 8px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
       }
 
       .tweaq-mode-toggle-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.4);
+        color: white;
         transform: translateY(-1px);
       }
 
       .tweaq-mode-toggle-btn.active {
-        background: linear-gradient(135deg, #0A84FF 0%, #0066CC 100%);
-        box-shadow: 0 2px 8px rgba(10, 132, 255, 0.4);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: transparent;
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
       }
 
       .tweaq-mode-toggle-btn svg {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
       }
 
       .tweaq-close-btn {
@@ -1023,13 +1028,17 @@
       
       const elementName = this.getElementName();
       
-      const modeIcon = this.mode === 'chat' 
-        ? `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10L10 2L18 10L10 18L2 10Z"/><circle cx="10" cy="10" r="2" fill="white"/></svg>`
-        : `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M8 2L18 7V13L8 18L2 13V7L8 2Z"/></svg>`;
+      // Cursor/Select icon SVG
+      const selectIcon = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+          <path d="M13 13l6 6"/>
+        </svg>
+      `;
 
       toolbar.innerHTML = `
-        <button class="tweaq-mode-toggle-btn ${this.mode === 'select' ? 'active' : ''}" title="${this.mode === 'chat' ? 'Switch to Select mode' : 'Back to Chat mode'}">
-          ${modeIcon}
+        <button class="tweaq-mode-toggle-btn ${this.mode === 'select' ? 'active' : ''}" title="${this.mode === 'chat' ? 'Click to select elements' : 'Back to Chat'}">
+          ${selectIcon}
         </button>
         <span class="tweaq-selection-name">${this.mode === 'chat' ? 'Chat' : elementName}</span>
         <button class="tweaq-close-btn" title="Close">
