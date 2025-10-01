@@ -1510,25 +1510,29 @@
     confirmConversation() {
       if (!this.readyTickets || this.readyTickets.length === 0) return;
 
-      console.log('✅ User confirmed conversation - creating edit tickets');
+      console.log('✅ User confirmed conversation - creating structured edit tickets');
 
-      // Convert ready tickets to edit tickets
+      // Convert ready tickets to structured edit tickets
       this.readyTickets.forEach(ticket => {
         const editTicket = {
-          id: `nl_${Date.now()}_${Math.random()}`,
-          type: 'natural-language-instruction',
-          instruction: ticket.instruction,
-          description: ticket.instruction,
-          targetElement: {
-            selector: ticket.target.identifier,
+          id: `structured_${Date.now()}_${Math.random()}`,
+          type: 'structured-change',
+          // Structured fields
+          target: {
+            identifier: ticket.target.identifier,
             type: ticket.target.type
           },
+          actionType: ticket.action.type,
+          specifics: ticket.action.specifics,
+          instruction: ticket.instruction,
+          // Legacy fields for compatibility
+          description: ticket.instruction,
           selector: ticket.target.identifier,
-          changes: [{
-            type: 'natural-language',
-            instruction: ticket.instruction,
-            specifics: ticket.action.specifics
-          }],
+          changes: ticket.action.specifics.map(specific => ({
+            type: ticket.action.type,
+            description: specific,
+            instruction: ticket.instruction
+          })),
           timestamp: Date.now(),
           status: 'pending',
           confidence: ticket.confidence
@@ -1546,7 +1550,7 @@
       this.currentTab = 'edits';
       this.renderPanel();
 
-      console.log(`📝 Created ${this.recordedEdits.length} edit tickets from conversation`);
+      console.log(`📝 Created ${this.recordedEdits.length} structured edit tickets from conversation`);
     }
 
     cancelConversation() {
@@ -1715,17 +1719,36 @@
       const timestamp = new Date(edit.timestamp).toLocaleString();
       const status = edit.status || 'pending';
       
-      // Check if this is a natural language instruction
-      const isNaturalLanguage = edit.type === 'natural-language-instruction';
+      // Check if this is a structured change from conversation
+      const isStructuredChange = edit.type === 'structured-change';
       
-      if (isNaturalLanguage) {
+      if (isStructuredChange) {
+        // Get action type icon and color
+        const actionIcons = {
+          'content': '✏️',
+          'styling': '🎨',
+          'layout': '📐',
+          'structure': '🏗️',
+          'mixed': '🔄'
+        };
+        const actionColors = {
+          'content': '#667eea',
+          'styling': '#f093fb',
+          'layout': '#4facfe',
+          'structure': '#43e97b',
+          'mixed': '#fa709a'
+        };
+        
+        const actionIcon = actionIcons[edit.actionType] || '💬';
+        const actionColor = actionColors[edit.actionType] || '#667eea';
+        
         return `
-          <div class="tweaq-edit-ticket ${status} natural-language" data-edit-index="${index}">
+          <div class="tweaq-edit-ticket ${status} structured-change" data-edit-index="${index}">
             <div class="tweaq-ticket-header">
               <div>
                 <h4 class="tweaq-ticket-element" style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 18px;">💬</span>
-                  Natural Language Instruction
+                  <span style="font-size: 18px;">${actionIcon}</span>
+                  <span style="text-transform: capitalize;">${edit.target.identifier}</span>
                 </h4>
                 <p class="tweaq-ticket-timestamp">${timestamp}</p>
               </div>
@@ -1737,9 +1760,34 @@
                 </button>
               ` : ''}
             </div>
-            <div class="tweaq-ticket-instruction" style="padding: 12px; background: rgba(102, 126, 234, 0.1); border-left: 3px solid #667eea; border-radius: 6px; margin-top: 8px;">
-              <p style="margin: 0; color: #fff; line-height: 1.5;">${edit.instruction}</p>
+            
+            <div style="margin-top: 12px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: ${actionColor};">
+                  ${edit.actionType}
+                </span>
+                <span style="font-size: 11px; color: rgba(255,255,255,0.5);">•</span>
+                <span style="font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase;">
+                  ${edit.target.type}
+                </span>
+              </div>
+              
+              <div style="padding: 12px; background: rgba(255, 255, 255, 0.05); border-left: 3px solid ${actionColor}; border-radius: 6px;">
+                ${edit.specifics.map(specific => `
+                  <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; last-child:margin-bottom: 0;">
+                    <span style="color: ${actionColor}; font-size: 14px; line-height: 1.5;">→</span>
+                    <span style="color: rgba(255,255,255,0.9); font-size: 13px; line-height: 1.5;">${this.escapeHtml(specific)}</span>
+                  </div>
+                `).join('')}
+              </div>
+              
+              ${edit.confidence ? `
+                <div style="margin-top: 8px; font-size: 11px; color: rgba(255,255,255,0.5);">
+                  Confidence: ${(edit.confidence * 100).toFixed(0)}%
+                </div>
+              ` : ''}
             </div>
+            
             ${this.renderTicketStatus(edit)}
           </div>
         `;
@@ -2143,9 +2191,9 @@
       });
       this.renderProperties();
 
-      // Separate property edits and natural language instructions
+      // Separate property edits and structured changes
       const propertyEdits = this.recordedEdits
-        .filter(edit => edit.status === 'processing' && edit.type !== 'natural-language-instruction')
+        .filter(edit => edit.status === 'processing' && edit.type !== 'structured-change')
         .map(edit => ({
           selector: edit.elementSelector,
           element: edit.element,
@@ -2159,17 +2207,30 @@
         }));
 
       const naturalLanguageEdits = this.recordedEdits
-        .filter(edit => edit.status === 'processing' && edit.type === 'natural-language-instruction')
+        .filter(edit => edit.status === 'processing' && edit.type === 'structured-change')
         .map(edit => ({
           id: edit.id,
           type: 'natural-language',
           instruction: edit.instruction,
+          // Structured information from conversation
+          target: {
+            identifier: edit.target.identifier,
+            type: edit.target.type
+          },
+          actionType: edit.actionType,
+          specifics: edit.specifics,
+          confidence: edit.confidence,
           timestamp: edit.timestamp
         }));
 
       console.log('📦 Sending to Agent V4:');
       console.log('  Property edits:', propertyEdits.length);
-      console.log('  Natural language instructions:', naturalLanguageEdits.length);
+      console.log('  Structured change requests:', naturalLanguageEdits.length);
+      if (naturalLanguageEdits.length > 0) {
+        naturalLanguageEdits.forEach(edit => {
+          console.log(`    → ${edit.target.identifier} (${edit.actionType}): ${edit.specifics.join(', ')}`);
+        });
+      }
 
       // Send to Electron main process to trigger combined edits with Agent V4
       if (window.electronAPI && window.electronAPI.processCombinedEdits) {
