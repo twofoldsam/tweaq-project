@@ -1131,10 +1131,10 @@ safeIpcHandle('inject-overlay', async (event, options = {}) => {
       return { success: false, error: 'No browser view available' };
     }
 
-    // Read the React overlay injector script with Chat interface
+    // Read the Figma-style overlay injector script (now with Chat!)
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/react-overlay-injector.js'),
+      path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
       'utf8'
     );
 
@@ -1186,10 +1186,10 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
       return { success: false, error: 'No browser view available' };
     }
 
-    // First ensure the overlay script is injected (React-based with Chat)
+    // First ensure the overlay script is injected (Figma-style with Chat)
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/react-overlay-injector.js'),
+      path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
       'utf8'
     );
 

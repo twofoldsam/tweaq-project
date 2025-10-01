@@ -100,6 +100,43 @@
         color: #ffffff;
       }
 
+      .tweaq-chat-btn {
+        border: none;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        cursor: pointer;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .tweaq-chat-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      .tweaq-chat-btn.active {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      }
+
+      .tweaq-chat-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
       .tweaq-close-btn {
         border: none;
         background: transparent;
@@ -683,6 +720,241 @@
         font-size: 14px;
         line-height: 1.5;
       }
+
+      /* Chat Panel Styles */
+      .tweaq-chat-panel {
+        position: fixed;
+        right: 430px;
+        top: 80px;
+        width: 380px;
+        max-height: calc(100vh - 100px);
+        background: rgba(28, 28, 30, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        display: none;
+        flex-direction: column;
+        z-index: 1000002;
+        animation: chatSlideIn 0.3s ease-out;
+      }
+
+      .tweaq-chat-panel.visible {
+        display: flex;
+      }
+
+      @keyframes chatSlideIn {
+        from {
+          transform: translateX(50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      .tweaq-chat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px 12px 0 0;
+      }
+
+      .tweaq-chat-title {
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .tweaq-chat-close {
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background 0.2s;
+      }
+
+      .tweaq-chat-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .tweaq-chat-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        overflow-y: auto;
+        gap: 12px;
+      }
+
+      .tweaq-instructions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: 1;
+        min-height: 100px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .tweaq-empty-instructions {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+      }
+
+      .tweaq-empty-instructions p {
+        margin: 8px 0;
+        font-size: 14px;
+      }
+
+      .tweaq-instruction-item {
+        display: flex;
+        align-items: start;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        transition: all 0.2s;
+      }
+
+      .tweaq-instruction-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .tweaq-instruction-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .tweaq-instruction-text {
+        font-size: 14px;
+        color: #fff;
+        line-height: 1.5;
+        margin-bottom: 4px;
+        word-wrap: break-word;
+      }
+
+      .tweaq-instruction-target {
+        font-size: 11px;
+        color: #999;
+        font-family: Monaco, Menlo, 'Courier New', monospace;
+        margin-top: 4px;
+      }
+
+      .tweaq-instruction-remove {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: #999;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: all 0.2s;
+        flex-shrink: 0;
+      }
+
+      .tweaq-instruction-remove:hover {
+        background: rgba(255, 59, 48, 0.2);
+        color: #FF3B30;
+      }
+
+      .tweaq-chat-input-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .tweaq-chat-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: none;
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        transition: border-color 0.2s;
+      }
+
+      .tweaq-chat-input:focus {
+        outline: none;
+        border-color: #667eea;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .tweaq-chat-send-btn {
+        align-self: flex-end;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .tweaq-chat-send-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      .tweaq-chat-send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .tweaq-chat-examples {
+        margin-top: 4px;
+      }
+
+      .tweaq-examples-label {
+        font-size: 12px;
+        color: #999;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+
+      .tweaq-example-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .tweaq-example-chip {
+        padding: 6px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        font-size: 12px;
+        color: #ccc;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .tweaq-example-chip:hover {
+        border-color: #667eea;
+        color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+      }
     `;
 
     document.head.appendChild(style);
@@ -702,6 +974,11 @@
       this.overlayContainer = null;
       this.outlineElement = null;
       this.propertiesPanel = null;
+      this.chatPanel = null;
+      
+      // Chat state
+      this.isChatOpen = false;
+      this.naturalLanguageEdits = [];
       
       // Bind methods
       this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -753,8 +1030,15 @@
       
       const elementName = this.getElementName();
       
+      const chatBadge = this.naturalLanguageEdits.length > 0 
+        ? `<span class="tweaq-chat-badge">${this.naturalLanguageEdits.length}</span>`
+        : '';
+
       toolbar.innerHTML = `
         <span class="tweaq-selection-name">${elementName}</span>
+        <button class="tweaq-chat-btn ${this.isChatOpen ? 'active' : ''}" title="Open chat for natural language instructions">
+          💬 Chat${chatBadge}
+        </button>
         <button class="tweaq-close-btn" title="Close inspector">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
@@ -763,7 +1047,9 @@
       `;
 
       toolbar.addEventListener('click', (e) => {
-        if (e.target.closest('.tweaq-close-btn')) {
+        if (e.target.closest('.tweaq-chat-btn')) {
+          this.toggleChat();
+        } else if (e.target.closest('.tweaq-close-btn')) {
           this.hide();
         }
       });
@@ -781,6 +1067,155 @@
         : '';
       
       return `${tag}${id}${className}`;
+    }
+
+    toggleChat() {
+      this.isChatOpen = !this.isChatOpen;
+      console.log('💬 Chat toggled:', this.isChatOpen);
+      
+      if (!this.chatPanel) {
+        this.createChatPanel();
+      }
+      
+      if (this.isChatOpen) {
+        this.chatPanel.classList.add('visible');
+      } else {
+        this.chatPanel.classList.remove('visible');
+      }
+      
+      this.renderToolbar(); // Update badge
+      this.renderChatPanel();
+    }
+
+    createChatPanel() {
+      if (this.chatPanel) return;
+      
+      this.chatPanel = document.createElement('div');
+      this.chatPanel.className = 'tweaq-chat-panel';
+      this.overlayContainer.appendChild(this.chatPanel);
+      
+      this.renderChatPanel();
+    }
+
+    renderChatPanel() {
+      if (!this.chatPanel) return;
+      
+      const instructionsList = this.naturalLanguageEdits.length > 0
+        ? this.naturalLanguageEdits.map((edit, index) => `
+            <div class="tweaq-instruction-item" data-index="${index}">
+              <div class="tweaq-instruction-content">
+                <div class="tweaq-instruction-text">${edit.instruction}</div>
+                ${edit.targetElement ? `<div class="tweaq-instruction-target">→ ${edit.targetElement.selector}</div>` : ''}
+              </div>
+              <button class="tweaq-instruction-remove" data-index="${index}">✕</button>
+            </div>
+          `).join('')
+        : `
+          <div class="tweaq-empty-instructions">
+            <p>💡 No instructions yet</p>
+            <p style="color: #666; font-size: 12px;">Tell the agent what you want to change</p>
+          </div>
+        `;
+
+      this.chatPanel.innerHTML = `
+        <div class="tweaq-chat-header">
+          <div class="tweaq-chat-title">💬 Instructions</div>
+          <button class="tweaq-chat-close">✕</button>
+        </div>
+        <div class="tweaq-chat-content">
+          <div class="tweaq-instructions-list">
+            ${instructionsList}
+          </div>
+          <div class="tweaq-chat-input-wrapper">
+            <textarea 
+              class="tweaq-chat-input" 
+              placeholder="Describe the change you want to make..." 
+              rows="3"
+            ></textarea>
+            <button class="tweaq-chat-send-btn">Add Instruction</button>
+          </div>
+          <div class="tweaq-chat-examples">
+            <div class="tweaq-examples-label">Examples:</div>
+            <div class="tweaq-example-chips">
+              <button class="tweaq-example-chip">Make the copy more friendly</button>
+              <button class="tweaq-example-chip">Condense this section</button>
+              <button class="tweaq-example-chip">Rework the layout to be more modern</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Add event listeners
+      this.chatPanel.querySelector('.tweaq-chat-close').addEventListener('click', () => {
+        this.toggleChat();
+      });
+
+      this.chatPanel.querySelector('.tweaq-chat-send-btn').addEventListener('click', () => {
+        this.addInstruction();
+      });
+
+      this.chatPanel.querySelector('.tweaq-chat-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.addInstruction();
+        }
+      });
+
+      this.chatPanel.querySelectorAll('.tweaq-example-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          this.chatPanel.querySelector('.tweaq-chat-input').value = chip.textContent;
+        });
+      });
+
+      this.chatPanel.querySelectorAll('.tweaq-instruction-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.getAttribute('data-index'));
+          this.removeInstruction(index);
+        });
+      });
+    }
+
+    addInstruction() {
+      const input = this.chatPanel.querySelector('.tweaq-chat-input');
+      const instruction = input.value.trim();
+      
+      if (!instruction) return;
+      
+      const selectedSelector = this.selectedElement 
+        ? this.getElementName()
+        : undefined;
+
+      const newEdit = {
+        id: `nl_${Date.now()}`,
+        type: 'natural-language',
+        instruction,
+        targetElement: selectedSelector ? {
+          selector: selectedSelector,
+          tagName: this.selectedElement.tagName.toLowerCase(),
+          className: this.selectedElement.className
+        } : undefined,
+        context: {
+          scope: selectedSelector ? 'element' : 'page',
+          userIntent: instruction
+        },
+        timestamp: Date.now()
+      };
+
+      this.naturalLanguageEdits.push(newEdit);
+      input.value = '';
+      
+      console.log('💬 Added natural language instruction:', newEdit);
+      
+      this.renderChatPanel();
+      this.renderToolbar(); // Update badge
+    }
+
+    removeInstruction(index) {
+      this.naturalLanguageEdits.splice(index, 1);
+      console.log('🗑️ Removed instruction at index:', index);
+      
+      this.renderChatPanel();
+      this.renderToolbar(); // Update badge
     }
 
     showPanel() {
