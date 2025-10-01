@@ -1214,23 +1214,30 @@
       
       if (!instruction) return;
 
-      const newEdit = {
+      // Create a natural language edit ticket (similar to property edits)
+      const editTicket = {
         id: `nl_${Date.now()}`,
-        type: 'natural-language',
-        instruction,
+        type: 'natural-language-instruction',
+        instruction: instruction,
+        description: instruction,
         targetElement: null,
-        context: {
-          scope: 'page',
-          userIntent: instruction
-        },
-        timestamp: Date.now()
+        selector: 'page',
+        changes: [{
+          type: 'natural-language',
+          instruction: instruction
+        }],
+        timestamp: Date.now(),
+        status: 'pending' // Same as property edits
       };
 
-      this.naturalLanguageEdits.push(newEdit);
+      // Add to recorded edits (same array as property changes)
+      this.recordedEdits.push(editTicket);
       input.value = '';
       
-      console.log('💬 Added natural language instruction:', newEdit);
+      console.log('💬 Added natural language instruction as edit ticket:', editTicket);
       
+      // Switch to Edits tab to show the new instruction
+      this.currentTab = 'edits';
       this.renderPanel();
     }
 
@@ -1383,6 +1390,37 @@
       const timestamp = new Date(edit.timestamp).toLocaleString();
       const status = edit.status || 'pending';
       
+      // Check if this is a natural language instruction
+      const isNaturalLanguage = edit.type === 'natural-language-instruction';
+      
+      if (isNaturalLanguage) {
+        return `
+          <div class="tweaq-edit-ticket ${status} natural-language" data-edit-index="${index}">
+            <div class="tweaq-ticket-header">
+              <div>
+                <h4 class="tweaq-ticket-element" style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 18px;">💬</span>
+                  Natural Language Instruction
+                </h4>
+                <p class="tweaq-ticket-timestamp">${timestamp}</p>
+              </div>
+              ${status === 'pending' ? `
+                <button class="tweaq-ticket-delete" data-delete-index="${index}" title="Delete edit">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M5.28 4.22a.75.75 0 00-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 101.06 1.06L8 9.06l2.72 2.72a.75.75 0 101.06-1.06L9.06 8l2.72-2.72a.75.75 0 00-1.06-1.06L8 6.94 5.28 4.22z"/>
+                  </svg>
+                </button>
+              ` : ''}
+            </div>
+            <div class="tweaq-ticket-instruction" style="padding: 12px; background: rgba(102, 126, 234, 0.1); border-left: 3px solid #667eea; border-radius: 6px; margin-top: 8px;">
+              <p style="margin: 0; color: #fff; line-height: 1.5;">${edit.instruction}</p>
+            </div>
+            ${this.renderTicketStatus(edit)}
+          </div>
+        `;
+      }
+      
+      // Regular property change ticket
       return `
         <div class="tweaq-edit-ticket ${status}" data-edit-index="${index}">
           <div class="tweaq-ticket-header">
@@ -1780,9 +1818,9 @@
       });
       this.renderProperties();
 
-      // Prepare edits for Agent V4 with before/after values
-      const editsForAgent = this.recordedEdits
-        .filter(edit => edit.status === 'processing')
+      // Separate property edits and natural language instructions
+      const propertyEdits = this.recordedEdits
+        .filter(edit => edit.status === 'processing' && edit.type !== 'natural-language-instruction')
         .map(edit => ({
           selector: edit.elementSelector,
           element: edit.element,
@@ -1795,12 +1833,29 @@
           }))
         }));
 
-      // Send to Electron main process to trigger Agent V4
-      if (window.electronAPI && window.electronAPI.triggerAgentV4) {
+      const naturalLanguageEdits = this.recordedEdits
+        .filter(edit => edit.status === 'processing' && edit.type === 'natural-language-instruction')
+        .map(edit => ({
+          id: edit.id,
+          type: 'natural-language',
+          instruction: edit.instruction,
+          timestamp: edit.timestamp
+        }));
+
+      console.log('📦 Sending to Agent V4:');
+      console.log('  Property edits:', propertyEdits.length);
+      console.log('  Natural language instructions:', naturalLanguageEdits.length);
+
+      // Send to Electron main process to trigger combined edits with Agent V4
+      if (window.electronAPI && window.electronAPI.processCombinedEdits) {
         try {
-          const result = await window.electronAPI.triggerAgentV4({
-            edits: editsForAgent,
-            url: window.location.href
+          const result = await window.electronAPI.processCombinedEdits({
+            visualEdits: propertyEdits,
+            naturalLanguageEdits: naturalLanguageEdits,
+            metadata: {
+              url: window.location.href,
+              timestamp: Date.now()
+            }
           });
           
           if (result.success) {
