@@ -17,5 +17,14 @@ export { AdaptiveChangeEngine } from './strategies/AdaptiveChangeEngine.js';
 // Prompt exports
 export { ContextualPromptBuilder } from './prompts/ContextualPromptBuilder.js';
 
+// Conversation exports (standalone conversational intelligence)
+export { ConversationalIntelligence } from './conversation/index.js';
+export type {
+  ConversationState,
+  ConversationMessage,
+  ConversationAnalysis,
+  ReadyTicket
+} from './conversation/index.js';
+
 // Type exports
 export * from './types/index.js';
