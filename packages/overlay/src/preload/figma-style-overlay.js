@@ -1242,8 +1242,26 @@
     }
 
     renderProperties() {
+      // Cursor/Select icon SVG
+      const selectIcon = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+          <path d="M13 13l6 6"/>
+        </svg>
+      `;
+
+      const elementName = this.getElementName();
+
       this.propertiesPanel.innerHTML = `
-        <div class="tweaq-panel-header">
+        <div class="tweaq-panel-header" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="tweaq-mode-toggle-btn active" title="Back to Chat">
+              ${selectIcon}
+            </button>
+            <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #fff;">${elementName}</h3>
+          </div>
+        </div>
+        <div class="tweaq-panel-header" style="border-top: 1px solid rgba(255, 255, 255, 0.1);">
           <div class="tweaq-panel-tabs">
             <button class="tweaq-tab ${this.currentTab === 'properties' ? 'active' : ''}" data-tab="properties">
               Properties
@@ -1256,6 +1274,14 @@
         
         ${this.currentTab === 'properties' ? this.renderPropertiesTab() : this.renderEditsTab()}
       `;
+
+      // Attach mode toggle listener
+      const modeToggleBtn = this.propertiesPanel.querySelector('.tweaq-mode-toggle-btn');
+      if (modeToggleBtn) {
+        modeToggleBtn.addEventListener('click', () => {
+          this.toggleMode();
+        });
+      }
 
       // Attach tab listeners
       this.propertiesPanel.querySelectorAll('.tweaq-tab').forEach(tab => {
