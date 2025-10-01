@@ -1013,8 +1013,6 @@
       this.propertiesPanel = document.createElement('div');
       this.propertiesPanel.className = 'tweaq-properties-panel';
       this.overlayContainer.appendChild(this.propertiesPanel);
-
-      this.renderToolbar();
     }
 
     renderToolbar() {
@@ -1081,7 +1079,6 @@
         this.updateOutline(null);
       }
       
-      this.renderToolbar();
       this.renderPanel();
     }
 
@@ -1126,9 +1123,22 @@
           </div>
         `;
 
+      // Cursor/Select icon SVG
+      const selectIcon = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+          <path d="M13 13l6 6"/>
+        </svg>
+      `;
+
       this.propertiesPanel.innerHTML = `
-        <div class="tweaq-panel-header">
-          <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #fff;">Chat</h3>
+        <div class="tweaq-panel-header" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="tweaq-mode-toggle-btn" title="Click to select elements">
+              ${selectIcon}
+            </button>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #fff;">Chat</h3>
+          </div>
         </div>
         <div class="tweaq-panel-content" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1;">
           <div class="tweaq-instructions-list">
@@ -1154,24 +1164,37 @@
       `;
 
       // Add event listeners
+      const modeToggleBtn = this.propertiesPanel.querySelector('.tweaq-mode-toggle-btn');
       const sendBtn = this.propertiesPanel.querySelector('.tweaq-chat-send-btn');
       const input = this.propertiesPanel.querySelector('.tweaq-chat-input');
       
-      sendBtn.addEventListener('click', () => {
-        this.addInstruction();
-      });
+      if (modeToggleBtn) {
+        modeToggleBtn.addEventListener('click', () => {
+          this.toggleMode();
+        });
+      }
 
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
+      if (sendBtn) {
+        sendBtn.addEventListener('click', () => {
           this.addInstruction();
-        }
-      });
+        });
+      }
+
+      if (input) {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.addInstruction();
+          }
+        });
+      }
 
       this.propertiesPanel.querySelectorAll('.tweaq-example-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-          input.value = chip.textContent;
-          input.focus();
+          if (input) {
+            input.value = chip.textContent;
+            input.focus();
+          }
         });
       });
 
@@ -1901,7 +1924,6 @@
       this.selectedElement = e.target;
       this.updateOutline(this.selectedElement);
       this.renderPanel();
-      this.renderToolbar();
     }
 
     handleKeyDown(e) {
@@ -1912,7 +1934,6 @@
           this.selectedElement = null;
           this.updateOutline(null);
           this.renderPanel();
-          this.renderToolbar();
         } else {
           // Second escape: hide overlay
           this.hide();
