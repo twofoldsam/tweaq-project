@@ -110,7 +110,7 @@ export class ConversationalIntelligence {
       .map(m => `${m.role}: ${m.content}`)
       .join('\n');
 
-    const prompt = `You are analyzing a conversation about making changes to a website.
+    const prompt = `You are analyzing a conversation about making changes to a website. Be STRICT with confidence scores.
 
 CONVERSATION SO FAR:
 ${conversationContext}
@@ -123,28 +123,37 @@ USER'S LATEST MESSAGE:
 
 TASK:
 Extract any NEW information about:
-1. TARGET (what part of the page): component name, section, element type, or "page-wide"
-2. ACTION (what to change): content, styling, layout, or structure changes
-3. SPECIFICS: concrete details about the change (e.g., "casual language", "warmer colors", "increase padding")
+1. TARGET (what part of the page): Specific component, section, or element
+2. ACTION (what to change): Concrete, actionable changes
+3. SPECIFICS: Detailed, specific modifications
+
+CONFIDENCE SCORING (be STRICT):
+- 0.9-1.0: Explicit, specific, unambiguous (e.g., "the hero section", "increase padding to 20px")
+- 0.6-0.8: Clear but could be more specific (e.g., "buttons", "larger text")
+- 0.3-0.5: Vague or ambiguous (e.g., "it", "make it better", "friendlier")
+- 0.0-0.2: Not mentioned or extremely vague
+
+EXAMPLES:
+- "Make it friendlier" → NO target (omit), action confidence: 0.3 (too vague)
+- "The hero section" → target confidence: 0.9 (specific)
+- "Make buttons blue" → target confidence: 0.8, action confidence: 0.9 (both specific)
+- "All of it" → target type: "page-wide", confidence: 0.4 (vague scope)
 
 Return ONLY a JSON object with the NEW information extracted from this message:
 {
   "target": {
     "type": "component" | "section" | "element-type" | "page-wide",
-    "identifiers": ["hero", "buttons"],  // All targets mentioned
-    "confidence": 0.9
+    "identifiers": ["hero"],  // ONLY if explicitly mentioned
+    "confidence": 0.0-1.0  // BE STRICT
   },
   "action": {
     "type": "content" | "styling" | "layout" | "structure" | "mixed",
-    "specifics": ["casual language", "warmer colors"],  // All specifics mentioned
-    "confidence": 0.8
-  },
-  "context": {
-    "desiredOutcome": "want it to feel welcoming"
+    "specifics": ["specific details"],  // ONLY concrete specifics
+    "confidence": 0.0-1.0  // BE STRICT
   }
 }
 
-If the message doesn't provide new information for a field, omit it from the response.
+CRITICAL: If target or action is vague/missing, OMIT it or use LOW confidence (0.2-0.4).
 Return ONLY valid JSON, no other text.`;
 
     try {
