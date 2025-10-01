@@ -278,8 +278,8 @@ Return ONLY valid JSON, no other text.`;
       // Generate confirmation message
       return this.generateConfirmation(state);
     } else {
-      // Generate clarifying question
-      return this.generateClarifyingQuestion(state, missingInfo);
+      // Generate suggestive clarifying question (async)
+      return await this.generateClarifyingQuestion(state, missingInfo);
     }
   }
 
@@ -304,32 +304,74 @@ Ready to create ${target.identifiers.length > 1 ? 'these tickets' : 'this ticket
   }
 
   /**
-   * Generate a natural clarifying question
+   * Generate a helpful, suggestive clarifying question (like Claude in Cursor)
    */
-  private generateClarifyingQuestion(
+  private async generateClarifyingQuestion(
     state: ConversationState,
     missingInfo: string[]
-  ): string {
+  ): Promise<string> {
     const { target, action } = state.extractedInfo;
+    const conversationContext = state.messages
+      .slice(-4)
+      .map(m => `${m.role}: ${m.content}`)
+      .join('\n');
 
-    // If we're missing the target
-    if (missingInfo.includes('target')) {
-      return "I'd be happy to help! Which part of the page would you like to change?";
-    }
+    // Build prompt for suggestive, helpful response
+    const prompt = `You are a helpful AI assistant guiding a user to specify changes to a website. Be SPECIFIC and SUGGESTIVE in your questions, like Claude in Cursor.
 
-    // If we have target but missing action type
-    if (missingInfo.includes('action-type')) {
+CONVERSATION SO FAR:
+${conversationContext}
+
+WHAT WE KNOW:
+${target ? `- Target: ${target.identifiers.join(', ')} (confidence: ${(target.confidence * 100).toFixed(0)}%)` : '- Target: Not specified'}
+${action ? `- Action: ${action.type}, specifics: ${action.specifics.join(', ')} (confidence: ${(action.confidence * 100).toFixed(0)}%)` : '- Action: Not specified'}
+
+WHAT'S MISSING: ${missingInfo.join(', ')}
+
+YOUR TASK:
+Generate a helpful response that:
+1. Acknowledges what they've told you
+2. Asks a SPECIFIC question about what's missing
+3. Provides 3-4 CONCRETE SUGGESTIONS or examples
+4. Keeps it conversational and friendly
+
+EXAMPLES OF GOOD RESPONSES:
+
+Missing target:
+"I can help make that friendlier! Which part of the page are you focusing on?
+• The hero section (headline and intro)
+• Navigation menu
+• Button text
+• Footer content
+• Or something else?"
+
+Missing action specifics:
+"Got it - let's make the hero warmer! What specific changes did you have in mind?
+• Use warmer color palette (oranges, reds)
+• Friendlier, more casual copy
+• Add welcoming imagery
+• Adjust spacing to feel more inviting"
+
+Has both but low confidence:
+"I want to make sure I get this right. For making the hero colors warmer, are you thinking:
+• Background colors (like adding warm tones)
+• Text colors (making them more inviting)
+• Accent colors (buttons, links)
+• Or a combination?"
+
+Generate a response now (keep it under 100 words, be specific and helpful):`;
+
+    try {
+      const response = await this.llmProvider.generateText(prompt);
+      return response.trim();
+    } catch (error) {
+      console.error('Failed to generate suggestive question:', error);
+      // Fallback to simple question
       const targetStr = target?.identifiers.join(' and ') || 'that';
-      return `Got it! What would you like to change about the ${targetStr}?`;
+      return missingInfo.includes('target')
+        ? "Which part of the page would you like to change?"
+        : `What would you like to change about the ${targetStr}?`;
     }
-
-    // If we have action type but missing specifics
-    if (missingInfo.includes('action-specifics')) {
-      const targetStr = target?.identifiers.join(' and ') || 'that';
-      return `I understand you want to update the ${targetStr}. Can you be more specific about what changes you'd like?`;
-    }
-
-    return "Can you tell me a bit more about what you'd like to change?";
   }
 
   /**
