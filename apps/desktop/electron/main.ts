@@ -1034,8 +1034,8 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
     console.log('📋 Result:', result);
     
     // Extract PR URL from the result
-    const prUrl = result.pullRequest?.html_url || result.pullRequest?.url || result.pr?.url;
-    const prNumber = result.pullRequest?.number || result.pr?.number;
+    const prUrl = (result as any).pullRequest?.html_url || (result as any).pullRequest?.url || (result as any).pr?.url || (result as any).prUrl;
+    const prNumber = (result as any).pullRequest?.number || (result as any).pr?.number;
     
     return { 
       success: true,

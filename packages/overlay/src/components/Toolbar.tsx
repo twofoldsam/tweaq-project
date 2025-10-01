@@ -1,11 +1,31 @@
 import React from 'react';
 import { ToolbarProps, OverlayMode } from '../types';
 
-const Toolbar: React.FC<ToolbarProps> = ({ mode, onModeToggle, onClose }) => {
+interface ExtendedToolbarProps extends ToolbarProps {
+  onChatToggle?: () => void;
+  onSubmit?: () => void;
+  isChatOpen?: boolean;
+  visualEditCount?: number;
+  instructionCount?: number;
+}
+
+const Toolbar: React.FC<ExtendedToolbarProps> = ({ 
+  mode, 
+  onModeToggle, 
+  onClose,
+  onChatToggle,
+  onSubmit,
+  isChatOpen = false,
+  visualEditCount = 0,
+  instructionCount = 0
+}) => {
   const handleModeToggle = () => {
     const newMode: OverlayMode = mode === 'measure' ? 'edit' : 'measure';
     onModeToggle(newMode);
   };
+
+  const totalChanges = visualEditCount + instructionCount;
+  const hasChanges = totalChanges > 0;
 
   return (
     <div className="tweaq-overlay-toolbar">
@@ -38,6 +58,31 @@ const Toolbar: React.FC<ToolbarProps> = ({ mode, onModeToggle, onClose }) => {
             {mode === 'measure' ? '📏' : '✏️'} {mode.charAt(0).toUpperCase() + mode.slice(1)}
           </span>
         </div>
+
+        {/* Chat Button */}
+        {onChatToggle && (
+          <button
+            className={`tweaq-chat-btn ${isChatOpen ? 'active' : ''}`}
+            onClick={onChatToggle}
+            title="Open chat to add natural language instructions"
+          >
+            💬 Chat
+            {instructionCount > 0 && (
+              <span className="tweaq-badge">{instructionCount}</span>
+            )}
+          </button>
+        )}
+
+        {/* Submit Button */}
+        {onSubmit && hasChanges && (
+          <button
+            className="tweaq-submit-btn"
+            onClick={onSubmit}
+            title={`Submit ${totalChanges} change${totalChanges !== 1 ? 's' : ''}`}
+          >
+            ✨ Submit {totalChanges}
+          </button>
+        )}
 
         <button 
           className="tweaq-close-btn"

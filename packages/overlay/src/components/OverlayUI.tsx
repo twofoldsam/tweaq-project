@@ -8,6 +8,23 @@ import Inspector from './Inspector';
 import EditPanel from './EditPanel';
 import Ruler from './Ruler';
 import AlignmentGuides from './AlignmentGuides';
+import ChatPanel from './ChatPanel';
+
+interface NaturalLanguageEdit {
+  id: string;
+  type: 'natural-language';
+  instruction: string;
+  targetElement?: {
+    selector: string;
+    tagName: string;
+    className?: string;
+  };
+  context?: {
+    scope?: 'element' | 'component' | 'section' | 'page';
+    userIntent?: string;
+  };
+  timestamp: number;
+}
 
 interface OverlayUIProps {
   initialMode?: OverlayMode;
@@ -32,6 +49,10 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
   const outlineRef = useRef<HTMLDivElement>(null);
   const [pendingEdits, setPendingEdits] = useState<Map<string, PendingEdit>>(new Map());
   const [visualEdits, setVisualEdits] = useState<VisualEdit[]>([]);
+  
+  // Chat panel state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [naturalLanguageEdits, setNaturalLanguageEdits] = useState<NaturalLanguageEdit[]>([]);
 
   // Get element information
   const getElementInfo = useCallback((element: HTMLElement): ElementInfo => {
@@ -320,6 +341,92 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
     }));
   }, [state.selectedElement, pendingEdits, getElementInfo]);
 
+  // Chat handlers
+  const handleChatToggle = useCallback(() => {
+    setIsChatOpen(prev => !prev);
+  }, []);
+
+  const handleAddInstruction = useCallback((instruction: string) => {
+    const selectedSelector = state.selectedElement 
+      ? generateElementSelector(state.selectedElement.element)
+      : undefined;
+
+    const newEdit: NaturalLanguageEdit = {
+      id: `nl_${Date.now()}`,
+      type: 'natural-language',
+      instruction,
+      ...(selectedSelector && {
+        targetElement: {
+          selector: selectedSelector,
+          tagName: state.selectedElement!.element.tagName.toLowerCase(),
+          className: state.selectedElement!.element.className
+        }
+      }),
+      context: {
+        scope: selectedSelector ? 'element' : 'page',
+        userIntent: instruction
+      },
+      timestamp: Date.now()
+    };
+
+    setNaturalLanguageEdits(prev => [...prev, newEdit]);
+    console.log('💬 Added natural language instruction:', newEdit);
+  }, [state.selectedElement]);
+
+  const handleRemoveInstruction = useCallback((id: string) => {
+    setNaturalLanguageEdits(prev => prev.filter(edit => edit.id !== id));
+  }, []);
+
+  // Submit combined edits
+  const handleSubmit = useCallback(async () => {
+    if (visualEdits.length === 0 && naturalLanguageEdits.length === 0) {
+      console.warn('No changes to submit');
+      return;
+    }
+
+    console.log('🚀 Submitting combined edits...');
+    console.log('Visual edits:', visualEdits);
+    console.log('Natural language edits:', naturalLanguageEdits);
+
+    try {
+      // Check if electronAPI is available
+      if (!(window as any).electronAPI?.processCombinedEdits) {
+        console.error('❌ electronAPI.processCombinedEdits not available');
+        alert('Error: Combined editing API not available. Please make sure the app is running in Electron.');
+        return;
+      }
+
+      const request = {
+        visualEdits,
+        naturalLanguageEdits,
+        metadata: {
+          sessionId: `session_${Date.now()}`,
+          submittedAt: Date.now(),
+          context: 'Overlay UI combined edits'
+        }
+      };
+
+      const result = await (window as any).electronAPI.processCombinedEdits(request);
+
+      if (result.success) {
+        console.log('✅ Combined edits submitted successfully!');
+        alert(`✅ Success! PR created:\n${result.pr?.url || 'Check your repository'}\n\n${result.summary || ''}`);
+        
+        // Clear all edits after successful submission
+        setVisualEdits([]);
+        setNaturalLanguageEdits([]);
+        setPendingEdits(new Map());
+        setIsChatOpen(false);
+      } else {
+        console.error('❌ Submission failed:', result.error);
+        alert(`❌ Error: ${result.error || 'Failed to submit changes'}`);
+      }
+    } catch (error) {
+      console.error('❌ Error submitting combined edits:', error);
+      alert(`❌ Error: ${error instanceof Error ? error.message : 'Failed to submit changes'}`);
+    }
+  }, [visualEdits, naturalLanguageEdits]);
+
   // Handle panel close
   const handlePanelClose = useCallback(() => {
     // Reset any pending changes before closing
@@ -391,6 +498,27 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
           mode={state.mode}
           onModeToggle={handleModeToggle}
           onClose={onClose}
+          onChatToggle={handleChatToggle}
+          onSubmit={handleSubmit}
+          isChatOpen={isChatOpen}
+          visualEditCount={visualEdits.length}
+          instructionCount={naturalLanguageEdits.length}
+        />
+
+        {/* Chat Panel */}
+        <ChatPanel
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          {...(state.selectedElement && {
+            selectedElement: {
+              selector: generateElementSelector(state.selectedElement.element),
+              tagName: state.selectedElement.element.tagName.toLowerCase(),
+              className: state.selectedElement.element.className
+            }
+          })}
+          naturalLanguageEdits={naturalLanguageEdits}
+          onAddInstruction={handleAddInstruction}
+          onRemoveInstruction={handleRemoveInstruction}
         />
 
         {/* Panels */}
