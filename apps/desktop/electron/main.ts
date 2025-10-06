@@ -3012,10 +3012,7 @@ ${intent.tailwindChanges && Array.isArray(intent.tailwindChanges) ? intent.tailw
 }
 
 // ===== VISUAL CODING AGENT INTEGRATION =====
-// Enhanced Visual Coding Agent that uses existing Claude/OpenAI infrastructure
-// to avoid CommonJS module resolution issues
-
-let visualCodingAgent: any = null;
+// Agent V4 Integration
 let agentV4Integration: any = null;
 
 /**
@@ -3068,32 +3065,6 @@ async function initializeAgentV4(config: any) {
     return { success: true, agent: 'v4' };
   } catch (error) {
     console.error('❌ Failed to initialize Intelligent Agent:', error);
-    console.log('🔄 Falling back to standard agent...');
-    
-    // Fallback to Agent V3
-    return await initializeRealVisualAgent(config);
-  }
-}
-
-/**
- * Initialize the Visual Coding Agent using existing LLM infrastructure
- */
-async function initializeRealVisualAgent(config: any) {
-  try {
-    console.log('🎨 Initializing Standard Visual Agent...');
-    
-    visualCodingAgent = {
-      initialized: true,
-      config: config,
-      async processRequest(request: any) {
-        return await processVisualRequestWithAgentV3(request);
-      }
-    };
-    
-    console.log('✅ Standard Visual Agent initialized successfully');
-    return { success: true, agent: 'v3' };
-  } catch (error) {
-    console.error('❌ Failed to initialize Visual Agent:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
@@ -3447,10 +3418,10 @@ async function processVisualRequestWithAgentV4(request: any) {
 
   } catch (error) {
     console.error('❌ Agent V4 processing failed:', error);
-    
-    // Fallback to Agent V3 on error
-    console.log('🔄 Falling back to Agent V3 due to Agent V4 error...');
-    return await processVisualRequestWithAgentV3(request);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error in Agent V4'
+    };
   }
 }
 
@@ -3595,228 +3566,6 @@ async function processCombinedEditsWithAgentV4(request: any) {
   } catch (error) {
     console.error('❌ Agent V4 combined processing failed:', error);
     throw error;
-  }
-}
-
-/**
- * Process visual requests using Agent V3 (Two-Agent System with REAL PR creation)
- */
-async function processVisualRequestWithAgentV3(request: any) {
-  console.log('🚀 Processing visual request with Agent V3 (Two-Agent System + Real PRs)...');
-
-  try {
-    // Dynamic import of Agent V3
-    const { createAgentV3, validateVisualEdits } = await import('@tweaq/agent-v3');
-
-    // Get GitHub configuration
-    const config = store.get('github');
-    if (!config) {
-      throw new Error('GitHub configuration not found');
-    }
-
-    // Get GitHub token
-    const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
-    if (!githubToken) {
-      throw new Error('GitHub token not found');
-    }
-
-    // Initialize LLM provider
-    const { provider: llmProvider, type: providerType } = await initializeLLMProviderForCodeGeneration();
-    if (!llmProvider) {
-      throw new Error('No LLM provider available');
-    }
-
-    console.log(`🤖 Using ${providerType} provider for Agent V3`);
-
-    // Create GitHub access interface for Agent 2 with REAL PR creation
-    const githubAccess = {
-      readFiles: async (paths: string[]) => {
-        const remoteRepo = new RemoteRepo(githubToken);
-        const fileContents = new Map<string, string>();
-        
-        for (const path of paths) {
-          try {
-            const content = await remoteRepo.readFile({
-              owner: config.owner,
-              repo: config.repo,
-              path: path
-            });
-            fileContents.set(path, content);
-          } catch (error) {
-            console.warn(`⚠️ Could not read ${path}:`, error);
-            
-            // Try to find similar files in the repository
-            console.log(`🔍 Searching for similar files to ${path}...`);
-            try {
-              const repoTree = await remoteRepo.getRepoTree({
-                owner: config.owner,
-                repo: config.repo,
-                ref: config.baseBranch || 'main',
-                recursive: true
-              });
-              
-              // Look for files with similar names
-              const fileName = path.split('/').pop()?.replace('.tsx', '').replace('.ts', '').replace('.jsx', '').replace('.js', '');
-              const similarFiles = repoTree.tree.filter(file => 
-                file.type === 'blob' && 
-                file.path && (
-                  file.path.toLowerCase().includes(fileName?.toLowerCase() || '') ||
-                  fileName?.toLowerCase().includes(file.path.split('/').pop()?.toLowerCase().replace(/\.(tsx?|jsx?)$/, '') || '')
-                )
-              );
-              
-              if (similarFiles.length > 0) {
-                console.log(`🎯 Found similar files:`, similarFiles.map(f => f.path).join(', '));
-                // Try the first similar file
-                const similarContent = await remoteRepo.readFile({
-                  owner: config.owner,
-                  repo: config.repo,
-                  path: similarFiles[0].path!
-                });
-                fileContents.set(similarFiles[0].path!, similarContent);
-                console.log(`✅ Using ${similarFiles[0].path} instead of ${path}`);
-              } else {
-                fileContents.set(path, ''); // Empty content for missing files
-              }
-            } catch (searchError) {
-              console.warn(`❌ Could not search for alternatives to ${path}:`, searchError);
-              fileContents.set(path, ''); // Empty content for missing files
-            }
-          }
-        }
-        
-        return fileContents;
-      },
-
-      writeFiles: async (changes: any[]) => {
-        const result = await createRealPRWithWorkspace(changes, config, githubToken);
-        console.log(`🚀 PR creation result:`, result);
-        // writeFiles should not return anything according to the interface
-      },
-
-      createPR: async (branch: string, title: string, body: string) => {
-        // This is handled by writeFiles now
-        return {
-          success: true,
-          prUrl: `https://github.com/${config.owner}/${config.repo}/compare/${config.baseBranch}...${branch}`,
-          branchName: branch
-        };
-      }
-    };
-
-    // Create Agent V3 instance
-    const agentV3 = createAgentV3({
-      workspace: {
-        owner: config.owner,
-        repo: config.repo,
-        baseBranch: config.baseBranch || 'main',
-        githubToken: githubToken
-      },
-      llmProvider: {
-        generateText: async (prompt: string) => {
-          if (providerType === 'openai') {
-            return await callOpenAIForVisualCoding(llmProvider, prompt);
-          } else if (providerType === 'claude') {
-            return await callClaudeForVisualCoding(llmProvider, prompt);
-          }
-          throw new Error(`Unsupported provider type: ${providerType}`);
-        }
-      },
-      githubAccess,
-      options: {
-        analysisDepth: 'comprehensive',
-        cacheEnabled: true,
-        maxFiles: 500,
-        confidenceThreshold: 0.6
-      }
-    });
-
-    // Initialize Agent V3 system
-    console.log('🔧 Initializing Agent V3 system...');
-    const initResult = await agentV3.initialize();
-    if (!initResult.success) {
-      throw new Error(`Agent V3 initialization failed: ${initResult.error}`);
-    }
-    console.log(`✅ Agent V3 initialized in ${initResult.analysisTime}ms`);
-
-    // Convert request to VisualEdit format
-    const visualEdits = [{
-      id: `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-      element: {
-        selector: request.element?.selector || request.element?.tagName || 'unknown',
-        tagName: request.element?.tagName || 'div',
-        id: request.element?.id,
-        className: request.element?.className,
-        textContent: request.element?.textContent
-      },
-      changes: request.description ? [{
-        property: 'general',
-        before: 'current state',
-        after: request.description,
-        category: 'other' as const,
-        impact: 'visual' as const,
-        confidence: 0.8
-      }] : [],
-      intent: {
-        description: request.description || 'Visual modification',
-        userAction: 'direct-edit' as const
-      },
-      validation: {
-        applied: true
-      }
-    }];
-
-    // Validate visual edits
-    const validation = validateVisualEdits(visualEdits);
-    if (!validation.valid) {
-      console.warn('⚠️ Visual edit validation warnings:', validation.warnings);
-      if (validation.errors.length > 0) {
-        throw new Error(`Invalid visual edits: ${validation.errors.join(', ')}`);
-      }
-    }
-
-    // Process with Agent V3
-    console.log('🎯 Starting Agent V3 two-agent processing...');
-    const result = await agentV3.processVisualEdits(visualEdits);
-
-    if (!result.success) {
-      throw new Error(result.error || 'Agent V3 processing failed');
-    }
-
-    console.log('✅ Agent V3 processing completed:', {
-      agent1Decisions: result.agent1Result.decisions.length,
-      agent1Tickets: result.agent1Result.tickets.length,
-      agent2FileChanges: result.agent2Result.fileChanges.length,
-      agent2PRs: result.agent2Result.prResults.length,
-      totalTime: result.totalProcessingTime
-    });
-
-    // Convert Agent V3 result to expected format
-    return {
-      changes: result.agent2Result.fileChanges.map(change => ({
-        filePath: change.filePath,
-        oldContent: change.oldContent || '',
-        newContent: change.newContent || '',
-        reasoning: change.reasoning,
-        changeType: change.action
-      })),
-      explanation: result.summary,
-      confidence: result.agent1Result.confidence,
-      designPrinciples: [
-        '🧠 Strategic Planning Agent',
-        '🔧 Coding Implementation Agent',
-        '🗺️ Symbolic Repository Analysis',
-        '🎯 Context-Aware Decision Making',
-        '🔄 Two-Agent Coordination',
-        '🚀 REAL PR Creation Enabled!'
-      ],
-      agentV3Result: result
-    };
-
-  } catch (error) {
-    console.warn('⚠️ Agent V3 failed, falling back to original LLM approach:', error);
-    return await processVisualRequestWithLLM(request);
   }
 }
 
@@ -4503,7 +4252,7 @@ safeIpcHandle('process-visual-request', async (event, request: any) => {
     }
     
     // Fallback to Agent V4 if V5 fails
-    if (!agentV4Integration && !visualCodingAgent) {
+    if (!agentV4Integration) {
       // Auto-initialize Agent V4 if needed
       const initResult = await initializeAgentV4({
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
@@ -4511,21 +4260,13 @@ safeIpcHandle('process-visual-request', async (event, request: any) => {
       });
       
       if (!initResult.success) {
-        return { success: false, error: `No agent available: ${(initResult as any).error || 'Unknown error'}` };
+        return { success: false, error: `Agent V4 initialization failed: ${(initResult as any).error || 'Unknown error'}` };
       }
     }
     
-    // Process the request with Agent V4 (or fallback to V3)
-    let response;
-    if (agentV4Integration) {
-      console.log('🚀 Using Agent V4 (fallback) for request processing');
-      response = await processVisualRequestWithAgentV4(request);
-    } else if (visualCodingAgent) {
-      console.log('🔄 Using Agent V3 (fallback) for request processing');
-      response = await visualCodingAgent.processRequest(request);
-    } else {
-      throw new Error('No agent available for processing');
-    }
+    // Process the request with Agent V4
+    console.log('🚀 Using Agent V4 (fallback) for request processing');
+    const response = await processVisualRequestWithAgentV4(request);
     
     return { success: true, data: response, agent: 'v4-fallback' };
   } catch (error) {
