@@ -1,0 +1,30 @@
+{
+  "name": "@tweaq/agent-v5",
+  "version": "1.0.0",
+  "description": "Claude Agentic System - Autonomous coding agent with tool use",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "node demo.js"
+  },
+  "keywords": [
+    "agent",
+    "claude",
+    "autonomous",
+    "coding",
+    "tool-use"
+  ],
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@smart-qa/github-remote": "workspace:*",
+    "@tweaq/agent-v4": "workspace:*",
+    "simple-git": "^3.19.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+

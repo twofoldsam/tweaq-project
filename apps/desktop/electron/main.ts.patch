@@ -1,0 +1,33 @@
+// Helper function to convert visual edits to natural language instruction
+function generateInstructionFromEdits(edits: any[]): string {
+  if (edits.length === 0) return 'Make visual changes';
+  
+  // Group edits by selector
+  const editsBySelector = new Map<string, any[]>();
+  for (const edit of edits) {
+    const selector = edit.selector || edit.element || 'element';
+    if (!editsBySelector.has(selector)) {
+      editsBySelector.set(selector, []);
+    }
+    editsBySelector.get(selector)!.push(edit);
+  }
+  
+  // Generate instruction
+  const instructions: string[] = [];
+  for (const [selector, selectorEdits] of editsBySelector.entries()) {
+    const changes = selectorEdits.flatMap(e => e.changes || []);
+    if (changes.length === 0) continue;
+    
+    // Describe changes
+    const changeDescriptions = changes.map((change: any) => {
+      const prop = change.property;
+      const after = change.after;
+      return `${prop}: ${after}`;
+    }).join(', ');
+    
+    instructions.push(`Update ${selector} to have ${changeDescriptions}`);
+  }
+  
+  return instructions.join('. ') || 'Make the requested visual changes';
+}
+

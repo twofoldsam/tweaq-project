@@ -24,6 +24,12 @@ import { InMemoryPatcher, LLMCodeAdapter, ClaudeAgentAdapter } from '../../../pa
 import { MappingEngine, MockLLMProvider, OpenAIProvider, ClaudeProvider, buildRepoIndex, getDeterministicHints } from '../../../packages/mapping-remote/dist/index.js';
 import { RepoAnalyzer, RepoSymbolicModel } from '../../../packages/repo-analyzer/dist/index.js';
 
+// Agent V5 Integration
+import { 
+  processVisualRequestIPC,
+  checkAgentV5StatusIPC 
+} from '../../../packages/agent-v5/dist/integration/MainProcessIntegration';
+
 // Load environment variables from .env file
 try {
   const envPath = path.join(__dirname, '../../..', '.env');
@@ -261,6 +267,39 @@ function buildCodexTaskMarkdown(params: { changeSet: VisualEdit[]; codeIntents: 
   lines.push(`- Optionally add notes in PR description about decisions made`);
   lines.push('');
   return lines.join('\n');
+}
+
+// Helper function to convert visual edits to natural language instruction for Agent V5
+function generateInstructionFromEdits(edits: any[]): string {
+  if (edits.length === 0) return 'Make visual changes';
+  
+  // Group edits by selector
+  const editsBySelector = new Map<string, any[]>();
+  for (const edit of edits) {
+    const selector = edit.selector || edit.element || 'element';
+    if (!editsBySelector.has(selector)) {
+      editsBySelector.set(selector, []);
+    }
+    editsBySelector.get(selector)!.push(edit);
+  }
+  
+  // Generate instruction
+  const instructions: string[] = [];
+  for (const [selector, selectorEdits] of editsBySelector.entries()) {
+    const changes = selectorEdits.flatMap((e: any) => e.changes || []);
+    if (changes.length === 0) continue;
+    
+    // Describe changes
+    const changeDescriptions = changes.map((change: any) => {
+      const prop = change.property;
+      const after = change.after;
+      return `${prop}: ${after}`;
+    }).join(', ');
+    
+    instructions.push(`Update ${selector} to have ${changeDescriptions}`);
+  }
+  
+  return instructions.join('. ') || 'Make the requested visual changes';
 }
 
 function buildCodexPRBody(params: { changeSet: VisualEdit[]; codeIntents: CodeIntent[] }): string {
@@ -885,7 +924,27 @@ safeIpcHandle('github-test-pr', async () => {
   }
 });
 
-// Agent V4 - Visual Edits to PR
+// ============================================================================
+// AGENT V5 IPC HANDLERS (Primary)
+// ============================================================================
+
+// Check Agent V5 status
+safeIpcHandle('check-agent-v5-status', async () => {
+  console.log('🤖 IPC: Check Agent V5 status');
+  return await checkAgentV5StatusIPC();
+});
+
+// Process with Agent V5 (Primary handler for tickets/edits)
+safeIpcHandle('process-visual-request-agent-v5', async (event, request: any) => {
+  console.log('🤖 IPC: Process with Agent V5');
+  return await processVisualRequestIPC(request);
+});
+
+// ============================================================================
+// AGENT V4 IPC HANDLERS (Fallback)
+// ============================================================================
+
+// Agent V4 - Visual Edits to PR (Now uses Agent V5 first)
 safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: string }) => {
   try {
     const config = store.get('github');
@@ -897,8 +956,59 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
       return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
     }
 
-    console.log('🚀 Agent V4: Received visual edits:', data.edits);
+    console.log('🚀 Processing visual edits (Agent V5 → Agent V4 fallback)');
+    console.log('📝 Visual edits:', data.edits.length);
     console.log('🌐 Target URL:', data.url);
+
+    // Try Agent V5 first
+    try {
+      console.log('🤖 Attempting to use Agent V5...');
+      const agentV5Status = await checkAgentV5StatusIPC();
+      
+      if (agentV5Status.available) {
+        console.log('✅ Agent V5 available, using as primary');
+        
+        // Convert edits to instruction format for Agent V5
+        const instruction = generateInstructionFromEdits(data.edits);
+        
+        const result = await processVisualRequestIPC({
+          instruction,
+          owner: config.owner,
+          repo: config.repo,
+          branch: config.baseBranch || 'main',
+          repoContext: {
+            framework: 'react',
+            stylingSystem: 'auto-detect'
+          }
+        });
+
+        if (result.success) {
+          console.log('✅ Agent V5 processing successful!');
+          return {
+            success: true,
+            pr: {
+              url: result.prUrl,
+              number: result.prNumber
+            },
+            filesModified: result.filesModified,
+            toolCalls: result.toolCalls,
+            agent: 'v5',
+            message: 'Changes processed successfully with Agent V5!'
+          };
+        } else {
+          console.log('⚠️ Agent V5 processing failed, falling back to Agent V4...');
+        }
+      } else {
+        console.log(`⚠️ Agent V5 not available: ${agentV5Status.message}`);
+        console.log('🔄 Falling back to Agent V4...');
+      }
+    } catch (v5Error) {
+      console.error('❌ Agent V5 error:', v5Error);
+      console.log('🔄 Falling back to Agent V4...');
+    }
+
+    // Fallback to Agent V4
+    console.log('🔄 Using Agent V4 fallback...');
 
     // Convert edits to VisualEdit format expected by Agent V4
     const visualEdits: VisualEdit[] = data.edits.map((edit, index) => ({
@@ -986,7 +1096,7 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
   }
 });
 
-// Agent V4 - Combined Edits (Visual + Natural Language) to PR
+// Agent V5/V4 - Combined Edits (Visual + Natural Language) to PR
 safeIpcHandle('process-combined-edits', async (event, request: any) => {
   try {
     const config = store.get('github');
@@ -998,10 +1108,82 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
       return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
     }
 
-    console.log('🚀 Agent V4 Combined: Received combined edit request');
+    console.log('🚀 Processing Combined Edits (Agent V5 primary)');
     console.log('📊 Visual edits:', request.visualEdits?.length || 0);
     console.log('💬 Natural language instructions:', request.naturalLanguageEdits?.length || 0);
 
+    // Try Agent V5 first - convert combined edits to natural language instruction
+    console.log('🚀 Attempting Agent V5 for combined edits...');
+    
+    try {
+      // Convert visual edits to natural language description
+      const visualInstructions = request.visualEdits?.map((edit: any) => {
+        const changes = edit.changes?.map((c: any) => 
+          `Change ${c.property} from "${c.before}" to "${c.after}"`
+        ).join(', ') || '';
+        return `For ${edit.selector || edit.element}: ${changes}`;
+      }).join('. ') || '';
+
+      // Combine with natural language instructions
+      const nlInstructions = request.naturalLanguageEdits?.map((edit: any) => 
+        edit.instruction || edit.description
+      ).join('. ') || '';
+
+      const combinedInstruction = [visualInstructions, nlInstructions]
+        .filter(s => s)
+        .join('. ') || 'Apply the requested changes';
+
+      console.log('📝 Combined instruction for Agent V5:', combinedInstruction.substring(0, 100) + '...');
+
+      // Get credentials directly (keytar is available here)
+      const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
+      const anthropicApiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key') || 
+                               process.env.ANTHROPIC_API_KEY;
+
+      // Call Agent V5 with credentials
+      const agentV5Request = {
+        instruction: combinedInstruction,
+        owner: config.owner,
+        repo: config.repo,
+        branch: config.baseBranch || 'main',
+        repoContext: request.repoContext,
+        githubToken,
+        anthropicApiKey
+      };
+
+      const agentV5Response = await processVisualRequestIPC(agentV5Request);
+
+      if (agentV5Response.success) {
+        console.log('✅ Agent V5 successfully processed combined edits');
+        console.log(`   Files modified: ${agentV5Response.filesModified?.length || 0}`);
+        console.log(`   Tool calls: ${agentV5Response.toolCalls || 0}`);
+        if (agentV5Response.prUrl) {
+          console.log(`   PR created: ${agentV5Response.prUrl}`);
+        }
+
+        return { 
+          success: true,
+          pr: {
+            url: agentV5Response.prUrl,
+            number: agentV5Response.prNumber
+          },
+          filesModified: agentV5Response.filesModified,
+          toolCalls: agentV5Response.toolCalls,
+          agent: 'v5',
+          message: 'Combined edits successfully processed by Agent V5!'
+        };
+      } else {
+        console.warn('⚠️  Agent V5 failed for combined edits:', agentV5Response.error);
+        console.log('🔄 Falling back to Agent V4...');
+      }
+    } catch (agentV5Error) {
+      console.warn('⚠️  Agent V5 error:', agentV5Error instanceof Error ? agentV5Error.message : agentV5Error);
+      console.log('🔄 Falling back to Agent V4...');
+    }
+
+    // Fallback to Agent V4 Combined Editing
+    console.log('🚀 Agent V4 Combined: Processing with fallback');
+    
     // Initialize Agent V4 if needed
     if (!agentV4Integration) {
       console.log('🤖 Initializing Agent V4...');
@@ -1013,13 +1195,13 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
       if (!initResult.success) {
         return { 
           success: false, 
-          error: `Failed to initialize Agent V4: ${(initResult as any).error || 'Unknown error'}` 
+          error: `No agent available: ${(initResult as any).error || 'Unknown error'}` 
         };
       }
     }
 
     // Process with Agent V4 Combined Editing
-    console.log('🎯 Processing combined edits with Agent V4...');
+    console.log('🎯 Processing combined edits with Agent V4 (fallback)...');
     const result = await processCombinedEditsWithAgentV4(request);
 
     if (!result.success) {
@@ -1044,6 +1226,7 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
         number: prNumber
       },
       summary: result.summary,
+      agent: 'v4-fallback',
       message: 'Combined edits successfully converted to code and PR created!'
     };
   } catch (error) {
@@ -4282,9 +4465,44 @@ safeIpcHandle('initialize-visual-agent', async (event, config: any) => {
 
 safeIpcHandle('process-visual-request', async (event, request: any) => {
   try {
-    console.log('🤖 IPC: Process visual request (Agent V4 primary)');
+    console.log('🤖 IPC: Process visual request (Agent V5 primary)');
     
-    // Try Agent V4 first
+    // Try Agent V5 first (autonomous Claude agent)
+    console.log('🚀 Attempting Agent V5 (autonomous) for request processing...');
+    
+    try {
+      // Get credentials directly (keytar is available here)
+      const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
+      const anthropicApiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key') || 
+                               process.env.ANTHROPIC_API_KEY;
+
+      // Add credentials to request
+      const agentV5Request = {
+        ...request,
+        githubToken,
+        anthropicApiKey
+      };
+
+      const agentV5Response = await processVisualRequestIPC(agentV5Request);
+      
+      if (agentV5Response.success) {
+        console.log('✅ Agent V5 successfully processed request');
+        console.log(`   Files modified: ${agentV5Response.filesModified?.length || 0}`);
+        console.log(`   Tool calls: ${agentV5Response.toolCalls || 0}`);
+        if (agentV5Response.prUrl) {
+          console.log(`   PR created: ${agentV5Response.prUrl}`);
+        }
+        return { success: true, data: agentV5Response, agent: 'v5' };
+      } else {
+        console.warn('⚠️  Agent V5 failed:', agentV5Response.error);
+        console.log('🔄 Falling back to Agent V4...');
+      }
+    } catch (agentV5Error) {
+      console.warn('⚠️  Agent V5 error:', agentV5Error instanceof Error ? agentV5Error.message : agentV5Error);
+      console.log('🔄 Falling back to Agent V4...');
+    }
+    
+    // Fallback to Agent V4 if V5 fails
     if (!agentV4Integration && !visualCodingAgent) {
       // Auto-initialize Agent V4 if needed
       const initResult = await initializeAgentV4({
@@ -4293,23 +4511,23 @@ safeIpcHandle('process-visual-request', async (event, request: any) => {
       });
       
       if (!initResult.success) {
-        return { success: false, error: `Agent not initialized: ${(initResult as any).error || 'Unknown error'}` };
+        return { success: false, error: `No agent available: ${(initResult as any).error || 'Unknown error'}` };
       }
     }
     
     // Process the request with Agent V4 (or fallback to V3)
     let response;
     if (agentV4Integration) {
-      console.log('🚀 Using Agent V4 for request processing');
+      console.log('🚀 Using Agent V4 (fallback) for request processing');
       response = await processVisualRequestWithAgentV4(request);
     } else if (visualCodingAgent) {
-      console.log('🔄 Using Agent V3 fallback for request processing');
+      console.log('🔄 Using Agent V3 (fallback) for request processing');
       response = await visualCodingAgent.processRequest(request);
     } else {
       throw new Error('No agent available for processing');
     }
     
-    return { success: true, data: response };
+    return { success: true, data: response, agent: 'v4-fallback' };
   } catch (error) {
     console.error('❌ IPC: Failed to process visual request:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
