@@ -1,3 +1,15 @@
+type BrowserEngine = 'chromium' | 'edge' | 'firefox' | 'webkit';
+
+interface BrowserEngineConfig {
+  engine: BrowserEngine;
+  displayName: string;
+  emoji: string;
+  supportsEditing: boolean;
+  supportsCDP: boolean;
+  canInjectScripts: boolean;
+  userAgent: string;
+}
+
 interface GitHubConfig {
   owner: string;
   repo: string;
@@ -53,6 +65,9 @@ interface ElectronAPI {
   githubTestPR: () => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
   toggleSettings: (showSettings: boolean) => Promise<{ success: boolean }>;
   
+  // Overlay API
+  toggleOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => Promise<{ success: boolean; error?: string }>;
+  
   // PR Watcher API
   prWatcherStart: (options: { owner: string; repo: string; prNumber: number }) => Promise<{ success: boolean; watcherKey?: string; error?: string }>;
   prWatcherStop: (watcherKey: string) => Promise<{ success: boolean; error?: string }>;
@@ -86,6 +101,13 @@ interface ElectronAPI {
   codexOpenSetup: () => Promise<{ success: boolean; error?: string }>;
   codexMarkConnected: () => Promise<{ success: boolean; error?: string }>;
   codexGetStatus: () => Promise<{ enabled: boolean; connectedAt: string | null }>;
+  
+  // Browser Engine Switching API
+  browserGetCurrentEngine: () => Promise<{ engine: BrowserEngine }>;
+  browserGetAvailableEngines: () => Promise<{ engines: BrowserEngineConfig[] }>;
+  browserSwitchEngine: (engine: BrowserEngine) => Promise<{ success: boolean; error?: string }>;
+  browserGetEngineConfig: (engine: BrowserEngine) => Promise<BrowserEngineConfig | null>;
+  onBrowserEngineChanged: (callback: (data: { engine: BrowserEngine; config: BrowserEngineConfig }) => void) => () => void;
 }
 
 declare global {

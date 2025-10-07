@@ -1,5 +1,6 @@
 import { app, BrowserWindow, BrowserView, ipcMain, shell } from 'electron';
 import path from 'path';
+import { BrowserEngineManager, type BrowserEngine, BROWSER_CONFIGS } from './browser-engine-manager';
 
 // Guard against undefined electron during module loading
 if (typeof ipcMain === 'undefined') {
@@ -459,7 +460,8 @@ const initializeAuth = async () => {
 const isDev = process.env.NODE_ENV === 'development' || (app && !app.isPackaged);
 
 let mainWindow: BrowserWindow | null = null;
-let browserView: BrowserView | null = null;
+let browserView: BrowserView | null = null; // Legacy reference for compatibility
+let browserEngineManager: BrowserEngineManager | null = null;
 let rightPaneView: BrowserView | null = null;
 
 // PR watcher state
@@ -468,37 +470,14 @@ const previewUrls = new Map<string, DeploymentPreview[]>();
 
 // Layout functions (defined at module level)
 const updateBrowserViewBounds = () => {
-  if (browserView && mainWindow) {
-    const bounds = mainWindow.getBounds();
-    browserView.setBounds({
-      x: 0,
-      y: TOOLBAR_HEIGHT,
-      width: bounds.width,
-      height: bounds.height - TOOLBAR_HEIGHT
-    });
+  if (browserEngineManager) {
+    browserEngineManager.updateBrowserViewBounds();
   }
 };
 
 const updateLayoutWithRightPane = () => {
-  if (browserView && rightPaneView && mainWindow) {
-    const bounds = mainWindow.getBounds();
-    const splitWidth = Math.floor(bounds.width / 2);
-    
-    // Left pane (main content)
-    browserView.setBounds({
-      x: 0,
-      y: TOOLBAR_HEIGHT,
-      width: splitWidth,
-      height: bounds.height - TOOLBAR_HEIGHT
-    });
-    
-    // Right pane (preview)
-    rightPaneView.setBounds({
-      x: splitWidth,
-      y: TOOLBAR_HEIGHT,
-      width: bounds.width - splitWidth,
-      height: bounds.height - TOOLBAR_HEIGHT
-    });
+  if (browserEngineManager && rightPaneView) {
+    browserEngineManager.updateLayoutWithRightPane(rightPaneView);
   }
 };
 
@@ -518,16 +497,20 @@ function createWindow(): void {
     trafficLightPosition: { x: 20, y: 20 },
   });
 
-  // Create the browser view for web content
-  browserView = new BrowserView({
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: false, // Allow IPC access for overlay communication
-      preload: path.join(__dirname, 'preload.js'), // Add preload for electronAPI
-    }
+  // Initialize Browser Engine Manager
+  browserEngineManager = new BrowserEngineManager(
+    path.join(__dirname, 'preload.js'),
+    TOOLBAR_HEIGHT
+  );
+  browserEngineManager.setMainWindow(mainWindow);
+
+  // Set up event handler callback for browser views
+  browserEngineManager.setEventSetupCallback((view: BrowserView) => {
+    setupBrowserViewEvents(view);
   });
 
+  // Initialize with default browser (chromium) and set legacy reference
+  browserView = browserEngineManager.initialize();
   mainWindow.setBrowserView(browserView);
 
   // Initial positioning
@@ -544,13 +527,14 @@ function createWindow(): void {
 
   // Handle settings toggle
   safeIpcHandle('toggle-settings', (event, showSettings: boolean) => {
-    if (browserView && mainWindow) {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (currentView && mainWindow) {
       if (showSettings) {
         // Hide browser view when showing settings
-        mainWindow.removeBrowserView(browserView);
+        mainWindow.removeBrowserView(currentView);
       } else {
         // Show browser view when hiding settings
-        mainWindow.setBrowserView(browserView);
+        mainWindow.setBrowserView(currentView);
         updateBrowserViewBounds();
       }
     }
@@ -570,92 +554,147 @@ function createWindow(): void {
   if (browserView) {
     browserView.webContents.loadURL(lastUrl);
     
-    // Track navigation events
-    browserView.webContents.on('did-start-loading', () => {
-      mainWindow?.webContents.send('page-loading', true);
-    });
-
-    browserView.webContents.on('did-finish-load', () => {
-      const url = browserView?.webContents.getURL() || '';
-      const title = browserView?.webContents.getTitle() || '';
-      
-      mainWindow?.webContents.send('page-loaded', {
-        url,
-        title,
-        loading: false
-      });
-    });
-
-    browserView.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-      mainWindow?.webContents.send('page-error', {
-        url: validatedURL,
-        error: errorDescription,
-        loading: false
-      });
-    });
-
-    browserView.webContents.on('did-navigate', (event, url) => {
-      store.set('lastUrl', url);
-      mainWindow?.webContents.send('page-navigation', { url });
-    });
-
-    browserView.webContents.on('did-navigate-in-page', (event, url) => {
-      store.set('lastUrl', url);
-      mainWindow?.webContents.send('page-navigation', { url });
-    });
+    // Event handlers are already set up automatically via the callback
   }
+}
+
+// Helper function to setup navigation events for a browser view
+function setupBrowserViewEvents(view: BrowserView) {
+  // Track navigation events
+  view.webContents.on('did-start-loading', () => {
+    mainWindow?.webContents.send('page-loading', true);
+  });
+
+  view.webContents.on('did-finish-load', () => {
+    const url = view.webContents.getURL() || '';
+    const title = view.webContents.getTitle() || '';
+    
+    mainWindow?.webContents.send('page-loaded', {
+      url,
+      title,
+      loading: false
+    });
+  });
+
+  view.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    mainWindow?.webContents.send('page-error', {
+      url: validatedURL,
+      error: errorDescription,
+      loading: false
+    });
+  });
+
+  view.webContents.on('did-navigate', (event, url) => {
+    store.set('lastUrl', url);
+    mainWindow?.webContents.send('page-navigation', { url });
+  });
+
+  view.webContents.on('did-navigate-in-page', (event, url) => {
+    store.set('lastUrl', url);
+    mainWindow?.webContents.send('page-navigation', { url });
+  });
 }
 
 // IPC handlers
 safeIpcHandle('navigate', async (event, url: string) => {
-  if (!browserView) return { success: false, error: 'No browser view available' };
+  if (!browserEngineManager) return { success: false, error: 'Browser engine manager not available' };
   
   try {
-    // Ensure URL has protocol
-    let fullUrl = url;
-    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('file://')) {
-      fullUrl = `https://${url}`;
+    const result = await browserEngineManager.navigate(url);
+    if (result.success && result.url) {
+      store.set('lastUrl', result.url);
     }
-    
-    await browserView.webContents.loadURL(fullUrl);
-    store.set('lastUrl', fullUrl);
-    return { success: true, url: fullUrl };
+    return result;
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Navigation failed' };
   }
 });
 
 safeIpcHandle('get-current-url', () => {
-  return browserView?.webContents.getURL() || store.get('lastUrl');
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  return currentView?.webContents.getURL() || store.get('lastUrl');
 });
 
 safeIpcHandle('go-back', () => {
-  if (browserView?.webContents.canGoBack()) {
-    browserView.webContents.goBack();
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  if (currentView?.webContents.canGoBack()) {
+    currentView.webContents.goBack();
     return true;
   }
   return false;
 });
 
 safeIpcHandle('go-forward', () => {
-  if (browserView?.webContents.canGoForward()) {
-    browserView.webContents.goForward();
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  if (currentView?.webContents.canGoForward()) {
+    currentView.webContents.goForward();
     return true;
   }
   return false;
 });
 
 safeIpcHandle('reload', () => {
-  browserView?.webContents.reload();
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  currentView?.webContents.reload();
   return true;
 });
 
 safeIpcHandle('can-go-back', () => {
-  return browserView?.webContents.canGoBack() || false;
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  return currentView?.webContents.canGoBack() || false;
 });
 
 safeIpcHandle('can-go-forward', () => {
-  return browserView?.webContents.canGoForward() || false;
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  return currentView?.webContents.canGoForward() || false;
+});
+
+// Browser Engine Switching IPC handlers
+safeIpcHandle('browser-get-current-engine', () => {
+  if (!browserEngineManager) return { engine: 'chromium' };
+  return { engine: browserEngineManager.getCurrentEngine() };
+});
+
+safeIpcHandle('browser-get-available-engines', () => {
+  if (!browserEngineManager) return { engines: [] };
+  return { engines: browserEngineManager.getAvailableEngines() };
+});
+
+safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
+  if (!browserEngineManager) {
+    return { success: false, error: 'Browser engine manager not available' };
+  }
+  
+  try {
+    const currentUrl = store.get('lastUrl');
+    const result = await browserEngineManager.switchEngine(engine, currentUrl);
+    
+    if (result.success) {
+      // Update the legacy browserView reference
+      browserView = browserEngineManager.getCurrentBrowserView();
+      
+      // Event handlers are automatically set up when views are created
+      // No need to call setupBrowserViewEvents here
+      
+      // Send notification to renderer about browser change
+      mainWindow?.webContents.send('browser-engine-changed', { 
+        engine,
+        config: browserEngineManager.getEngineConfig(engine)
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to switch browser' 
+    };
+  }
+});
+
+safeIpcHandle('browser-get-engine-config', (event, engine: BrowserEngine) => {
+  if (!browserEngineManager) return null;
+  return browserEngineManager.getEngineConfig(engine);
 });
 
 // GitHub IPC handlers
@@ -1076,8 +1115,9 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
     console.log('📋 Result:', result);
     
     // Extract PR URL from the result
-    const prUrl = result.pullRequest?.html_url || result.pullRequest?.url || result.pr?.url;
-    const prNumber = result.pullRequest?.number || result.pr?.number;
+    const resultAny = result as any;
+    const prUrl = resultAny.pullRequest?.html_url || resultAny.pullRequest?.url || resultAny.pr?.url || resultAny.prUrl;
+    const prNumber = resultAny.pullRequest?.number || resultAny.pr?.number;
     
     return { 
       success: true,
@@ -1315,7 +1355,8 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
 // CDP Runtime Signals IPC handlers
 safeIpcHandle('inject-cdp', async () => {
   try {
-    if (!browserView) {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
       return { success: false, error: 'No browser view available' };
     }
 
@@ -1327,7 +1368,7 @@ safeIpcHandle('inject-cdp', async () => {
     );
 
     // Execute the CDP script
-    await browserView.webContents.executeJavaScript(cdpScript);
+    await currentView.webContents.executeJavaScript(cdpScript);
 
     return { success: true };
   } catch (error) {
@@ -1340,7 +1381,8 @@ safeIpcHandle('inject-cdp', async () => {
 
 safeIpcHandle('collect-runtime-signals', async (event, options = {}) => {
   try {
-    if (!browserView) {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
       return { success: false, error: 'No browser view available' };
     }
 
@@ -1351,7 +1393,7 @@ safeIpcHandle('collect-runtime-signals', async (event, options = {}) => {
       'utf8'
     );
 
-    await browserView.webContents.executeJavaScript(cdpScript);
+    await currentView.webContents.executeJavaScript(cdpScript);
     
     // Collect runtime signals
     const script = `
@@ -1371,7 +1413,7 @@ safeIpcHandle('collect-runtime-signals', async (event, options = {}) => {
       })()
     `;
     
-    const result = await browserView.webContents.executeJavaScript(script);
+    const result = await currentView.webContents.executeJavaScript(script);
     return { success: true, data: result };
   } catch (error) {
     return { 
@@ -1384,7 +1426,8 @@ safeIpcHandle('collect-runtime-signals', async (event, options = {}) => {
 // Overlay IPC handlers
 safeIpcHandle('inject-overlay', async (event, options = {}) => {
   try {
-    if (!browserView) {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
       return { success: false, error: 'No browser view available' };
     }
 
@@ -1396,7 +1439,7 @@ safeIpcHandle('inject-overlay', async (event, options = {}) => {
     );
 
     // Execute the script and initialize in one go
-    await browserView.webContents.executeJavaScript(overlayScript);
+    await currentView.webContents.executeJavaScript(overlayScript);
     
     // Initialize the overlay with options (electronAPI is now available via preload)
     const initScript = `
@@ -1404,7 +1447,7 @@ safeIpcHandle('inject-overlay', async (event, options = {}) => {
         window.TweaqOverlay.inject(${JSON.stringify(options)});
       }
     `;
-    await browserView.webContents.executeJavaScript(initScript);
+    await currentView.webContents.executeJavaScript(initScript);
 
     return { success: true };
   } catch (error) {
@@ -1417,7 +1460,8 @@ safeIpcHandle('inject-overlay', async (event, options = {}) => {
 
 safeIpcHandle('remove-overlay', async () => {
   try {
-    if (!browserView) {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
       return { success: false, error: 'No browser view available' };
     }
 
@@ -1426,7 +1470,7 @@ safeIpcHandle('remove-overlay', async () => {
         window.TweaqOverlay.remove();
       }
     `;
-    await browserView.webContents.executeJavaScript(script);
+    await currentView.webContents.executeJavaScript(script);
 
     return { success: true };
   } catch (error) {
@@ -1439,7 +1483,8 @@ safeIpcHandle('remove-overlay', async () => {
 
 safeIpcHandle('toggle-overlay', async (event, options = {}) => {
   try {
-    if (!browserView) {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
       return { success: false, error: 'No browser view available' };
     }
 
@@ -1450,7 +1495,7 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
       'utf8'
     );
 
-    await browserView.webContents.executeJavaScript(overlayScript);
+    await currentView.webContents.executeJavaScript(overlayScript);
     
     // Then toggle with options (electronAPI is now available via preload)
     const toggleScript = `
@@ -1458,7 +1503,7 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
         window.TweaqOverlay.toggle(${JSON.stringify(options)});
       }
     `;
-    await browserView.webContents.executeJavaScript(toggleScript);
+    await currentView.webContents.executeJavaScript(toggleScript);
 
     return { success: true };
   } catch (error) {
@@ -3379,9 +3424,9 @@ async function processVisualRequestWithAgentV4(request: any) {
       }
       
     } else {
-      // Fallback to Agent V3 for low-confidence scenarios
-      console.log('🔄 Agent V4 not recommended, falling back to Agent V3...');
-      return await processVisualRequestWithAgentV3(request);
+      // Fallback to Agent V4 for low-confidence scenarios
+      console.log('🔄 Agent V4 not recommended, falling back to Agent V4...');
+      return await processVisualRequestWithAgentV4(request);
     }
 
     // If Agent V4 succeeded, create PR with the changes
@@ -3757,44 +3802,9 @@ async function getFileUpdatesWithVisualAgent(codeIntents: CodeIntent[], config: 
     }
   }
   
-  // Fallback to Agent V3 processing
-  console.log('🔄 Using Agent V3 for processing...');
-  
-  // Initialize Agent V3 if needed
-  if (!visualCodingAgent) {
-    const initResult = await initializeRealVisualAgent({
-      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-      cacheAnalysis: true
-    });
-    
-    if (!initResult.success) {
-      throw new Error(`Failed to initialize Agent V3: ${(initResult as any).error || 'Unknown error'}`);
-    }
-  }
-  
-  agentResponse = await visualCodingAgent.processRequest({
-    description: `Apply visual changes: ${description}`,
-    element: selectedElement,
-    context: designContext,
-    framework: 'react'
-  });
-  
-  console.log('🎨 Visual Coding Agent response:', {
-    changes: agentResponse.changes?.length || 0,
-    confidence: agentResponse.confidence,
-    explanation: agentResponse.explanation
-  });
-  
-  // Convert to file updates format (fix GitHub API path issue)
-  const fileUpdates = (agentResponse.changes || []).map((change: any) => ({
-    path: change.filePath.startsWith('/') ? change.filePath.substring(1) : change.filePath,
-    oldContent: change.oldContent,
-    newContent: change.newContent,
-    reasoning: change.reasoning,
-    changeType: change.changeType
-  }));
-  
-  return fileUpdates;
+  // Agent V3 fallback removed - now only using Agent V4/V5
+  console.log('⚠️ Agent V4 processing failed, no fallback available');
+  throw new Error('Agent V4 processing failed and Agent V3 is no longer available');
 }
 
 // Helper function to create pull request

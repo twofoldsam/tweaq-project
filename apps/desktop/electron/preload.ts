@@ -4,6 +4,19 @@ import { NodeSnapshot, SourceMapInfo, RuntimeSignals } from './cdp-helper';
 // Export CDP types for use in other modules
 export { NodeSnapshot, SourceMapInfo, RuntimeSignals };
 
+// Browser Engine types
+export type BrowserEngine = 'chromium' | 'edge' | 'firefox' | 'webkit';
+
+export interface BrowserEngineConfig {
+  engine: BrowserEngine;
+  displayName: string;
+  emoji: string;
+  supportsEditing: boolean;
+  supportsCDP: boolean;
+  canInjectScripts: boolean;
+  userAgent: string;
+}
+
 export interface GitHubConfig {
   owner: string;
   repo: string;
@@ -81,6 +94,13 @@ export interface ElectronAPI {
   
   // Conversational Intelligence API
   analyzeConversationMessage: (data: { message: string; conversationState?: any }) => Promise<{ success: boolean; analysis?: any; error?: string }>;
+  
+  // Browser Engine Switching API
+  browserGetCurrentEngine: () => Promise<{ engine: BrowserEngine }>;
+  browserGetAvailableEngines: () => Promise<{ engines: BrowserEngineConfig[] }>;
+  browserSwitchEngine: (engine: BrowserEngine) => Promise<{ success: boolean; error?: string }>;
+  browserGetEngineConfig: (engine: BrowserEngine) => Promise<BrowserEngineConfig | null>;
+  onBrowserEngineChanged: (callback: (data: { engine: BrowserEngine; config: BrowserEngineConfig }) => void) => () => void;
 }
 
 export interface VisualEdit {
@@ -235,7 +255,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   processCombinedEdits: (request: any) => ipcRenderer.invoke('process-combined-edits', request),
   
   // Conversational Intelligence API implementations
-  analyzeConversationMessage: (data: { message: string; conversationState?: any }) => ipcRenderer.invoke('analyze-conversation-message', data)
+  analyzeConversationMessage: (data: { message: string; conversationState?: any }) => ipcRenderer.invoke('analyze-conversation-message', data),
+  
+  // Browser Engine Switching API implementations
+  browserGetCurrentEngine: () => ipcRenderer.invoke('browser-get-current-engine'),
+  browserGetAvailableEngines: () => ipcRenderer.invoke('browser-get-available-engines'),
+  browserSwitchEngine: (engine: BrowserEngine) => ipcRenderer.invoke('browser-switch-engine', engine),
+  browserGetEngineConfig: (engine: BrowserEngine) => ipcRenderer.invoke('browser-get-engine-config', engine),
+  onBrowserEngineChanged: (callback: (data: { engine: BrowserEngine; config: BrowserEngineConfig }) => void) => {
+    const listener = (_event: any, data: { engine: BrowserEngine; config: BrowserEngineConfig }) => callback(data);
+    ipcRenderer.on('browser-engine-changed', listener);
+    
+    // Return cleanup function
+    return () => {
+      ipcRenderer.removeListener('browser-engine-changed', listener);
+    };
+  }
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI
