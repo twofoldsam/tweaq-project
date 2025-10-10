@@ -4,6 +4,7 @@ import { GitHubSettings } from './components/GitHubSettings';
 import CDPTest from './components/CDPTest';
 import { LLMSettings } from './components/LLMSettings';
 import VisualCodingAgent from './components/VisualCodingAgent';
+import { BrowserSelector } from './components/BrowserSelector';
 
 interface PageState {
   url: string;
@@ -219,16 +220,19 @@ function App() {
         </div>
 
         {!showSettings && (
-          <form className="url-bar" onSubmit={handleNavigate}>
-            <input
-              type="text"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="Enter URL..."
-              className="url-input"
-            />
-            <button type="submit" className="go-button">Go</button>
-          </form>
+          <>
+            <BrowserSelector />
+            <form className="url-bar" onSubmit={handleNavigate}>
+              <input
+                type="text"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="Enter URL..."
+                className="url-input"
+              />
+              <button type="submit" className="go-button">Go</button>
+            </form>
+          </>
         )}
 
         {showSettings && (
