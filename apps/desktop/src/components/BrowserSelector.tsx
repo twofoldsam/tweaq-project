@@ -80,13 +80,49 @@ export function BrowserSelector({ disabled = false }: BrowserSelectorProps) {
     }
   };
 
+  const handleLaunchTrueBrowser = async () => {
+    if (!currentConfig || !currentConfig.supportsTrueBrowser) return;
+
+    const engine = currentEngine as 'firefox' | 'webkit';
+    const currentUrl = window.location.href; // Get current page URL
+
+    try {
+      const result = await window.electronAPI.playwrightLaunchTrueBrowser({
+        engine,
+        url: currentUrl
+      });
+
+      if (result.success) {
+        alert(`✅ Launched true ${currentConfig.displayName} browser in separate window!`);
+      } else {
+        alert(`❌ Failed to launch: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error launching true browser:', error);
+      alert(`❌ Error: ${error}`);
+    }
+  };
+
   const getCapabilityBadge = () => {
     if (!currentConfig) return null;
 
     if (currentConfig.supportsEditing && currentConfig.supportsCDP) {
       return <span className="capability-badge full-editing" title="Full editing support with CDP">✅ Full Editing</span>;
-    } else if (currentConfig.supportsEditing) {
+    } else if (currentConfig.supportsEditing && !currentConfig.supportsTrueBrowser) {
       return <span className="capability-badge limited-editing" title="Script injection editing (Chromium rendering)">⚠️ Emulated</span>;
+    } else if (currentConfig.supportsTrueBrowser) {
+      return (
+        <>
+          <span className="capability-badge limited-editing" title="Emulated in Chromium">⚠️ Emulated</span>
+          <button 
+            className="true-browser-button"
+            onClick={handleLaunchTrueBrowser}
+            title={`Launch true ${currentConfig.displayName} browser`}
+          >
+            🚀 Launch True Browser
+          </button>
+        </>
+      );
     } else {
       return <span className="capability-badge read-only" title="View only mode">👁️ View Only</span>;
     }

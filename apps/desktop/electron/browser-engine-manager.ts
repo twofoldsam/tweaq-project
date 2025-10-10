@@ -17,6 +17,7 @@ export interface BrowserEngineConfig {
   supportsCDP: boolean;
   canInjectScripts: boolean;
   userAgent: string;
+  supportsTrueBrowser: boolean; // Can launch as true browser via Playwright
 }
 
 /**
@@ -30,6 +31,7 @@ export const BROWSER_CONFIGS: Record<BrowserEngine, BrowserEngineConfig> = {
     supportsEditing: true,
     supportsCDP: true,
     canInjectScripts: true,
+    supportsTrueBrowser: false,
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   },
   edge: {
@@ -39,6 +41,7 @@ export const BROWSER_CONFIGS: Record<BrowserEngine, BrowserEngineConfig> = {
     supportsEditing: true,
     supportsCDP: true,
     canInjectScripts: true,
+    supportsTrueBrowser: false,
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0'
   },
   firefox: {
@@ -48,6 +51,7 @@ export const BROWSER_CONFIGS: Record<BrowserEngine, BrowserEngineConfig> = {
     supportsEditing: true, // Via script injection, but note it's emulated
     supportsCDP: false, // CDP is Chrome-specific, but we can still inject scripts
     canInjectScripts: true,
+    supportsTrueBrowser: true, // Can launch true Firefox via Playwright
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0'
   },
   webkit: {
@@ -57,6 +61,7 @@ export const BROWSER_CONFIGS: Record<BrowserEngine, BrowserEngineConfig> = {
     supportsEditing: true, // Via script injection, but note it's emulated
     supportsCDP: false, // CDP is Chrome-specific, but we can still inject scripts
     canInjectScripts: true,
+    supportsTrueBrowser: true, // Can launch true Safari via Playwright
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15'
   }
 };

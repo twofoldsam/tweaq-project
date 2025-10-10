@@ -1,6 +1,7 @@
 import { app, BrowserWindow, BrowserView, ipcMain, shell } from 'electron';
 import path from 'path';
 import { BrowserEngineManager, type BrowserEngine, BROWSER_CONFIGS } from './browser-engine-manager';
+import { PlaywrightBrowserManager, type PlaywrightEngine } from './playwright-browser-manager';
 
 // Guard against undefined electron during module loading
 if (typeof ipcMain === 'undefined') {
@@ -462,6 +463,7 @@ const isDev = process.env.NODE_ENV === 'development' || (app && !app.isPackaged)
 let mainWindow: BrowserWindow | null = null;
 let browserView: BrowserView | null = null; // Legacy reference for compatibility
 let browserEngineManager: BrowserEngineManager | null = null;
+let playwrightBrowserManager: PlaywrightBrowserManager | null = null;
 let rightPaneView: BrowserView | null = null;
 
 // PR watcher state
@@ -508,6 +510,10 @@ function createWindow(): void {
   browserEngineManager.setEventSetupCallback((view: BrowserView) => {
     setupBrowserViewEvents(view);
   });
+
+  // Initialize Playwright Browser Manager
+  playwrightBrowserManager = new PlaywrightBrowserManager();
+  playwrightBrowserManager.setMainWindow(mainWindow);
 
   // Initialize with default browser (chromium) and set legacy reference
   browserView = browserEngineManager.initialize();
@@ -695,6 +701,60 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
 safeIpcHandle('browser-get-engine-config', (event, engine: BrowserEngine) => {
   if (!browserEngineManager) return null;
   return browserEngineManager.getEngineConfig(engine);
+});
+
+// Playwright True Browser IPC handlers
+safeIpcHandle('playwright-launch-true-browser', async (event, data: { engine: PlaywrightEngine; url?: string }) => {
+  if (!playwrightBrowserManager) {
+    return { success: false, error: 'Playwright manager not available' };
+  }
+
+  try {
+    const { engine, url } = data;
+    
+    // Get or create browser instance
+    await playwrightBrowserManager.getBrowserInstance(engine);
+    
+    // Navigate if URL provided
+    if (url) {
+      await playwrightBrowserManager.navigate(engine, url);
+    }
+
+    console.log(`✅ Launched true ${engine} browser`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error launching true browser:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to launch browser'
+    };
+  }
+});
+
+safeIpcHandle('playwright-navigate', async (event, data: { engine: PlaywrightEngine; url: string }) => {
+  if (!playwrightBrowserManager) {
+    return { success: false, error: 'Playwright manager not available' };
+  }
+
+  const { engine, url } = data;
+  return await playwrightBrowserManager.navigate(engine, url);
+});
+
+safeIpcHandle('playwright-close-browser', async (event, engine: PlaywrightEngine) => {
+  if (!playwrightBrowserManager) {
+    return { success: false, error: 'Playwright manager not available' };
+  }
+
+  try {
+    await playwrightBrowserManager.closeBrowser(engine);
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to close browser'
+    };
+  }
 });
 
 // GitHub IPC handlers

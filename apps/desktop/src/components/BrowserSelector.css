@@ -84,6 +84,29 @@
   }
 }
 
+.true-browser-button {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  margin-left: 6px;
+}
+
+.true-browser-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.true-browser-button:active {
+  transform: translateY(0);
+}
+
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .browser-selector {

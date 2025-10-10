@@ -101,6 +101,11 @@ export interface ElectronAPI {
   browserSwitchEngine: (engine: BrowserEngine) => Promise<{ success: boolean; error?: string }>;
   browserGetEngineConfig: (engine: BrowserEngine) => Promise<BrowserEngineConfig | null>;
   onBrowserEngineChanged: (callback: (data: { engine: BrowserEngine; config: BrowserEngineConfig }) => void) => () => void;
+  
+  // Playwright True Browser API
+  playwrightLaunchTrueBrowser: (data: { engine: 'firefox' | 'webkit'; url?: string }) => Promise<{ success: boolean; error?: string }>;
+  playwrightNavigate: (data: { engine: 'firefox' | 'webkit'; url: string }) => Promise<{ success: boolean; error?: string }>;
+  playwrightCloseBrowser: (engine: 'firefox' | 'webkit') => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface VisualEdit {
@@ -270,7 +275,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => {
       ipcRenderer.removeListener('browser-engine-changed', listener);
     };
-  }
+  },
+  
+  // Playwright True Browser API implementations
+  playwrightLaunchTrueBrowser: (data: { engine: 'firefox' | 'webkit'; url?: string }) => ipcRenderer.invoke('playwright-launch-true-browser', data),
+  playwrightNavigate: (data: { engine: 'firefox' | 'webkit'; url: string }) => ipcRenderer.invoke('playwright-navigate', data),
+  playwrightCloseBrowser: (engine: 'firefox' | 'webkit') => ipcRenderer.invoke('playwright-close-browser', engine)
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI

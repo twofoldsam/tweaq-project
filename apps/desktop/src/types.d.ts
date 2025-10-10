@@ -8,6 +8,7 @@ interface BrowserEngineConfig {
   supportsCDP: boolean;
   canInjectScripts: boolean;
   userAgent: string;
+  supportsTrueBrowser: boolean;
 }
 
 interface GitHubConfig {
@@ -108,6 +109,11 @@ interface ElectronAPI {
   browserSwitchEngine: (engine: BrowserEngine) => Promise<{ success: boolean; error?: string }>;
   browserGetEngineConfig: (engine: BrowserEngine) => Promise<BrowserEngineConfig | null>;
   onBrowserEngineChanged: (callback: (data: { engine: BrowserEngine; config: BrowserEngineConfig }) => void) => () => void;
+  
+  // Playwright True Browser API
+  playwrightLaunchTrueBrowser: (data: { engine: 'firefox' | 'webkit'; url?: string }) => Promise<{ success: boolean; error?: string }>;
+  playwrightNavigate: (data: { engine: 'firefox' | 'webkit'; url: string }) => Promise<{ success: boolean; error?: string }>;
+  playwrightCloseBrowser: (engine: 'firefox' | 'webkit') => Promise<{ success: boolean; error?: string }>;
 }
 
 declare global {
