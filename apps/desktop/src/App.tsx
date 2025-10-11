@@ -5,17 +5,6 @@ import CDPTest from './components/CDPTest';
 import { LLMSettings } from './components/LLMSettings';
 import VisualCodingAgent from './components/VisualCodingAgent';
 import { BrowserSelector } from './components/BrowserSelector';
-import { Button } from './components/ui/button';
-import { MessageSquare, Settings } from 'lucide-react';
-
-// Re-export GitHubUser from global types
-type GitHubUser = {
-  login: string;
-  id: number;
-  avatar_url: string;
-  name?: string;
-  email?: string;
-};
 
 interface PageState {
   url: string;
@@ -36,7 +25,6 @@ function App() {
   const [urlInput, setUrlInput] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [showQAPanel, setShowQAPanel] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<'github' | 'cdp' | 'llm' | 'visual-agent'>('visual-agent');
   const [githubAuthState, setGithubAuthState] = useState<{
@@ -123,13 +111,11 @@ function App() {
       if (loading) {
         loadStartTime.current = Date.now();
       }
-      setPageState(prev => {
-        const newState: PageState = { ...prev, loading };
-        if (loading) {
-          delete newState.error;
-        }
-        return newState;
-      });
+      setPageState(prev => ({ 
+        ...prev, 
+        loading,
+        error: loading ? undefined : prev.error // Clear error when starting new load
+      }));
     });
 
     const cleanupLoaded = window.electronAPI.onPageLoaded((data) => {
@@ -140,7 +126,8 @@ function App() {
         url: data.url,
         title: data.title,
         loading: data.loading,
-        loadTime
+        loadTime,
+        error: undefined
       }));
       
       setUrlInput(data.url);
@@ -177,13 +164,11 @@ function App() {
 
     const result = await window.electronAPI.navigate(urlInput.trim());
     if (!result.success && result.error) {
-      setPageState(prev => {
-        const newState = { ...prev, loading: false };
-        if (result.error) {
-          newState.error = result.error;
-        }
-        return newState;
-      });
+      setPageState(prev => ({ 
+        ...prev, 
+        error: result.error,
+        loading: false 
+      }));
     }
   };
 
@@ -211,7 +196,7 @@ function App() {
           <button 
             className="nav-button" 
             onClick={handleBack}
-            disabled={!canGoBack || showSettings || showQAPanel}
+            disabled={!canGoBack || showSettings}
             title="Go back"
           >
             ←
@@ -219,7 +204,7 @@ function App() {
           <button 
             className="nav-button" 
             onClick={handleForward}
-            disabled={!canGoForward || showSettings || showQAPanel}
+            disabled={!canGoForward || showSettings}
             title="Go forward"
           >
             →
@@ -227,7 +212,7 @@ function App() {
           <button 
             className="nav-button" 
             onClick={handleReload}
-            disabled={showSettings || showQAPanel}
+            disabled={showSettings}
             title="Reload"
           >
             ↻
@@ -254,6 +239,12 @@ function App() {
           <div className="settings-title">
             <div className="settings-tabs">
               <button 
+                className={`tab-button ${activeTab === 'visual-agent' ? 'active' : ''} primary-tab`}
+                onClick={() => setActiveTab('visual-agent')}
+              >
+                🎨 Visual Agent
+              </button>
+              <button 
                 className={`tab-button ${activeTab === 'github' ? 'active' : ''}`}
                 onClick={() => setActiveTab('github')}
               >
@@ -276,7 +267,31 @@ function App() {
         )}
 
         <div className="status-area">
-          {!showSettings && !showQAPanel && (
+          {!showSettings && (
+            <button 
+              className="overlay-button"
+              onClick={async () => {
+                await window.electronAPI.toggleOverlay({ initialMode: 'measure' });
+              }}
+              title="Toggle Design Overlay (Ctrl+Shift+I)"
+            >
+              📐
+            </button>
+          )}
+          
+          <button 
+            className={`settings-button ${showSettings ? 'active' : ''}`}
+            onClick={async () => {
+              const newShowSettings = !showSettings;
+              setShowSettings(newShowSettings);
+              await window.electronAPI.toggleSettings(newShowSettings);
+            }}
+            title="Visual Coding Agent & Settings"
+          >
+            ⚙️
+          </button>
+
+          {!showSettings && (
             <>
               {pageState.favicon && (
                 <img 
@@ -314,52 +329,6 @@ function App() {
               )}
             </>
           )}
-          
-          {!showSettings && (
-            <>
-              <button 
-                className="overlay-button"
-                onClick={async () => {
-                  await window.electronAPI.toggleOverlay({ initialMode: 'measure' });
-                }}
-                title="Toggle Design Overlay (Ctrl+Shift+I)"
-              >
-                📐
-              </button>
-              
-              <Button
-                variant="subtle"
-                size="sm"
-                className={`qa-button ${showQAPanel ? 'active' : ''}`}
-                onClick={async () => {
-                  const newShowQAPanel = !showQAPanel;
-                  setShowQAPanel(newShowQAPanel);
-                  await window.electronAPI.toggleSettings(newShowQAPanel);
-                }}
-                title="Open QA Agent"
-              >
-                <MessageSquare className="h-4 w-4 mr-1" />
-                QA
-              </Button>
-            </>
-          )}
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`settings-icon-button ${showSettings ? 'active' : ''}`}
-            onClick={async () => {
-              const newShowSettings = !showSettings;
-              setShowSettings(newShowSettings);
-              if (newShowSettings) {
-                setShowQAPanel(false);
-              }
-              await window.electronAPI.toggleSettings(newShowSettings);
-            }}
-            title="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
         </div>
       </header>
       
@@ -372,9 +341,9 @@ function App() {
         )}
         {showSettings && activeTab === 'cdp' && <CDPTest />}
         {showSettings && activeTab === 'llm' && <LLMSettings />}
-        {showQAPanel && (
+        {showSettings && activeTab === 'visual-agent' && (
           <VisualCodingAgent 
-            onClose={() => setShowQAPanel(false)}
+            onClose={() => setShowSettings(false)}
           />
         )}
       </main>

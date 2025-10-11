@@ -979,6 +979,26 @@
         50% { opacity: 1; }
       }
 
+      @keyframes slideInDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulse-target {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.2);
+        }
+      }
+
       /* Confirmation UI */
       .tweaq-chat-confirmation {
         display: flex;
@@ -1232,7 +1252,8 @@
         this.updateOutline(null);
       }
       
-      this.renderPanel();
+      // Always render chat view when toggling - properties view only shows after selecting an element
+      this.renderChatView();
     }
 
     showPanel() {
@@ -1311,13 +1332,24 @@
       this.propertiesPanel.innerHTML = `
         <div class="tweaq-panel-header" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <button class="tweaq-mode-toggle-btn" title="Click to select elements">
+            <button class="tweaq-mode-toggle-btn ${this.mode === 'select' ? 'active' : ''}" title="${this.mode === 'select' ? 'Click to cancel selection mode' : 'Click to select elements'}">
               ${selectIcon}
             </button>
             <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #fff;">Chat</h3>
           </div>
         </div>
         <div class="tweaq-panel-content" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1;">
+          ${this.mode === 'select' ? `
+            <div class="tweaq-select-mode-indicator" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 12px; animation: slideInDown 0.3s ease-out;">
+              <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <span style="font-size: 24px; animation: pulse-target 1.5s ease-in-out infinite;">🎯</span>
+                <div style="flex: 1;">
+                  <strong style="display: block; color: #92400e; font-size: 15px; margin-bottom: 4px;">Select Mode Active</strong>
+                  <p style="margin: 0; color: #78350f; font-size: 13px; line-height: 1.5;">Click on any element in the webpage to select it. Press ESC to cancel.</p>
+                </div>
+              </div>
+            </div>
+          ` : ''}
           <div class="tweaq-chat-messages-container" style="flex: 1; display: flex; flex-direction: column; gap: 12px; min-height: 200px; overflow-y: auto;">
             ${messagesHTML}
             ${this.awaitingResponse ? '<div class="tweaq-chat-loading">🤔 Thinking...</div>' : ''}

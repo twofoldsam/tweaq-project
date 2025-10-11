@@ -267,7 +267,7 @@ export function VisualCodingAgent({ onClose }: VisualCodingAgentProps) {
               onClick={startElementSelection}
               disabled={isSelecting || isProcessing}
             >
-              {isSelecting ? 'Selecting... (ESC to cancel)' : 'Select Element'}
+              {isSelecting ? '🎯 Selecting... (ESC to cancel)' : '🖱️ Select Element'}
             </button>
             {selectedElement && (
               <button 
@@ -279,6 +279,19 @@ export function VisualCodingAgent({ onClose }: VisualCodingAgentProps) {
               </button>
             )}
           </div>
+          
+          {/* Select Mode Indicator */}
+          {isSelecting && !selectedElement && (
+            <div className="select-mode-indicator">
+              <div className="indicator-content">
+                <span className="indicator-icon">🎯</span>
+                <div className="indicator-text">
+                  <strong>Select Mode Active</strong>
+                  <p>Click on any element in the webpage to select it. Press ESC to cancel.</p>
+                </div>
+              </div>
+            </div>
+          )}
           
           {selectedElement && (
             <div className="selected-element-info">

@@ -352,49 +352,6 @@ body {
   -webkit-backdrop-filter: blur(10px);
 }
 
-/* QA Button - Subtle and clean like Dia Browser */
-.qa-button {
-  height: 32px !important;
-  padding: 0 12px !important;
-  border-radius: 8px !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  background: transparent !important;
-  color: #666 !important;
-  border: none !important;
-  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-}
-
-.qa-button:hover {
-  background: rgba(0, 0, 0, 0.05) !important;
-  color: #1d1d1f !important;
-}
-
-.qa-button.active {
-  background: rgba(0, 122, 255, 0.1) !important;
-  color: #007AFF !important;
-}
-
-/* Settings Icon Button - Clean and minimal */
-.settings-icon-button {
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 8px !important;
-  background: transparent !important;
-  color: #666 !important;
-  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-}
-
-.settings-icon-button:hover {
-  background: rgba(0, 0, 0, 0.05) !important;
-  color: #1d1d1f !important;
-}
-
-.settings-icon-button.active {
-  background: rgba(0, 122, 255, 0.1) !important;
-  color: #007AFF !important;
-}
-
 .overlay-button:hover,
 .settings-button:hover {
   background: rgba(255, 255, 255, 0.95);
@@ -489,35 +446,5 @@ body {
     background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
     box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-
-  /* Dark mode for QA button */
-  .qa-button {
-    color: #aaa !important;
-  }
-
-  .qa-button:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    color: #fff !important;
-  }
-
-  .qa-button.active {
-    background: rgba(10, 132, 255, 0.2) !important;
-    color: #0A84FF !important;
-  }
-
-  /* Dark mode for Settings Icon Button */
-  .settings-icon-button {
-    color: #aaa !important;
-  }
-
-  .settings-icon-button:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    color: #fff !important;
-  }
-
-  .settings-icon-button.active {
-    background: rgba(10, 132, 255, 0.2) !important;
-    color: #0A84FF !important;
   }
 }
