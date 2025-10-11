@@ -51,7 +51,7 @@
         transition: margin-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       }
 
-      /* Element outline */
+      /* Element outline (hover state) */
       .tweaq-element-outline {
         position: absolute;
         pointer-events: none;
@@ -60,6 +60,53 @@
         z-index: 999999;
         transition: all 0.1s ease;
         box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.3);
+      }
+
+      /* Selected element indicator */
+      .tweaq-selected-indicator {
+        position: absolute;
+        pointer-events: none;
+        border: 2px solid #0A84FF;
+        z-index: 999999;
+        transition: all 0.2s ease;
+      }
+
+      /* Corner handles for selected element */
+      .tweaq-selected-indicator::before,
+      .tweaq-selected-indicator::after {
+        content: '';
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #0A84FF;
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Top-left corner handle */
+      .tweaq-selected-indicator::before {
+        top: -5px;
+        left: -5px;
+      }
+
+      /* Bottom-right corner handle */
+      .tweaq-selected-indicator::after {
+        bottom: -5px;
+        right: -5px;
+      }
+
+      /* Top-right and bottom-left handles */
+      .tweaq-corner-handle {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #0A84FF;
+        border: 2px solid white;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 1000000;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
       }
 
       /* Main overlay container */
@@ -1210,6 +1257,8 @@
       
       this.overlayContainer = null;
       this.outlineElement = null;
+      this.selectedIndicator = null;
+      this.selectedCornerHandles = [];
       this.propertiesPanel = null;
       
       // Mode: 'chat' (default) or 'select'
@@ -1244,11 +1293,26 @@
     }
 
     createOverlayElements() {
-      // Create outline element
+      // Create outline element (for hover)
       this.outlineElement = document.createElement('div');
       this.outlineElement.className = 'tweaq-element-outline';
       this.outlineElement.style.display = 'none';
       document.body.appendChild(this.outlineElement);
+
+      // Create selected element indicator
+      this.selectedIndicator = document.createElement('div');
+      this.selectedIndicator.className = 'tweaq-selected-indicator';
+      this.selectedIndicator.style.display = 'none';
+      document.body.appendChild(this.selectedIndicator);
+
+      // Create corner handles for selected element
+      for (let i = 0; i < 2; i++) {
+        const handle = document.createElement('div');
+        handle.className = 'tweaq-corner-handle';
+        handle.style.display = 'none';
+        document.body.appendChild(handle);
+        this.selectedCornerHandles.push(handle);
+      }
 
       // Create overlay container
       this.overlayContainer = document.createElement('div');
@@ -1323,6 +1387,7 @@
         // Clear selection when going back to chat
         this.selectedElement = null;
         this.updateOutline(null);
+        this.hideSelectedIndicator();
         this.hideSelectModeIndicators();
       } else {
         // Entering select mode
@@ -2518,7 +2583,10 @@
       e.stopPropagation();
       
       this.selectedElement = e.target;
-      this.updateOutline(this.selectedElement);
+      
+      // Hide hover outline and show selected indicator
+      this.updateOutline(null);
+      this.updateSelectedIndicator(this.selectedElement);
       
       // Always start at properties tab when selecting a new element
       this.currentTab = 'properties';
@@ -2536,6 +2604,7 @@
           this.mode = 'chat';
           this.selectedElement = null;
           this.updateOutline(null);
+          this.hideSelectedIndicator();
           this.hideSelectModeIndicators();
           this.renderPanel();
         } else if (this.mode === 'select') {
@@ -2565,6 +2634,44 @@
       this.outlineElement.style.height = `${rect.height}px`;
     }
 
+    updateSelectedIndicator(element) {
+      if (!element) {
+        this.hideSelectedIndicator();
+        return;
+      }
+
+      const rect = element.getBoundingClientRect();
+      
+      // Update main indicator
+      this.selectedIndicator.style.display = 'block';
+      this.selectedIndicator.style.left = `${rect.left + window.scrollX}px`;
+      this.selectedIndicator.style.top = `${rect.top + window.scrollY}px`;
+      this.selectedIndicator.style.width = `${rect.width}px`;
+      this.selectedIndicator.style.height = `${rect.height}px`;
+
+      // Update corner handles (top-right and bottom-left)
+      if (this.selectedCornerHandles.length >= 2) {
+        // Top-right handle
+        this.selectedCornerHandles[0].style.display = 'block';
+        this.selectedCornerHandles[0].style.left = `${rect.left + window.scrollX + rect.width - 5}px`;
+        this.selectedCornerHandles[0].style.top = `${rect.top + window.scrollY - 5}px`;
+        
+        // Bottom-left handle
+        this.selectedCornerHandles[1].style.display = 'block';
+        this.selectedCornerHandles[1].style.left = `${rect.left + window.scrollX - 5}px`;
+        this.selectedCornerHandles[1].style.top = `${rect.top + window.scrollY + rect.height - 5}px`;
+      }
+    }
+
+    hideSelectedIndicator() {
+      if (this.selectedIndicator) {
+        this.selectedIndicator.style.display = 'none';
+      }
+      this.selectedCornerHandles.forEach(handle => {
+        handle.style.display = 'none';
+      });
+    }
+
     attachEventListeners() {
       document.addEventListener('mousemove', this.handleMouseMove);
       document.addEventListener('click', this.handleClick, true);
@@ -2584,13 +2691,19 @@
       this.removeEventListeners();
       this.hidePanel();
       this.hideSelectModeIndicators();
+      this.hideSelectedIndicator();
       
       // Wait for slide-out animation to complete before cleanup
       setTimeout(() => {
         if (this.overlayContainer) this.overlayContainer.remove();
         if (this.outlineElement) this.outlineElement.remove();
+        if (this.selectedIndicator) this.selectedIndicator.remove();
+        this.selectedCornerHandles.forEach(handle => handle.remove());
+        
         this.overlayContainer = null;
         this.outlineElement = null;
+        this.selectedIndicator = null;
+        this.selectedCornerHandles = [];
         this.propertiesPanel = null;
         this.selectedElement = null;
         this.hoveredElement = null;
