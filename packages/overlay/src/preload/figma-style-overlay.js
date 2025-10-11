@@ -1010,6 +1010,12 @@
         z-index: 999998;
         box-shadow: inset 0 0 40px 10px rgba(102, 126, 234, 0.4);
         animation: glowPulse 2s ease-in-out infinite;
+        transition: right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      /* When panel is open, glow stops at panel edge */
+      body.tweaq-panel-open .tweaq-select-mode-glow {
+        right: 400px;
       }
 
       @keyframes glowPulse {
@@ -1039,6 +1045,12 @@
         z-index: 1000001;
         box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
         animation: toastSlideUp 0.3s ease-out;
+        transition: left 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      /* When panel is open, toast centers in visible webpage area */
+      body.tweaq-panel-open .tweaq-select-mode-toast {
+        left: calc((100% - 400px) / 2);
       }
 
       @keyframes toastSlideUp {
