@@ -1145,6 +1145,9 @@
       // Mode: 'chat' (default) or 'select'
       this.mode = 'chat';
       
+      // Current tab in properties panel: 'properties' or 'edits'
+      this.currentTab = 'properties';
+      
       // Conversational Intelligence state
       this.conversationState = null;
       this.conversationMessages = [];
@@ -2426,6 +2429,10 @@
       
       this.selectedElement = e.target;
       this.updateOutline(this.selectedElement);
+      
+      // Always start at properties tab when selecting a new element
+      this.currentTab = 'properties';
+      
       this.renderPanel();
     }
 
