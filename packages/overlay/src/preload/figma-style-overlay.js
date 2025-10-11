@@ -999,6 +999,64 @@
         }
       }
 
+      /* Select Mode Glow Effect */
+      .tweaq-select-mode-glow {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 999998;
+        box-shadow: inset 0 0 40px 10px rgba(102, 126, 234, 0.4);
+        animation: glowPulse 2s ease-in-out infinite;
+      }
+
+      @keyframes glowPulse {
+        0%, 100% {
+          box-shadow: inset 0 0 40px 10px rgba(102, 126, 234, 0.3);
+        }
+        50% {
+          box-shadow: inset 0 0 50px 15px rgba(102, 126, 234, 0.5);
+        }
+      }
+
+      /* Select Mode Toast */
+      .tweaq-select-mode-toast {
+        position: fixed;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(28, 28, 30, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(102, 126, 234, 0.5);
+        border-radius: 24px;
+        padding: 12px 24px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        pointer-events: none;
+        z-index: 1000001;
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        animation: toastSlideUp 0.3s ease-out;
+      }
+
+      @keyframes toastSlideUp {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+
+      .tweaq-select-mode-toast::before {
+        content: '🎯';
+        margin-right: 8px;
+      }
+
       /* Confirmation UI */
       .tweaq-chat-confirmation {
         display: flex;
@@ -1253,10 +1311,41 @@
         // Clear selection when going back to chat
         this.selectedElement = null;
         this.updateOutline(null);
+        this.hideSelectModeIndicators();
+      } else {
+        // Entering select mode
+        this.showSelectModeIndicators();
       }
       
       // Always render chat view when toggling - properties view only shows after selecting an element
       this.renderChatView();
+    }
+
+    showSelectModeIndicators() {
+      // Add glow effect
+      if (!document.querySelector('.tweaq-select-mode-glow')) {
+        const glow = document.createElement('div');
+        glow.className = 'tweaq-select-mode-glow';
+        document.body.appendChild(glow);
+      }
+
+      // Add toast notification
+      if (!document.querySelector('.tweaq-select-mode-toast')) {
+        const toast = document.createElement('div');
+        toast.className = 'tweaq-select-mode-toast';
+        toast.textContent = 'Select an element';
+        document.body.appendChild(toast);
+      }
+    }
+
+    hideSelectModeIndicators() {
+      // Remove glow effect
+      const glow = document.querySelector('.tweaq-select-mode-glow');
+      if (glow) glow.remove();
+
+      // Remove toast notification
+      const toast = document.querySelector('.tweaq-select-mode-toast');
+      if (toast) toast.remove();
     }
 
     showPanel() {
@@ -1346,17 +1435,6 @@
           </div>
         </div>
         <div class="tweaq-panel-content" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1;">
-          ${this.mode === 'select' ? `
-            <div class="tweaq-select-mode-indicator" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 12px; animation: slideInDown 0.3s ease-out;">
-              <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <span style="font-size: 24px; animation: pulse-target 1.5s ease-in-out infinite;">🎯</span>
-                <div style="flex: 1;">
-                  <strong style="display: block; color: #92400e; font-size: 15px; margin-bottom: 4px;">Select Mode Active</strong>
-                  <p style="margin: 0; color: #78350f; font-size: 13px; line-height: 1.5;">Click on any element in the webpage to select it. Press ESC to cancel.</p>
-                </div>
-              </div>
-            </div>
-          ` : ''}
           <div class="tweaq-chat-messages-container" style="flex: 1; display: flex; flex-direction: column; gap: 12px; min-height: 200px; overflow-y: auto;">
             ${messagesHTML}
             ${this.awaitingResponse ? '<div class="tweaq-chat-loading">🤔 Thinking...</div>' : ''}
@@ -2433,6 +2511,9 @@
       // Always start at properties tab when selecting a new element
       this.currentTab = 'properties';
       
+      // Hide select mode indicators since we've selected an element
+      this.hideSelectModeIndicators();
+      
       this.renderPanel();
     }
 
@@ -2443,6 +2524,12 @@
           this.mode = 'chat';
           this.selectedElement = null;
           this.updateOutline(null);
+          this.hideSelectModeIndicators();
+          this.renderPanel();
+        } else if (this.mode === 'select') {
+          // In select mode but no element selected - go back to chat
+          this.mode = 'chat';
+          this.hideSelectModeIndicators();
           this.renderPanel();
         } else {
           // Second escape: hide overlay
@@ -2484,6 +2571,7 @@
       this.isHiding = true;
       this.removeEventListeners();
       this.hidePanel();
+      this.hideSelectModeIndicators();
       
       // Wait for slide-out animation to complete before cleanup
       setTimeout(() => {
