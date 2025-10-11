@@ -1273,8 +1273,12 @@
     renderPanel() {
       if (this.mode === 'chat') {
         this.renderChatView();
-      } else {
+      } else if (this.mode === 'select' && this.selectedElement) {
+        // Element selected - show properties view
         this.renderProperties();
+      } else {
+        // Select mode but no element selected yet - show chat view with indicator
+        this.renderChatView();
       }
     }
 
