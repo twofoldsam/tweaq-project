@@ -2779,7 +2779,7 @@
           <div class="tweaq-empty-state">
             <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
             <p style="color: #999; font-size: 14px; margin-bottom: 8px;">No tweaqs yet</p>
-            <p style="color: #bbb; font-size: 12px;">Use Design mode to create tweaqs</p>
+            <p style="color: #bbb; font-size: 12px;">Edit in Design, add Comments, or Chat to create tweaqs</p>
           </div>
         `;
 
