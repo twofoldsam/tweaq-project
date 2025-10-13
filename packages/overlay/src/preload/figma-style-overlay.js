@@ -2234,7 +2234,8 @@
         webkit: '<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm-.004.953h.006c.063 0 .113.05.113.113v1.842c0 .063-.05.113-.113.113h-.006a.112.112 0 0 1-.113-.113V1.066c0-.063.05-.113.113-.113zm-.941.041c.056.001.104.046.11.104l.077.918a.112.112 0 0 1-.101.12h-.01a.11.11 0 0 1-.12-.1l-.08-.919a.112.112 0 0 1 .102-.12h.01l.012-.003zm1.892 0H12.965a.113.113 0 0 1 .103.121l-.08.92a.111.111 0 0 1-.12.102h-.009a.111.111 0 0 1-.101-.121l.078-.92a.112.112 0 0 1 .111-.102z"/></svg>'
       };
       
-      this.currentBrowser = 'chromium';
+      // Get current browser from electronAPI
+      this.currentBrowser = 'chromium'; // Default
       
       this.rightToolbar.innerHTML = `
         <div class="tweaq-browser-selector">
@@ -2338,28 +2339,20 @@
           const browser = option.getAttribute('data-browser');
           
           if (browser !== this.currentBrowser) {
-            // Update UI immediately for responsiveness
-            browserOptions.forEach(opt => {
-              opt.classList.remove('active');
-              opt.querySelector('.tweaq-browser-checkmark').textContent = '';
-            });
-            option.classList.add('active');
-            option.querySelector('.tweaq-browser-checkmark').textContent = '✓';
+            console.log('🔄 Switching browser to:', browser);
             
-            // Update button icon
-            browserButton.querySelector('svg').outerHTML = this.browserIcons[browser];
-            this.currentBrowser = browser;
-            
-            // Switch browser via IPC
+            // Switch browser via IPC - the UI will update via browser-engine-changed event
             try {
               if (window.electronAPI && window.electronAPI.browserSwitchEngine) {
                 const result = await window.electronAPI.browserSwitchEngine(browser);
                 if (!result.success) {
                   console.error('Failed to switch browser:', result.error);
+                  alert(`Failed to switch browser: ${result.error}`);
                 }
               }
             } catch (error) {
               console.error('Error switching browser:', error);
+              alert(`Error switching browser: ${error}`);
             }
           }
           
@@ -2378,6 +2371,56 @@
       });
 
       document.body.appendChild(this.rightToolbar);
+
+      // Initialize with actual current browser from electronAPI
+      if (window.electronAPI && window.electronAPI.browserGetCurrentEngine) {
+        window.electronAPI.browserGetCurrentEngine().then(result => {
+          if (result && result.engine) {
+            this.updateBrowserSelector(result.engine);
+          }
+        }).catch(err => {
+          console.error('Failed to get current browser:', err);
+        });
+
+        // Listen for browser engine changes from main process
+        if (window.electronAPI.onBrowserEngineChanged) {
+          window.electronAPI.onBrowserEngineChanged((data) => {
+            console.log('🔄 Browser engine changed to:', data.engine);
+            this.updateBrowserSelector(data.engine);
+          });
+        }
+      }
+    }
+
+    updateBrowserSelector(engine) {
+      if (!this.rightToolbar || !this.browserIcons) return;
+
+      this.currentBrowser = engine;
+      
+      const browserButton = this.rightToolbar.querySelector('.tweaq-browser-button');
+      const browserOptions = this.rightToolbar.querySelectorAll('.tweaq-browser-option');
+      
+      if (browserButton && browserOptions) {
+        // Update button icon
+        const svgElement = browserButton.querySelector('svg');
+        if (svgElement) {
+          svgElement.outerHTML = this.browserIcons[engine];
+        }
+        
+        // Update active state in dropdown
+        browserOptions.forEach(opt => {
+          const browser = opt.getAttribute('data-browser');
+          if (browser === engine) {
+            opt.classList.add('active');
+            opt.querySelector('.tweaq-browser-checkmark').textContent = '✓';
+          } else {
+            opt.classList.remove('active');
+            opt.querySelector('.tweaq-browser-checkmark').textContent = '';
+          }
+        });
+        
+        console.log('✅ Updated browser selector UI to:', engine);
+      }
     }
 
     switchMode(newMode) {

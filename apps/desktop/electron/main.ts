@@ -701,31 +701,38 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
       // Event handlers are automatically set up when views are created
       // No need to call setupBrowserViewEvents here
       
-      // If overlay was visible, re-inject it in the new browser view
+      // If overlay was visible, re-inject it when the new page loads
       if (wasOverlayVisible && browserView) {
-        // Wait for the page to start loading
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        try {
-          const fs = require('fs');
-          const overlayScript = fs.readFileSync(
-            path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
-            'utf8'
-          );
+        const reinjectOverlay = async () => {
+          try {
+            const fs = require('fs');
+            const overlayScript = fs.readFileSync(
+              path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
+              'utf8'
+            );
 
-          await browserView.webContents.executeJavaScript(overlayScript);
-          
-          const initScript = `
-            if (window.TweaqOverlay) {
-              window.TweaqOverlay.inject(${JSON.stringify(overlayState.options || {})});
-            }
-          `;
-          await browserView.webContents.executeJavaScript(initScript);
-          
-          console.log('✅ Re-injected overlay after browser switch');
-        } catch (error) {
-          console.error('❌ Failed to re-inject overlay:', error);
-        }
+            await browserView!.webContents.executeJavaScript(overlayScript);
+            
+            const initScript = `
+              if (window.TweaqOverlay) {
+                window.TweaqOverlay.inject(${JSON.stringify(overlayState.options || {})});
+              }
+            `;
+            await browserView!.webContents.executeJavaScript(initScript);
+            
+            console.log('✅ Re-injected overlay after browser switch');
+          } catch (error) {
+            console.error('❌ Failed to re-inject overlay:', error);
+          }
+        };
+
+        // Listen for page load completion
+        const loadHandler = () => {
+          reinjectOverlay();
+          browserView!.webContents.removeListener('did-finish-load', loadHandler);
+        };
+        
+        browserView.webContents.once('did-finish-load', loadHandler);
       }
       
       // Send notification to renderer about browser change
