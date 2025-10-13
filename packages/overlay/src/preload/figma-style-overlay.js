@@ -543,7 +543,7 @@
         padding-top: 8px;
       }
 
-      /* Edit Tickets */
+      /* Edit Tweaqs */
       .tweaq-edits-list {
         padding: 16px 24px;
       }
@@ -658,7 +658,7 @@
         font-weight: 600;
       }
 
-      /* Ticket Status */
+      /* Tweaq Status */
       .tweaq-ticket-status {
         display: flex;
         align-items: center;
@@ -1488,7 +1488,7 @@
         border: 1px solid rgba(0, 0, 0, 0.1);
       }
 
-      /* Tickets View Styles */
+      /* Tweaqs View Styles */
       .tweaq-tickets-list {
         display: flex;
         flex-direction: column;
@@ -1496,7 +1496,7 @@
         padding: 16px;
       }
 
-      /* Ticket Card Styles */
+      /* Tweaq Card Styles */
       .tweaq-ticket-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2007,12 +2007,12 @@
         
         <div class="tweaq-toolbar-separator"></div>
         
-        <button class="tweaq-toolbar-action ${this.mode === 'tickets' ? 'active' : ''}" data-mode="tickets" title="Tickets">
+        <button class="tweaq-toolbar-action ${this.mode === 'tickets' ? 'active' : ''}" data-mode="tickets" title="Tweaqs">
           ${ticketCount > 0 ? `<span class="tweaq-toolbar-badge">${ticketCount}</span>` : ''}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
           </svg>
-          <span class="tweaq-toolbar-action-label">Tickets</span>
+          <span class="tweaq-toolbar-action-label">Tweaqs</span>
         </button>
       `;
 
@@ -2222,7 +2222,7 @@
       // Collapse the pill and update the edits panel
       this.collapseCommentPill();
       
-      // Switch to tickets mode to show the new edit
+      // Switch to tweaqs mode to show the new edit
       this.switchMode('tickets');
     }
 
@@ -2434,11 +2434,11 @@
       const confirmationHTML = this.readyTickets && this.readyTickets.length > 0 
         ? `
           <div class="tweaq-chat-confirmation">
-            <div class="tweaq-confirmation-header">Ready to create tickets?</div>
+            <div class="tweaq-confirmation-header">Ready to create tweaqs?</div>
             <div class="tweaq-confirmation-tickets">
               ${this.readyTickets.map(ticket => `
                 <div class="tweaq-confirmation-ticket">
-                  <div class="tweaq-ticket-icon">📝</div>
+                  <div class="tweaq-ticket-icon">⚡</div>
                   <div class="tweaq-ticket-info">
                     <div class="tweaq-ticket-instruction">${this.escapeHtml(ticket.instruction)}</div>
                     <div class="tweaq-ticket-meta">Target: ${ticket.target.identifier} • Confidence: ${(ticket.confidence * 100).toFixed(0)}%</div>
@@ -2448,7 +2448,7 @@
             </div>
             <div class="tweaq-confirmation-actions">
               <button class="tweaq-btn-secondary tweaq-cancel-conversation-btn">Cancel</button>
-              <button class="tweaq-btn-primary tweaq-confirm-conversation-btn">Create Tickets</button>
+              <button class="tweaq-btn-primary tweaq-confirm-conversation-btn">Create Tweaqs</button>
             </div>
           </div>
         `
@@ -2616,7 +2616,7 @@
       const { target, action } = this.conversationState.extractedInfo;
       
       if (!target || !action) {
-        console.error('Cannot create tickets: missing target or action');
+        console.error('Cannot create tweaqs: missing target or action');
         return;
       }
 
@@ -2637,13 +2637,13 @@
         };
       });
 
-      console.log('✅ Created ready tickets:', this.readyTickets);
+      console.log('✅ Created ready tweaqs:', this.readyTickets);
     }
 
     confirmConversation() {
       if (!this.readyTickets || this.readyTickets.length === 0) return;
 
-      console.log('✅ User confirmed conversation - creating structured edit tickets');
+      console.log('✅ User confirmed conversation - creating structured tweaqs');
 
       // Convert ready tickets to structured edit tickets
       this.readyTickets.forEach(ticket => {
@@ -2682,7 +2682,7 @@
       // Render panel to update
       this.renderPanel();
 
-      console.log(`📝 Created ${this.recordedEdits.length} structured edit tickets from conversation`);
+      console.log(`⚡ Created ${this.recordedEdits.length} structured tweaqs from conversation`);
     }
 
     cancelConversation() {
@@ -2777,9 +2777,9 @@
           }).join('')
         : `
           <div class="tweaq-empty-state">
-            <div style="font-size: 32px; margin-bottom: 12px;">🎫</div>
-            <p style="color: #999; font-size: 14px; margin-bottom: 8px;">No tickets yet</p>
-            <p style="color: #bbb; font-size: 12px;">Use Design mode to create tickets</p>
+            <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
+            <p style="color: #999; font-size: 14px; margin-bottom: 8px;">No tweaqs yet</p>
+            <p style="color: #bbb; font-size: 12px;">Use Design mode to create tweaqs</p>
           </div>
         `;
 
@@ -2789,7 +2789,7 @@
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
             </svg>
-            Send ${ticketCount} ${ticketCount === 1 ? 'Ticket' : 'Tickets'} to Agent
+            Send ${ticketCount} ${ticketCount === 1 ? 'Tweaq' : 'Tweaqs'} to Agent
           </button>
         `
         : '';
