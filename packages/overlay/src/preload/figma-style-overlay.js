@@ -1583,6 +1583,14 @@
         background: rgba(0, 0, 0, 0.3);
         border-radius: 5px;
         border: 1px solid rgba(255, 255, 255, 0.05);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        overflow: hidden;
+      }
+
+      .tweaq-ticket-target:hover {
+        background: rgba(0, 0, 0, 0.4);
+        border-color: rgba(255, 255, 255, 0.1);
       }
 
       .tweaq-target-label {
@@ -1591,6 +1599,7 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
         font-weight: 600;
+        flex-shrink: 0;
       }
 
       .tweaq-target-selector {
@@ -1600,6 +1609,17 @@
         background: transparent;
         padding: 0;
         border: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        min-width: 0;
+        transition: all 0.2s ease;
+      }
+
+      .tweaq-target-selector.expanded {
+        white-space: normal;
+        word-break: break-all;
       }
 
       .tweaq-ticket-details {
@@ -2792,6 +2812,15 @@
         btn.addEventListener('click', () => {
           const index = parseInt(btn.getAttribute('data-index'));
           this.deleteEdit(index);
+        });
+      });
+
+      // Attach target selector toggle listeners
+      const targetSelectors = this.propertiesPanel.querySelectorAll('.tweaq-target-selector');
+      targetSelectors.forEach(selector => {
+        selector.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selector.classList.toggle('expanded');
         });
       });
 
