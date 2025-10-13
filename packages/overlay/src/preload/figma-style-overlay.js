@@ -86,6 +86,27 @@
         transition: all 0.2s ease;
       }
 
+      /* Hover highlight from ticket card */
+      .tweaq-hover-highlight {
+        position: absolute;
+        pointer-events: none;
+        border: 3px solid #F59E0B;
+        background-color: rgba(245, 158, 11, 0.15);
+        z-index: 999997;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.5), 0 4px 16px rgba(245, 158, 11, 0.3);
+        animation: tweaq-pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes tweaq-pulse {
+        0%, 100% {
+          box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.5), 0 4px 16px rgba(245, 158, 11, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.7), 0 4px 20px rgba(245, 158, 11, 0.5);
+        }
+      }
+
       /* Corner handles for selected element */
       .tweaq-selected-indicator::before,
       .tweaq-selected-indicator::after {
@@ -1894,6 +1915,7 @@
       this.outlineElement = null;
       this.selectedIndicator = null;
       this.selectedCornerHandles = [];
+      this.hoverHighlight = null;
       this.propertiesPanel = null;
       this.commentPill = null;
       this.rightToolbar = null;
@@ -1942,6 +1964,12 @@
       this.selectedIndicator.className = 'tweaq-selected-indicator';
       this.selectedIndicator.style.display = 'none';
       document.body.appendChild(this.selectedIndicator);
+
+      // Create hover highlight for ticket card hovers
+      this.hoverHighlight = document.createElement('div');
+      this.hoverHighlight.className = 'tweaq-hover-highlight';
+      this.hoverHighlight.style.display = 'none';
+      document.body.appendChild(this.hoverHighlight);
 
       // Create corner handles for selected element
       for (let i = 0; i < 2; i++) {
@@ -2909,6 +2937,18 @@
         });
       });
 
+      // Attach hover listeners to ticket cards
+      const ticketCards = this.propertiesPanel.querySelectorAll('.tweaq-ticket-card');
+      ticketCards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          const editIndex = parseInt(card.getAttribute('data-edit-index'));
+          this.highlightEditElement(editIndex);
+        });
+        card.addEventListener('mouseleave', () => {
+          this.clearEditHighlight();
+        });
+      });
+
       // Attach confirm button listener
       const confirmBtn = this.propertiesPanel.querySelector('#tweaq-confirm-edits');
       if (confirmBtn) {
@@ -2999,7 +3039,7 @@
       const summary = this.generatePlainEnglishSummary(edit.changes, edit.elementName);
       
       return `
-        <div class="tweaq-ticket-card">
+        <div class="tweaq-ticket-card" data-edit-index="${index}">
           <div class="tweaq-ticket-card-header">
             <div class="tweaq-ticket-type-badge" style="background: ${displayType.color}20; color: ${displayType.color}; border-color: ${displayType.color}40;">
               <span class="tweaq-ticket-badge-icon">${displayType.icon}</span>
@@ -3070,7 +3110,7 @@
       const typeLabel = edit.actionType ? edit.actionType.charAt(0).toUpperCase() + edit.actionType.slice(1) : 'Change';
       
       return `
-        <div class="tweaq-ticket-card">
+        <div class="tweaq-ticket-card" data-edit-index="${index}">
           <div class="tweaq-ticket-card-header">
             <div class="tweaq-ticket-type-badge" style="background: ${color}20; color: ${color}; border-color: ${color}40;">
               <span class="tweaq-ticket-badge-icon">${icon}</span>
@@ -4357,6 +4397,62 @@
       console.log('↩️ Reverted tweaq from element');
     }
 
+    highlightEditElement(editIndex) {
+      const edit = this.recordedEdits[editIndex];
+      if (!edit) return;
+
+      // Find the element
+      const element = edit.elementReference || this.findElementFromEdit(edit);
+      if (!element || !document.body.contains(element)) {
+        console.warn('Could not find element to highlight for edit:', edit);
+        return;
+      }
+
+      // Scroll element into view if not visible
+      const rect = element.getBoundingClientRect();
+      const isInView = (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= window.innerHeight &&
+        rect.right <= window.innerWidth
+      );
+
+      if (!isInView) {
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'center'
+        });
+        
+        // Wait for scroll to complete before highlighting
+        setTimeout(() => {
+          this.showHighlight(element);
+        }, 300);
+      } else {
+        this.showHighlight(element);
+      }
+
+      console.log('🔦 Highlighting element for edit:', edit.elementName);
+    }
+
+    showHighlight(element) {
+      if (!this.hoverHighlight || !element) return;
+
+      const rect = element.getBoundingClientRect();
+      
+      this.hoverHighlight.style.display = 'block';
+      this.hoverHighlight.style.left = `${rect.left + window.scrollX}px`;
+      this.hoverHighlight.style.top = `${rect.top + window.scrollY}px`;
+      this.hoverHighlight.style.width = `${rect.width}px`;
+      this.hoverHighlight.style.height = `${rect.height}px`;
+    }
+
+    clearEditHighlight() {
+      if (this.hoverHighlight) {
+        this.hoverHighlight.style.display = 'none';
+      }
+    }
+
     attachEventListeners() {
       document.addEventListener('mousemove', this.handleMouseMove);
       document.addEventListener('click', this.handleClick, true);
@@ -4391,6 +4487,7 @@
         if (this.overlayContainer) this.overlayContainer.remove();
         if (this.outlineElement) this.outlineElement.remove();
         if (this.selectedIndicator) this.selectedIndicator.remove();
+        if (this.hoverHighlight) this.hoverHighlight.remove();
         this.selectedCornerHandles.forEach(handle => handle.remove());
         if (this.commentPill) this.commentPill.remove();
         if (this.rightToolbar) this.rightToolbar.remove();
@@ -4399,6 +4496,7 @@
         this.overlayContainer = null;
         this.outlineElement = null;
         this.selectedIndicator = null;
+        this.hoverHighlight = null;
         this.resizeHandle = null;
         this.selectedCornerHandles = [];
         this.propertiesPanel = null;
