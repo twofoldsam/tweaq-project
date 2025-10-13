@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './BrowserSelector.css';
+import chromeIcon from '../assets/browsers/chrome.svg';
+import edgeIcon from '../assets/browsers/edge.svg';
+import firefoxIcon from '../assets/browsers/firefox.svg';
+import safariIcon from '../assets/browsers/safari.svg';
 
 export type BrowserEngine = 'chromium' | 'edge' | 'firefox' | 'webkit';
 
@@ -17,11 +21,20 @@ interface BrowserSelectorProps {
   disabled?: boolean;
 }
 
+const browserIcons: Record<BrowserEngine, string> = {
+  chromium: chromeIcon,
+  edge: edgeIcon,
+  firefox: firefoxIcon,
+  webkit: safariIcon,
+};
+
 export function BrowserSelector({ disabled = false }: BrowserSelectorProps) {
   const [currentEngine, setCurrentEngine] = useState<BrowserEngine>('chromium');
   const [availableEngines, setAvailableEngines] = useState<BrowserEngineConfig[]>([]);
   const [currentConfig, setCurrentConfig] = useState<BrowserEngineConfig | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Load available engines
@@ -52,12 +65,31 @@ export function BrowserSelector({ disabled = false }: BrowserSelectorProps) {
     return cleanup;
   }, []);
 
-  const handleBrowserChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newEngine = e.target.value as BrowserEngine;
-    
-    if (newEngine === currentEngine) return;
+  useEffect(() => {
+    // Close dropdown when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
+  const handleBrowserChange = async (newEngine: BrowserEngine) => {
+    if (newEngine === currentEngine) {
+      setIsDropdownOpen(false);
+      return;
+    }
 
     setIsLoading(true);
+    setIsDropdownOpen(false);
     
     try {
       const result = await window.electronAPI.browserSwitchEngine(newEngine);
@@ -103,48 +135,41 @@ export function BrowserSelector({ disabled = false }: BrowserSelectorProps) {
     }
   };
 
-  const getCapabilityBadge = () => {
-    if (!currentConfig) return null;
-
-    if (currentConfig.supportsEditing && currentConfig.supportsCDP) {
-      return <span className="capability-badge full-editing" title="Full editing support with CDP">✅ Full Editing</span>;
-    } else if (currentConfig.supportsEditing && !currentConfig.supportsTrueBrowser) {
-      return <span className="capability-badge limited-editing" title="Script injection editing (Chromium rendering)">⚠️ Emulated</span>;
-    } else if (currentConfig.supportsTrueBrowser) {
-      return (
-        <>
-          <span className="capability-badge limited-editing" title="Emulated in Chromium">⚠️ Emulated</span>
-          <button 
-            className="true-browser-button"
-            onClick={handleLaunchTrueBrowser}
-            title={`Launch true ${currentConfig.displayName} browser`}
-          >
-            🚀 Launch True Browser
-          </button>
-        </>
-      );
-    } else {
-      return <span className="capability-badge read-only" title="View only mode">👁️ View Only</span>;
-    }
-  };
-
   return (
-    <div className="browser-selector-container">
-      <select 
-        className={`browser-selector ${isLoading ? 'loading' : ''}`}
-        value={currentEngine}
-        onChange={handleBrowserChange}
+    <div className="browser-selector-container" ref={dropdownRef}>
+      <button 
+        className={`browser-icon-button ${isLoading ? 'loading' : ''}`}
+        onClick={() => !disabled && !isLoading && setIsDropdownOpen(!isDropdownOpen)}
         disabled={disabled || isLoading}
-        title="Select browser engine"
+        title={`Current browser: ${currentConfig?.displayName || currentEngine}`}
       >
-        {availableEngines.map((engine) => (
-          <option key={engine.engine} value={engine.engine}>
-            {engine.emoji} {engine.displayName}
-          </option>
-        ))}
-      </select>
-      {isLoading && <span className="loading-indicator">⏳</span>}
-      {!isLoading && getCapabilityBadge()}
+        <img 
+          src={browserIcons[currentEngine]} 
+          alt={currentConfig?.displayName || currentEngine}
+          className="browser-icon"
+        />
+        {isLoading && <span className="loading-spinner">⏳</span>}
+      </button>
+
+      {isDropdownOpen && (
+        <div className="browser-dropdown">
+          {availableEngines.map((engine) => (
+            <button
+              key={engine.engine}
+              className={`browser-dropdown-item ${engine.engine === currentEngine ? 'active' : ''}`}
+              onClick={() => handleBrowserChange(engine.engine)}
+            >
+              <img 
+                src={browserIcons[engine.engine]} 
+                alt={engine.displayName}
+                className="browser-icon-small"
+              />
+              <span className="browser-name">{engine.displayName}</span>
+              {engine.engine === currentEngine && <span className="checkmark">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

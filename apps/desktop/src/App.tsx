@@ -222,7 +222,6 @@ function App() {
 
         {!showSettings && (
           <>
-            <BrowserSelector />
             <form className="url-bar" onSubmit={handleNavigate}>
               <input
                 type="text"

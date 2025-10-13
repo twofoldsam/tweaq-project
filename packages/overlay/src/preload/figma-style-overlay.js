@@ -1920,6 +1920,118 @@
         background: rgba(255, 255, 255, 0.1);
         margin: 12px auto;
       }
+
+      /* Browser Selector */
+      .tweaq-browser-selector {
+        position: relative;
+      }
+
+      .tweaq-browser-button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 56px;
+        padding: 10px 0;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .tweaq-browser-button:hover {
+        background: transparent;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .tweaq-browser-button svg {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+
+      .tweaq-browser-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.2px;
+      }
+
+      .tweaq-browser-dropdown {
+        position: absolute;
+        left: calc(100% + 8px);
+        top: 0;
+        background: rgba(28, 28, 30, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        padding: 8px 0;
+        min-width: 180px;
+        z-index: 1000005;
+        display: none;
+      }
+
+      .tweaq-browser-dropdown.visible {
+        display: block;
+        animation: tweaq-browser-dropdown-fadein 0.15s ease;
+      }
+
+      @keyframes tweaq-browser-dropdown-fadein {
+        from {
+          opacity: 0;
+          transform: translateX(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .tweaq-browser-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        background: transparent;
+        border: none;
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        color: rgba(255, 255, 255, 0.7);
+        text-align: left;
+      }
+
+      .tweaq-browser-option:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .tweaq-browser-option.active {
+        background: rgba(10, 132, 255, 0.15);
+        color: #0A84FF;
+      }
+
+      .tweaq-browser-option svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+        flex-shrink: 0;
+      }
+
+      .tweaq-browser-option-name {
+        flex: 1;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .tweaq-browser-checkmark {
+        color: #0A84FF;
+        font-size: 16px;
+        font-weight: bold;
+      }
     `;
 
     document.head.appendChild(style);
@@ -2111,7 +2223,48 @@
       
       const ticketCount = this.recordedEdits.length;
       
+      // Browser icons (inline SVGs)
+      const browserIcons = {
+        chromium: '<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-5.344 9.257c.206.01.413.016.621.016 6.627 0 12-5.373 12-12 0-1.54-.29-3.011-.818-4.364zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728Z"/></svg>',
+        edge: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><path d="M 25.300781 3 C 15.790781 3 7.7008594 8.6803125 4.3808594 17.570312 C 7.0908594 14.590313 10.679609 13 14.849609 13 L 14.880859 13 C 21.350859 13.01 28.189219 17.100547 30.449219 22.310547 L 30.439453 22.310547 C 31.249453 23.890547 31.060781 25.520781 30.800781 26.550781 C 30.500781 27.720781 30.050859 28.270234 29.880859 28.490234 L 29.789062 28.609375 C 29.459063 29.019375 29.510391 29.620469 29.900391 29.980469 C 29.970391 30.040469 30.080469 30.120703 30.230469 30.220703 L 30.490234 30.380859 C 31.760234 31.180859 34.630469 32 37.230469 32 C 39.220469 32 41.819766 31.690234 44.259766 29.240234 C 48.359766 25.140234 46.779219 19.419766 46.199219 17.759766 C 45.209219 14.949766 41.100313 5.6101563 29.570312 3.4101562 C 28.170312 3.1401562 26.730781 3 25.300781 3 z M 14.849609 15 C 9.6496094 15 5.4800781 17.910937 3.0800781 23.210938 C 2.2900781 32.370937 7.8394531 40.589531 14.439453 44.269531 C 15.389453 44.799531 18.409141 46.320312 22.619141 46.820312 C 18.899141 45.060313 16.069531 41.99 14.769531 38 C 12.609531 31.37 15.319922 24.290703 21.669922 19.970703 L 21.679688 19.980469 C 22.639688 19.350469 23.809766 18.990234 25.009766 18.990234 C 25.149766 18.990234 25.279922 18.989766 25.419922 19.009766 C 22.609922 16.609766 18.630859 15.01 14.880859 15 L 14.849609 15 z M 19 25.169922 C 16.22 28.739922 15.309687 33.170859 16.679688 37.380859 C 18.489687 42.940859 23.780469 46.460469 30.230469 46.480469 C 35.250469 45.360469 39.619297 42.429219 43.279297 37.699219 L 43.369141 37.580078 C 43.619141 37.210078 43.600313 36.719141 43.320312 36.369141 C 43.030313 36.029141 42.550625 35.909844 42.140625 36.089844 L 41.660156 36.310547 C 41.460156 36.400547 41.280547 36.459063 41.060547 36.539062 C 40.830547 36.619063 40.570469 36.719375 40.230469 36.859375 C 38.940469 37.389375 37.020938 37.689453 34.960938 37.689453 C 33.230937 37.689453 31.540937 37.470312 30.210938 37.070312 C 28.330937 36.510312 22.599375 34.779688 19.609375 28.179688 C 19.239375 27.359688 18.99 26.309922 19 25.169922 z"/></svg>',
+        firefox: '<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8.824 7.287c.008 0 .004 0 0 0zm-2.8-1.4c.006 0 .003 0 0 0zm16.754 2.161c-.505-1.215-1.53-2.528-2.333-2.943.654 1.283 1.033 2.57 1.177 3.53l.002.02c-1.314-3.278-3.544-4.6-5.366-7.477-.091-.147-.184-.292-.273-.446a3.545 3.545 0 01-.13-.24 2.118 2.118 0 01-.172-.46.03.03 0 00-.027-.03.038.038 0 00-.021 0l-.006.001a.037.037 0 00-.01.005L15.624 0c-2.585 1.515-3.657 4.168-3.932 5.856a6.197 6.197 0 00-2.305.587.297.297 0 00-.147.37c.057.162.24.24.396.17a5.622 5.622 0 012.008-.523l.067-.005a5.847 5.847 0 011.957.222l.095.03a5.816 5.816 0 01.616.228c.08.036.16.073.238.112l.107.055a5.835 5.835 0 01.368.211 5.953 5.953 0 012.034 2.104c-.62-.437-1.733-.868-2.803-.681 4.183 2.09 3.06 9.292-2.737 9.02a5.164 5.164 0 01-1.513-.292 4.42 4.42 0 01-.538-.232c-1.42-.735-2.593-2.121-2.74-3.806 0 0 .537-2 3.845-2 .357 0 1.38-.998 1.398-1.287-.005-.095-2.029-.9-2.817-1.677-.422-.416-.622-.616-.8-.767a3.47 3.47 0 00-.301-.227 5.388 5.388 0 01-.032-2.842c-1.195.544-2.124 1.403-2.8 2.163h-.006c-.46-.584-.428-2.51-.402-2.913-.006-.025-.343.176-.389.206-.406.29-.787.616-1.136.974-.397.403-.76.839-1.085 1.303a9.816 9.816 0 00-1.562 3.52c-.003.013-.11.487-.19 1.073-.013.09-.026.181-.037.272a7.8 7.8 0 00-.069.667l-.002.034-.023.387-.001.06C.386 18.795 5.593 24 12.016 24c5.752 0 10.527-4.176 11.463-9.661.02-.149.035-.298.052-.448.232-1.994-.025-4.09-.753-5.844z"/></svg>',
+        webkit: '<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm-.004.953h.006c.063 0 .113.05.113.113v1.842c0 .063-.05.113-.113.113h-.006a.112.112 0 0 1-.113-.113V1.066c0-.063.05-.113.113-.113zm-.941.041c.056.001.104.046.11.104l.077.918a.112.112 0 0 1-.101.12h-.01a.11.11 0 0 1-.12-.1l-.08-.919a.112.112 0 0 1 .102-.12h.01l.012-.003zm1.892 0H12.965a.113.113 0 0 1 .103.121l-.08.92a.111.111 0 0 1-.12.102h-.009a.111.111 0 0 1-.101-.121l.078-.92a.112.112 0 0 1 .111-.102z"/></svg>'
+      };
+      
+      this.currentBrowser = 'chromium';
+      
       this.rightToolbar.innerHTML = `
+        <div class="tweaq-browser-selector">
+          <button class="tweaq-browser-button" title="Browser">
+            ${browserIcons[this.currentBrowser]}
+            <span class="tweaq-browser-label">Browser</span>
+          </button>
+          <div class="tweaq-browser-dropdown">
+            <button class="tweaq-browser-option active" data-browser="chromium">
+              ${browserIcons.chromium}
+              <span class="tweaq-browser-option-name">Chrome</span>
+              <span class="tweaq-browser-checkmark">✓</span>
+            </button>
+            <button class="tweaq-browser-option" data-browser="edge">
+              ${browserIcons.edge}
+              <span class="tweaq-browser-option-name">Edge</span>
+              <span class="tweaq-browser-checkmark"></span>
+            </button>
+            <button class="tweaq-browser-option" data-browser="firefox">
+              ${browserIcons.firefox}
+              <span class="tweaq-browser-option-name">Firefox</span>
+              <span class="tweaq-browser-checkmark"></span>
+            </button>
+            <button class="tweaq-browser-option" data-browser="webkit">
+              ${browserIcons.webkit}
+              <span class="tweaq-browser-option-name">Safari</span>
+              <span class="tweaq-browser-checkmark"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="tweaq-toolbar-separator"></div>
+
         <button class="tweaq-toolbar-action ${this.mode === 'chat' ? 'active' : ''}" data-mode="chat" title="Chat">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -2147,7 +2300,62 @@
         </button>
       `;
 
-      // Add click handlers
+      // Store browser icons for later updates
+      this.browserIcons = browserIcons;
+
+      // Add browser selector handlers
+      const browserButton = this.rightToolbar.querySelector('.tweaq-browser-button');
+      const browserDropdown = this.rightToolbar.querySelector('.tweaq-browser-dropdown');
+      const browserOptions = this.rightToolbar.querySelectorAll('.tweaq-browser-option');
+
+      browserButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        browserDropdown.classList.toggle('visible');
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.tweaq-browser-selector')) {
+          browserDropdown.classList.remove('visible');
+        }
+      });
+
+      browserOptions.forEach(option => {
+        option.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const browser = option.getAttribute('data-browser');
+          
+          if (browser !== this.currentBrowser) {
+            // Update UI immediately for responsiveness
+            browserOptions.forEach(opt => {
+              opt.classList.remove('active');
+              opt.querySelector('.tweaq-browser-checkmark').textContent = '';
+            });
+            option.classList.add('active');
+            option.querySelector('.tweaq-browser-checkmark').textContent = '✓';
+            
+            // Update button icon
+            browserButton.querySelector('svg').outerHTML = this.browserIcons[browser];
+            this.currentBrowser = browser;
+            
+            // Switch browser via IPC
+            try {
+              if (window.electronAPI && window.electronAPI.browserSwitchEngine) {
+                const result = await window.electronAPI.browserSwitchEngine(browser);
+                if (!result.success) {
+                  console.error('Failed to switch browser:', result.error);
+                }
+              }
+            } catch (error) {
+              console.error('Error switching browser:', error);
+            }
+          }
+          
+          browserDropdown.classList.remove('visible');
+        });
+      });
+
+      // Add click handlers for mode buttons
       const buttons = this.rightToolbar.querySelectorAll('.tweaq-toolbar-action');
       buttons.forEach(btn => {
         btn.addEventListener('click', (e) => {
