@@ -3953,7 +3953,8 @@
           target.closest('.tweaq-comment-pill') ||
           target.closest('.tweaq-right-toolbar') ||
           target.closest('.tweaq-element-outline') ||
-          target.closest('.tweaq-selected-indicator')) {
+          target.closest('.tweaq-selected-indicator') ||
+          target.closest('.tweaq-edit-indicator')) {
         // Hide outline when hovering over overlay UI
         if (!this.selectedElement) {
           this.updateOutline(null);
@@ -3972,12 +3973,13 @@
     handleClick(e) {
       if (!this.isVisible || (this.mode !== 'design' && this.mode !== 'comment')) return;
       
-      // Don't select elements in the overlay, comment pill, or right toolbar
+      // Don't select elements in the overlay, comment pill, right toolbar, or edit indicators
       if (e.target.closest('.tweaq-overlay-container') || 
           e.target.closest('.tweaq-properties-panel') ||
           e.target.closest('.tweaq-overlay-toolbar') ||
           e.target.closest('.tweaq-comment-pill') ||
-          e.target.closest('.tweaq-right-toolbar')) {
+          e.target.closest('.tweaq-right-toolbar') ||
+          e.target.closest('.tweaq-edit-indicator')) {
         return;
       }
       
