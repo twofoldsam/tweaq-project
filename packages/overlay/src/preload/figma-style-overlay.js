@@ -1495,47 +1495,65 @@
         gap: 12px;
       }
 
-      .tweaq-ticket-item {
-        background: rgba(255, 255, 255, 0.05);
+      /* Ticket Card Styles */
+      .tweaq-ticket-card {
+        background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        padding: 12px;
-        transition: all 0.2s;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        transition: all 0.3s ease;
+        overflow: hidden;
       }
 
-      .tweaq-ticket-item:hover {
-        background: rgba(255, 255, 255, 0.08);
+      .tweaq-ticket-card:hover {
+        background: rgba(255, 255, 255, 0.06);
         border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
       }
 
-      .tweaq-ticket-header {
+      .tweaq-ticket-card-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       }
 
-      .tweaq-ticket-icon {
-        font-size: 16px;
-      }
-
-      .tweaq-ticket-type {
+      .tweaq-ticket-type-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
         font-size: 11px;
         font-weight: 600;
-        color: #0A84FF;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        flex: 1;
+        border: 1px solid;
+      }
+
+      .tweaq-ticket-badge-icon {
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .tweaq-ticket-badge-text {
+        line-height: 1;
       }
 
       .tweaq-ticket-delete {
         background: transparent;
         border: none;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(255, 255, 255, 0.4);
         cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
+        padding: 6px;
+        border-radius: 6px;
         transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .tweaq-ticket-delete:hover {
@@ -1543,24 +1561,117 @@
         color: #FF3B30;
       }
 
-      .tweaq-ticket-content {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.9);
+      .tweaq-ticket-card-body {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .tweaq-ticket-summary {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.95);
         line-height: 1.5;
-        margin-bottom: 8px;
+        font-weight: 500;
       }
 
       .tweaq-ticket-target {
-        font-size: 11px;
-        color: rgba(255, 255, 255, 0.5);
-        padding: 4px 8px;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 4px;
-        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
       }
 
-      .tweaq-ticket-target code {
+      .tweaq-target-label {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+      }
+
+      .tweaq-target-selector {
+        font-size: 12px;
         color: #0A84FF;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        background: transparent;
+        padding: 0;
+        border: none;
+      }
+
+      .tweaq-ticket-details {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .tweaq-details-header {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .tweaq-details-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .tweaq-detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .tweaq-detail-property {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+
+      .tweaq-detail-change {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        padding-left: 20px;
+      }
+
+      .tweaq-detail-before {
+        color: rgba(255, 255, 255, 0.5);
+        text-decoration: line-through;
+        opacity: 0.7;
+      }
+
+      .tweaq-detail-after {
+        color: #34C759;
+        font-weight: 500;
+      }
+
+      .tweaq-detail-specific {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.5;
       }
 
       .tweaq-confirm-button {
@@ -2637,33 +2748,21 @@
       
       const ticketsHTML = this.recordedEdits.length > 0
         ? this.recordedEdits.map((edit, index) => {
-            const isComment = edit.type === 'structured-change';
-            return `
-              <div class="tweaq-ticket-item">
-                <div class="tweaq-ticket-header">
-                  <span class="tweaq-ticket-icon">${isComment ? '💬' : '✏️'}</span>
-                  <span class="tweaq-ticket-type">${isComment ? 'Comment' : 'Edit'}</span>
-                  <button class="tweaq-ticket-delete" data-index="${index}" title="Delete">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div class="tweaq-ticket-content">${this.escapeHtml(edit.instruction || 'Edit')}</div>
-                ${edit.elementSelector ? `
-                  <div class="tweaq-ticket-target">
-                    <code>${edit.elementSelector}</code>
-                  </div>
-                ` : ''}
-              </div>
-            `;
+            const isStructuredChange = edit.type === 'structured-change';
+            
+            if (isStructuredChange) {
+              // For structured changes from conversation
+              return this.renderStructuredTicket(edit, index);
+            } else {
+              // For direct property edits
+              return this.renderPropertyTicket(edit, index);
+            }
           }).join('')
         : `
           <div class="tweaq-empty-state">
             <div style="font-size: 32px; margin-bottom: 12px;">🎫</div>
             <p style="color: #999; font-size: 14px; margin-bottom: 8px;">No tickets yet</p>
-            <p style="color: #bbb; font-size: 12px;">Use Select or Comment mode to create tickets</p>
+            <p style="color: #bbb; font-size: 12px;">Use Design mode to create tickets</p>
           </div>
         `;
 
@@ -2703,6 +2802,200 @@
           this.confirmEdits();
         });
       }
+    }
+
+    categorizeChange(property) {
+      // Map CSS properties to change categories
+      const categories = {
+        'textContent': { type: 'Copy Change', icon: '✏️', color: '#667eea' },
+        'color': { type: 'Color Change', icon: '🎨', color: '#f093fb' },
+        'backgroundColor': { type: 'Color Change', icon: '🎨', color: '#f093fb' },
+        'borderColor': { type: 'Color Change', icon: '🎨', color: '#f093fb' },
+        'fontSize': { type: 'Size Change', icon: '📏', color: '#4facfe' },
+        'width': { type: 'Size Change', icon: '📏', color: '#4facfe' },
+        'height': { type: 'Size Change', icon: '📏', color: '#4facfe' },
+        'padding': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'margin': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'paddingTop': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'paddingRight': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'paddingBottom': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'paddingLeft': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'marginTop': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'marginRight': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'marginBottom': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'marginLeft': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'fontWeight': { type: 'Style Change', icon: '💎', color: '#fa709a' },
+        'textAlign': { type: 'Style Change', icon: '💎', color: '#fa709a' },
+        'opacity': { type: 'Style Change', icon: '💎', color: '#fa709a' },
+        'borderRadius': { type: 'Style Change', icon: '💎', color: '#fa709a' },
+      };
+      
+      return categories[property] || { type: 'Style Change', icon: '✨', color: '#a8edea' };
+    }
+
+    generatePlainEnglishSummary(changes, elementName) {
+      if (changes.length === 1) {
+        const change = changes[0];
+        const property = change.property;
+        
+        if (property === 'textContent') {
+          return `Change text to "${change.after.substring(0, 30)}${change.after.length > 30 ? '...' : ''}"`;
+        } else if (property === 'color' || property === 'backgroundColor') {
+          return `Change ${property === 'color' ? 'text' : 'background'} color to ${change.after}`;
+        } else if (property === 'fontSize') {
+          return `Change font size from ${change.before} to ${change.after}`;
+        } else if (property === 'fontWeight') {
+          const weights = {
+            '100': 'Thin', '200': 'Extra Light', '300': 'Light',
+            '400': 'Regular', '500': 'Medium', '600': 'Semi Bold',
+            '700': 'Bold', '800': 'Extra Bold', '900': 'Black'
+          };
+          return `Change font weight to ${weights[change.after] || change.after}`;
+        } else if (property.includes('padding') || property.includes('margin')) {
+          const type = property.includes('padding') ? 'padding' : 'margin';
+          return `Adjust ${type} to ${change.after}`;
+        } else {
+          return `Update ${property} to ${change.after}`;
+        }
+      } else {
+        // Multiple changes - categorize them
+        const types = [...new Set(changes.map(c => this.categorizeChange(c.property).type))];
+        if (types.length === 1) {
+          return `${changes.length} ${types[0].toLowerCase()} updates`;
+        } else {
+          return `${changes.length} property changes`;
+        }
+      }
+    }
+
+    renderPropertyTicket(edit, index) {
+      // Determine the primary change type
+      const changeTypes = edit.changes.map(c => this.categorizeChange(c.property));
+      const primaryType = changeTypes[0]; // Use first change's category as primary
+      
+      // Check if all changes are the same type
+      const allSameType = changeTypes.every(ct => ct.type === primaryType.type);
+      const displayType = allSameType ? primaryType : { 
+        type: 'Mixed Changes', 
+        icon: '🔄', 
+        color: '#a8edea' 
+      };
+      
+      // Generate plain English summary
+      const summary = this.generatePlainEnglishSummary(edit.changes, edit.elementName);
+      
+      return `
+        <div class="tweaq-ticket-card">
+          <div class="tweaq-ticket-card-header">
+            <div class="tweaq-ticket-type-badge" style="background: ${displayType.color}20; color: ${displayType.color}; border-color: ${displayType.color}40;">
+              <span class="tweaq-ticket-badge-icon">${displayType.icon}</span>
+              <span class="tweaq-ticket-badge-text">${displayType.type}</span>
+            </div>
+            <button class="tweaq-ticket-delete" data-index="${index}" title="Delete">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="tweaq-ticket-card-body">
+            <div class="tweaq-ticket-summary">${this.escapeHtml(summary)}</div>
+            <div class="tweaq-ticket-target">
+              <span class="tweaq-target-label">Target:</span>
+              <code class="tweaq-target-selector">${edit.elementSelector || edit.elementName}</code>
+            </div>
+            
+            ${edit.changes.length > 0 ? `
+              <div class="tweaq-ticket-details">
+                <div class="tweaq-details-header">Property Changes:</div>
+                <div class="tweaq-details-list">
+                  ${edit.changes.map(change => {
+                    const category = this.categorizeChange(change.property);
+                    return `
+                      <div class="tweaq-detail-item">
+                        <div class="tweaq-detail-property">
+                          <span style="color: ${category.color};">${category.icon}</span>
+                          <span>${change.property === 'textContent' ? 'Text Content' : change.property}</span>
+                        </div>
+                        <div class="tweaq-detail-change">
+                          <span class="tweaq-detail-before">${this.escapeHtml(String(change.before).substring(0, 40))}${String(change.before).length > 40 ? '...' : ''}</span>
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.5; margin: 0 4px;">
+                            <path d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+                          </svg>
+                          <span class="tweaq-detail-after">${this.escapeHtml(String(change.after).substring(0, 40))}${String(change.after).length > 40 ? '...' : ''}</span>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    renderStructuredTicket(edit, index) {
+      // For conversation-based structured changes
+      const actionIcons = {
+        'content': '✏️',
+        'styling': '🎨',
+        'layout': '📐',
+        'structure': '🏗️',
+        'mixed': '🔄'
+      };
+      const actionColors = {
+        'content': '#667eea',
+        'styling': '#f093fb',
+        'layout': '#4facfe',
+        'structure': '#43e97b',
+        'mixed': '#fa709a'
+      };
+      
+      const icon = actionIcons[edit.actionType] || '💬';
+      const color = actionColors[edit.actionType] || '#667eea';
+      const typeLabel = edit.actionType ? edit.actionType.charAt(0).toUpperCase() + edit.actionType.slice(1) : 'Change';
+      
+      return `
+        <div class="tweaq-ticket-card">
+          <div class="tweaq-ticket-card-header">
+            <div class="tweaq-ticket-type-badge" style="background: ${color}20; color: ${color}; border-color: ${color}40;">
+              <span class="tweaq-ticket-badge-icon">${icon}</span>
+              <span class="tweaq-ticket-badge-text">${typeLabel}</span>
+            </div>
+            <button class="tweaq-ticket-delete" data-index="${index}" title="Delete">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="tweaq-ticket-card-body">
+            <div class="tweaq-ticket-summary">${this.escapeHtml(edit.instruction)}</div>
+            ${edit.target ? `
+              <div class="tweaq-ticket-target">
+                <span class="tweaq-target-label">Target:</span>
+                <code class="tweaq-target-selector">${edit.target.identifier}</code>
+              </div>
+            ` : ''}
+            
+            ${edit.specifics && edit.specifics.length > 0 ? `
+              <div class="tweaq-ticket-details">
+                <div class="tweaq-details-header">Details:</div>
+                <div class="tweaq-details-list">
+                  ${edit.specifics.map(specific => `
+                    <div class="tweaq-detail-item">
+                      <div class="tweaq-detail-specific">• ${this.escapeHtml(specific)}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
     }
 
     renderProperties() {
