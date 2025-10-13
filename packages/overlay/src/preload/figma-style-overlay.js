@@ -127,7 +127,7 @@
       /* Tweaq indicator for edited elements */
       .tweaq-edit-indicator {
         position: absolute;
-        pointer-events: none;
+        pointer-events: auto;
         z-index: 999998;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -140,7 +140,9 @@
         gap: 3px;
         font-weight: 600;
         animation: tweaq-indicator-appear 0.3s ease-out;
-        transition: opacity 0.2s ease;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        user-select: none;
       }
 
       @keyframes tweaq-indicator-appear {
@@ -155,18 +157,46 @@
       }
 
       .tweaq-edit-indicator:hover {
-        opacity: 0.8;
+        transform: scale(1.05);
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.3);
       }
 
       .tweaq-edit-indicator-icon {
         font-size: 11px;
         line-height: 1;
+        transition: all 0.2s ease;
+      }
+
+      .tweaq-edit-indicator:hover .tweaq-edit-indicator-icon {
+        transform: scale(1.1);
       }
 
       .tweaq-edit-indicator-text {
         font-size: 9px;
         line-height: 1;
         letter-spacing: 0.3px;
+      }
+
+      .tweaq-edit-indicator-toggle {
+        display: none;
+        font-size: 11px;
+        line-height: 1;
+        margin-left: 2px;
+        opacity: 0.9;
+      }
+
+      .tweaq-edit-indicator:hover .tweaq-edit-indicator-toggle {
+        display: inline-block;
+      }
+
+      /* Hidden state for indicator */
+      .tweaq-edit-indicator.tweaq-hidden {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        opacity: 0.7;
+      }
+
+      .tweaq-edit-indicator.tweaq-hidden:hover {
+        opacity: 0.9;
       }
 
       /* Main overlay container */
@@ -2260,7 +2290,8 @@
         element: elementInfo.tag,
         elementId: elementInfo.id,
         elementClasses: elementInfo.classes ? elementInfo.classes.split('.').filter(c => c) : [],
-        elementReference: this.selectedElement // Store actual DOM element reference
+        elementReference: this.selectedElement, // Store actual DOM element reference
+        visible: true // Track if tweaq is currently visible
       };
 
       this.recordedEdits.push(edit);
@@ -2721,7 +2752,8 @@
           })),
           timestamp: Date.now(),
           status: 'pending',
-          confidence: ticket.confidence
+          confidence: ticket.confidence,
+          visible: true // Track if tweaq is currently visible
         };
 
         this.recordedEdits.push(editTicket);
@@ -3639,6 +3671,7 @@
         elementId: element.id || null,
         elementClasses: Array.from(element.classList),
         elementReference: element, // Store actual DOM element reference
+        visible: true, // Track if tweaq is currently visible
         status: 'pending', // pending, processing, completed, failed
         prUrl: null,
         error: null
@@ -4048,19 +4081,26 @@
       this.hideCommentPill();
     }
 
-    addEditIndicator(element, editCount = 1) {
+    addEditIndicator(element, editCount = 1, allVisible = true) {
       // Don't add indicator if one already exists
       if (this.editIndicators.has(element)) {
-        this.updateEditIndicator(element, editCount);
+        this.updateEditIndicator(element, editCount, allVisible);
         return;
       }
 
       const indicator = document.createElement('div');
-      indicator.className = 'tweaq-edit-indicator';
+      indicator.className = `tweaq-edit-indicator${allVisible ? '' : ' tweaq-hidden'}`;
       indicator.innerHTML = `
         <span class="tweaq-edit-indicator-icon">⚡</span>
         <span class="tweaq-edit-indicator-text">${editCount}</span>
+        <span class="tweaq-edit-indicator-toggle">${allVisible ? '👁️' : '👁️‍🗨️'}</span>
       `;
+
+      // Add click handler to toggle visibility
+      indicator.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleElementTweaqs(element);
+      });
 
       document.body.appendChild(indicator);
       this.editIndicators.set(element, indicator);
@@ -4070,13 +4110,25 @@
       console.log('⚡ Created indicator for', element.tagName, 'at count:', editCount);
     }
 
-    updateEditIndicator(element, editCount) {
+    updateEditIndicator(element, editCount, allVisible = true) {
       const indicator = this.editIndicators.get(element);
       if (!indicator) return;
 
       const textElement = indicator.querySelector('.tweaq-edit-indicator-text');
       if (textElement) {
         textElement.textContent = editCount;
+      }
+
+      const toggleElement = indicator.querySelector('.tweaq-edit-indicator-toggle');
+      if (toggleElement) {
+        toggleElement.textContent = allVisible ? '👁️' : '👁️‍🗨️';
+      }
+
+      // Update indicator state
+      if (allVisible) {
+        indicator.classList.remove('tweaq-hidden');
+      } else {
+        indicator.classList.add('tweaq-hidden');
       }
     }
 
@@ -4113,8 +4165,9 @@
       this.editIndicators.forEach(indicator => indicator.remove());
       this.editIndicators.clear();
 
-      // Count edits per element
+      // Count edits per element and track visibility
       const editCounts = new Map();
+      const elementVisibility = new Map();
       
       this.recordedEdits.forEach(edit => {
         // Use stored element reference if available
@@ -4140,15 +4193,166 @@
         if (element && document.body.contains(element)) {
           const count = (editCounts.get(element) || 0) + 1;
           editCounts.set(element, count);
+          
+          // Track if ALL edits for this element are visible
+          const currentVisibility = elementVisibility.get(element);
+          if (currentVisibility === undefined) {
+            elementVisibility.set(element, edit.visible !== false);
+          } else {
+            elementVisibility.set(element, currentVisibility && edit.visible !== false);
+          }
         }
       });
 
       // Add indicators for all edited elements
       editCounts.forEach((count, element) => {
-        this.addEditIndicator(element, count);
+        const allVisible = elementVisibility.get(element);
+        this.addEditIndicator(element, count, allVisible);
       });
       
       console.log('📍 Updated indicators for', editCounts.size, 'elements');
+    }
+
+    toggleElementTweaqs(element) {
+      // Find all edits for this element
+      const elementEdits = this.recordedEdits.filter(edit => {
+        const editElement = edit.elementReference || this.findElementFromEdit(edit);
+        return editElement === element;
+      });
+
+      if (elementEdits.length === 0) return;
+
+      // Determine new visibility state (if ANY are visible, hide all. If all hidden, show all)
+      const anyVisible = elementEdits.some(edit => edit.visible !== false);
+      const newVisibility = !anyVisible;
+
+      console.log(`👁️ Toggling ${elementEdits.length} tweaqs for element - new state: ${newVisibility ? 'visible' : 'hidden'}`);
+
+      // Toggle each edit's visibility
+      elementEdits.forEach(edit => {
+        edit.visible = newVisibility;
+
+        if (newVisibility) {
+          // Re-apply the changes
+          this.applyEditToElement(element, edit);
+        } else {
+          // Revert the changes
+          this.revertEditFromElement(element, edit);
+        }
+      });
+
+      // Update the indicator
+      this.updateAllEditIndicators();
+    }
+
+    findElementFromEdit(edit) {
+      if (edit.elementId) {
+        return document.getElementById(edit.elementId);
+      } else if (edit.elementClasses && edit.elementClasses.length > 0) {
+        const selector = `${edit.element}.${edit.elementClasses.join('.')}`;
+        return document.querySelector(selector);
+      } else if (edit.elementSelector) {
+        try {
+          return document.querySelector(edit.elementSelector);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    applyEditToElement(element, edit) {
+      if (!edit.changes) return;
+
+      edit.changes.forEach(change => {
+        if (change.property === 'textContent') {
+          // Handle text content
+          const hasSimpleContent = Array.from(element.childNodes).every(
+            node => node.nodeType === Node.TEXT_NODE || 
+                    (node.nodeType === Node.ELEMENT_NODE && 
+                     ['BR', 'SPAN', 'STRONG', 'EM', 'B', 'I'].includes(node.tagName))
+          );
+          
+          if (hasSimpleContent && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+            element.childNodes[0].textContent = change.after;
+          } else if (element.childNodes.length === 0 || hasSimpleContent) {
+            element.textContent = change.after;
+          } else {
+            for (const node of element.childNodes) {
+              if (node.nodeType === Node.TEXT_NODE) {
+                node.textContent = change.after;
+                break;
+              }
+            }
+          }
+        } else {
+          // Handle style properties
+          const property = change.property;
+          let value = change.after;
+          
+          // Add unit if needed
+          if (typeof value === 'number' || !isNaN(value)) {
+            const needsUnit = ['fontSize', 'width', 'height', 'padding', 'margin', 
+                              'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+                              'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+                              'borderRadius', 'top', 'left', 'right', 'bottom'].includes(property);
+            if (needsUnit && !String(value).match(/px|em|rem|%|vh|vw/)) {
+              value = value + 'px';
+            }
+          }
+          
+          element.style[property] = value;
+        }
+      });
+
+      console.log('✅ Applied tweaq to element');
+    }
+
+    revertEditFromElement(element, edit) {
+      if (!edit.changes) return;
+
+      edit.changes.forEach(change => {
+        if (change.property === 'textContent') {
+          // Revert text content
+          const hasSimpleContent = Array.from(element.childNodes).every(
+            node => node.nodeType === Node.TEXT_NODE || 
+                    (node.nodeType === Node.ELEMENT_NODE && 
+                     ['BR', 'SPAN', 'STRONG', 'EM', 'B', 'I'].includes(node.tagName))
+          );
+          
+          if (hasSimpleContent && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+            element.childNodes[0].textContent = change.before;
+          } else if (element.childNodes.length === 0 || hasSimpleContent) {
+            element.textContent = change.before;
+          } else {
+            for (const node of element.childNodes) {
+              if (node.nodeType === Node.TEXT_NODE) {
+                node.textContent = change.before;
+                break;
+              }
+            }
+          }
+        } else {
+          // Revert style properties
+          const property = change.property;
+          let value = change.before;
+          
+          // Add unit if needed
+          if (typeof value === 'number' || !isNaN(value)) {
+            const needsUnit = ['fontSize', 'width', 'height', 'padding', 'margin',
+                              'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+                              'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+                              'borderRadius', 'top', 'left', 'right', 'bottom'].includes(property);
+            if (needsUnit && !String(value).match(/px|em|rem|%|vh|vw/)) {
+              value = value + 'px';
+            }
+          }
+          
+          element.style[property] = value;
+        }
+      });
+
+      console.log('↩️ Reverted tweaq from element');
     }
 
     attachEventListeners() {
