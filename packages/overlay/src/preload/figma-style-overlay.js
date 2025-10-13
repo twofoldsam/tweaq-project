@@ -3384,8 +3384,34 @@
     }
 
     handleMouseMove(e) {
-      // Hover outline disabled for better performance
-      return;
+      // Only show hover outline in design mode
+      if (!this.isVisible || this.mode !== 'design') {
+        return;
+      }
+
+      const target = e.target;
+      
+      // Don't highlight overlay elements
+      if (target.closest('.tweaq-overlay-container') || 
+          target.closest('.tweaq-properties-panel') ||
+          target.closest('.tweaq-overlay-toolbar') ||
+          target.closest('.tweaq-comment-pill') ||
+          target.closest('.tweaq-right-toolbar') ||
+          target.closest('.tweaq-element-outline') ||
+          target.closest('.tweaq-selected-indicator')) {
+        // Hide outline when hovering over overlay UI
+        if (!this.selectedElement) {
+          this.updateOutline(null);
+        }
+        return;
+      }
+
+      this.hoveredElement = target;
+      
+      // Only show outline for hovered element if no element is selected
+      if (!this.selectedElement) {
+        this.updateOutline(target);
+      }
     }
 
     handleClick(e) {
