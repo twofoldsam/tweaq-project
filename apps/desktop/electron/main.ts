@@ -666,12 +666,31 @@ safeIpcHandle('browser-get-available-engines', () => {
   return { engines: browserEngineManager.getAvailableEngines() };
 });
 
+// Track overlay state
+let overlayState: { isVisible: boolean; options?: any } = { isVisible: false };
+
 safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
   if (!browserEngineManager) {
     return { success: false, error: 'Browser engine manager not available' };
   }
   
   try {
+    // Check if overlay is currently visible in the old browser view
+    const oldView = browserEngineManager.getCurrentBrowserView();
+    let wasOverlayVisible = false;
+    
+    if (oldView) {
+      try {
+        wasOverlayVisible = await oldView.webContents.executeJavaScript(`
+          !!(window.TweaqOverlay && window.TweaqOverlay._initialized && 
+             document.querySelector('.tweaq-right-toolbar'))
+        `);
+        console.log('Overlay visible before switch:', wasOverlayVisible);
+      } catch (error) {
+        console.log('Could not check overlay state:', error);
+      }
+    }
+    
     const currentUrl = store.get('lastUrl');
     const result = await browserEngineManager.switchEngine(engine, currentUrl);
     
@@ -681,6 +700,33 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
       
       // Event handlers are automatically set up when views are created
       // No need to call setupBrowserViewEvents here
+      
+      // If overlay was visible, re-inject it in the new browser view
+      if (wasOverlayVisible && browserView) {
+        // Wait for the page to start loading
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        try {
+          const fs = require('fs');
+          const overlayScript = fs.readFileSync(
+            path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
+            'utf8'
+          );
+
+          await browserView.webContents.executeJavaScript(overlayScript);
+          
+          const initScript = `
+            if (window.TweaqOverlay) {
+              window.TweaqOverlay.inject(${JSON.stringify(overlayState.options || {})});
+            }
+          `;
+          await browserView.webContents.executeJavaScript(initScript);
+          
+          console.log('✅ Re-injected overlay after browser switch');
+        } catch (error) {
+          console.error('❌ Failed to re-inject overlay:', error);
+        }
+      }
       
       // Send notification to renderer about browser change
       mainWindow?.webContents.send('browser-engine-changed', { 
@@ -1564,6 +1610,11 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
       }
     `;
     await currentView.webContents.executeJavaScript(toggleScript);
+
+    // Store the options for re-injection after browser switch
+    overlayState.options = options;
+    
+    console.log('Overlay toggled with options:', options);
 
     return { success: true };
   } catch (error) {

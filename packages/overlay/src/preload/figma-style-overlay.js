@@ -1939,6 +1939,7 @@
         cursor: pointer;
         transition: all 0.15s ease;
         color: rgba(255, 255, 255, 0.5);
+        pointer-events: auto;
       }
 
       .tweaq-browser-button:hover {
@@ -1959,9 +1960,10 @@
       }
 
       .tweaq-browser-dropdown {
-        position: absolute;
-        left: calc(100% + 8px);
-        top: 0;
+        position: fixed;
+        left: auto;
+        right: calc(56px + 8px);
+        top: 16px;
         background: rgba(28, 28, 30, 0.98);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
@@ -1970,8 +1972,9 @@
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         padding: 8px 0;
         min-width: 180px;
-        z-index: 1000005;
+        z-index: 10000020;
         display: none;
+        pointer-events: auto;
       }
 
       .tweaq-browser-dropdown.visible {
@@ -2308,10 +2311,19 @@
       const browserDropdown = this.rightToolbar.querySelector('.tweaq-browser-dropdown');
       const browserOptions = this.rightToolbar.querySelectorAll('.tweaq-browser-option');
 
-      browserButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        browserDropdown.classList.toggle('visible');
-      });
+      console.log('🔧 Browser selector initialized:', { browserButton, browserDropdown, optionsCount: browserOptions.length });
+
+      if (browserButton && browserDropdown) {
+        browserButton.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🖱️ Browser button clicked, toggling dropdown');
+          browserDropdown.classList.toggle('visible');
+          console.log('Dropdown visible:', browserDropdown.classList.contains('visible'));
+        });
+      } else {
+        console.error('❌ Browser selector elements not found!');
+      }
 
       // Close dropdown when clicking outside
       document.addEventListener('click', (e) => {
