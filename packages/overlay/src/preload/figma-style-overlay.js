@@ -86,6 +86,27 @@
         transition: all 0.2s ease;
       }
 
+      /* Hover highlight from ticket card */
+      .tweaq-hover-highlight {
+        position: absolute;
+        pointer-events: none;
+        border: 3px solid #F59E0B;
+        background-color: rgba(245, 158, 11, 0.15);
+        z-index: 999997;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.5), 0 4px 16px rgba(245, 158, 11, 0.3);
+        animation: tweaq-pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes tweaq-pulse {
+        0%, 100% {
+          box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.5), 0 4px 16px rgba(245, 158, 11, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.7), 0 4px 20px rgba(245, 158, 11, 0.5);
+        }
+      }
+
       /* Corner handles for selected element */
       .tweaq-selected-indicator::before,
       .tweaq-selected-indicator::after {
@@ -122,6 +143,81 @@
         pointer-events: none;
         z-index: 1000000;
         box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Tweaq indicator for edited elements */
+      .tweaq-edit-indicator {
+        position: absolute;
+        pointer-events: auto;
+        z-index: 999998;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 10px;
+        padding: 3px 6px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-weight: 600;
+        animation: tweaq-indicator-appear 0.3s ease-out;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      @keyframes tweaq-indicator-appear {
+        from {
+          opacity: 0;
+          transform: scale(0.8) translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .tweaq-edit-indicator:hover {
+        transform: scale(1.05);
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.3);
+      }
+
+      .tweaq-edit-indicator-icon {
+        font-size: 11px;
+        line-height: 1;
+        transition: all 0.2s ease;
+      }
+
+      .tweaq-edit-indicator:hover .tweaq-edit-indicator-icon {
+        transform: scale(1.1);
+      }
+
+      .tweaq-edit-indicator-text {
+        font-size: 9px;
+        line-height: 1;
+        letter-spacing: 0.3px;
+      }
+
+      .tweaq-edit-indicator-toggle {
+        display: none;
+        font-size: 11px;
+        line-height: 1;
+        margin-left: 2px;
+        opacity: 0.9;
+      }
+
+      .tweaq-edit-indicator:hover .tweaq-edit-indicator-toggle {
+        display: inline-block;
+      }
+
+      /* Hidden state for indicator */
+      .tweaq-edit-indicator.tweaq-hidden {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        opacity: 0.7;
+      }
+
+      .tweaq-edit-indicator.tweaq-hidden:hover {
+        opacity: 0.9;
       }
 
       /* Main overlay container */
@@ -506,7 +602,44 @@
         transition: all 0.15s ease;
       }
 
-      /* Edit Tickets */
+      /* Textarea for content editing */
+      .tweaq-textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        transition: all 0.15s ease;
+        resize: vertical;
+        min-height: 60px;
+        line-height: 1.5;
+      }
+
+      .tweaq-textarea:focus {
+        outline: none;
+        border-color: #0A84FF;
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+      }
+
+      .tweaq-textarea:hover {
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+
+      /* Content property uses full width */
+      .tweaq-property-content {
+        grid-template-columns: 100px 1fr;
+        align-items: flex-start;
+      }
+
+      .tweaq-property-content .tweaq-property-label {
+        padding-top: 8px;
+      }
+
+      /* Edit Tweaqs */
       .tweaq-edits-list {
         padding: 16px 24px;
       }
@@ -621,7 +754,7 @@
         font-weight: 600;
       }
 
-      /* Ticket Status */
+      /* Tweaq Status */
       .tweaq-ticket-status {
         display: flex;
         align-items: center;
@@ -1451,54 +1584,96 @@
         border: 1px solid rgba(0, 0, 0, 0.1);
       }
 
-      /* Tickets View Styles */
+      /* Tweaqs View Styles */
       .tweaq-tickets-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
+        padding: 16px;
       }
 
-      .tweaq-ticket-item {
-        background: rgba(255, 255, 255, 0.05);
+      /* Tweaq Card Styles */
+      .tweaq-ticket-card {
+        background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        padding: 12px;
-        transition: all 0.2s;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        overflow: hidden;
       }
 
-      .tweaq-ticket-item:hover {
-        background: rgba(255, 255, 255, 0.08);
+      .tweaq-ticket-card:hover {
+        background: rgba(255, 255, 255, 0.06);
         border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
       }
 
-      .tweaq-ticket-header {
+      .tweaq-ticket-card-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        justify-content: space-between;
+        padding: 10px 12px;
+        background: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       }
 
-      .tweaq-ticket-icon {
-        font-size: 16px;
-      }
-
-      .tweaq-ticket-type {
-        font-size: 11px;
+      .tweaq-ticket-type-badge {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 16px;
+        font-size: 10px;
         font-weight: 600;
-        color: #0A84FF;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        flex: 1;
+        letter-spacing: 0.4px;
+        border: 1px solid;
+      }
+
+      .tweaq-ticket-badge-icon {
+        font-size: 12px;
+        line-height: 1;
+      }
+
+      .tweaq-ticket-badge-text {
+        line-height: 1;
+      }
+
+      .tweaq-ticket-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .tweaq-ticket-toggle {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .tweaq-ticket-toggle:hover {
+        background: rgba(10, 132, 255, 0.2);
+        color: #0A84FF;
       }
 
       .tweaq-ticket-delete {
         background: transparent;
         border: none;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(255, 255, 255, 0.4);
         cursor: pointer;
         padding: 4px;
         border-radius: 4px;
         transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .tweaq-ticket-delete:hover {
@@ -1506,24 +1681,134 @@
         color: #FF3B30;
       }
 
-      .tweaq-ticket-content {
+      .tweaq-ticket-card-body {
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .tweaq-ticket-summary {
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.9);
-        line-height: 1.5;
-        margin-bottom: 8px;
+        color: rgba(255, 255, 255, 0.95);
+        line-height: 1.4;
+        font-weight: 500;
       }
 
       .tweaq-ticket-target {
-        font-size: 11px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        overflow: hidden;
+      }
+
+      .tweaq-ticket-target:hover {
+        background: rgba(0, 0, 0, 0.4);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .tweaq-target-label {
+        font-size: 10px;
         color: rgba(255, 255, 255, 0.5);
-        padding: 4px 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+
+      .tweaq-target-selector {
+        font-size: 11px;
+        color: #0A84FF;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        background: transparent;
+        padding: 0;
+        border: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        min-width: 0;
+        transition: all 0.2s ease;
+      }
+
+      .tweaq-target-selector.expanded {
+        white-space: normal;
+        word-break: break-all;
+      }
+
+      .tweaq-ticket-details {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px;
         background: rgba(0, 0, 0, 0.2);
-        border-radius: 4px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .tweaq-details-header {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+
+      .tweaq-details-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .tweaq-detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .tweaq-detail-property {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 4px;
+      }
+
+      .tweaq-detail-change {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
       }
 
-      .tweaq-ticket-target code {
-        color: #0A84FF;
+      .tweaq-detail-before {
+        color: rgba(255, 255, 255, 0.5);
+        text-decoration: line-through;
+        opacity: 0.7;
+      }
+
+      .tweaq-detail-after {
+        color: #34C759;
+        font-weight: 500;
+      }
+
+      .tweaq-detail-specific {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.4;
       }
 
       .tweaq-confirm-button {
@@ -1654,6 +1939,7 @@
       this.outlineElement = null;
       this.selectedIndicator = null;
       this.selectedCornerHandles = [];
+      this.hoverHighlight = null;
       this.propertiesPanel = null;
       this.commentPill = null;
       this.rightToolbar = null;
@@ -1667,10 +1953,14 @@
       this.awaitingResponse = false;
       this.readyTickets = null; // ReadyTicket[] when conversation is complete
       
+      // Edit indicators for tweaqed elements
+      this.editIndicators = new Map(); // Map<HTMLElement, IndicatorElement>
+      
       // Bind methods
       this.handleMouseMove = this.handleMouseMove.bind(this);
       this.handleClick = this.handleClick.bind(this);
       this.handleKeyDown = this.handleKeyDown.bind(this);
+      this.updateIndicatorPositions = this.updateIndicatorPositions.bind(this);
     }
 
     async inject(options = {}) {
@@ -1698,6 +1988,12 @@
       this.selectedIndicator.className = 'tweaq-selected-indicator';
       this.selectedIndicator.style.display = 'none';
       document.body.appendChild(this.selectedIndicator);
+
+      // Create hover highlight for ticket card hovers
+      this.hoverHighlight = document.createElement('div');
+      this.hoverHighlight.className = 'tweaq-hover-highlight';
+      this.hoverHighlight.style.display = 'none';
+      document.body.appendChild(this.hoverHighlight);
 
       // Create corner handles for selected element
       for (let i = 0; i < 2; i++) {
@@ -1842,12 +2138,12 @@
         
         <div class="tweaq-toolbar-separator"></div>
         
-        <button class="tweaq-toolbar-action ${this.mode === 'tickets' ? 'active' : ''}" data-mode="tickets" title="Tickets">
+        <button class="tweaq-toolbar-action ${this.mode === 'tickets' ? 'active' : ''}" data-mode="tickets" title="Tweaqs">
           ${ticketCount > 0 ? `<span class="tweaq-toolbar-badge">${ticketCount}</span>` : ''}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
           </svg>
-          <span class="tweaq-toolbar-action-label">Tickets</span>
+          <span class="tweaq-toolbar-action-label">Tweaqs</span>
         </button>
       `;
 
@@ -2045,7 +2341,9 @@
         elementSelector: this.generateSelector(this.selectedElement),
         element: elementInfo.tag,
         elementId: elementInfo.id,
-        elementClasses: elementInfo.classes ? elementInfo.classes.split('.').filter(c => c) : []
+        elementClasses: elementInfo.classes ? elementInfo.classes.split('.').filter(c => c) : [],
+        elementReference: this.selectedElement, // Store actual DOM element reference
+        visible: true // Track if tweaq is currently visible
       };
 
       this.recordedEdits.push(edit);
@@ -2054,10 +2352,13 @@
       // Update badge count
       this.updateRightToolbarBadge();
 
+      // Update edit indicators
+      this.updateAllEditIndicators();
+
       // Collapse the pill and update the edits panel
       this.collapseCommentPill();
       
-      // Switch to tickets mode to show the new edit
+      // Switch to tweaqs mode to show the new edit
       this.switchMode('tickets');
     }
 
@@ -2137,6 +2438,30 @@
         : '';
       
       return `${tag}${id}${className}`;
+    }
+
+    getEditableTextContent(element) {
+      // For elements with simple text content (no complex child elements)
+      // Get the direct text nodes
+      let textContent = '';
+      
+      for (const node of element.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          textContent += node.textContent;
+        } else if (node.nodeType === Node.ELEMENT_NODE && 
+                   (node.tagName === 'BR' || node.tagName === 'SPAN' || node.tagName === 'STRONG' || 
+                    node.tagName === 'EM' || node.tagName === 'B' || node.tagName === 'I')) {
+          // Include text from inline formatting elements
+          textContent += node.textContent;
+        }
+      }
+      
+      // If no direct text nodes found, use innerText as fallback
+      if (textContent.trim().length === 0) {
+        textContent = element.innerText || element.textContent || '';
+      }
+      
+      return textContent.trim();
     }
 
     toggleMode() {
@@ -2245,11 +2570,11 @@
       const confirmationHTML = this.readyTickets && this.readyTickets.length > 0 
         ? `
           <div class="tweaq-chat-confirmation">
-            <div class="tweaq-confirmation-header">Ready to create tickets?</div>
+            <div class="tweaq-confirmation-header">Ready to create tweaqs?</div>
             <div class="tweaq-confirmation-tickets">
               ${this.readyTickets.map(ticket => `
                 <div class="tweaq-confirmation-ticket">
-                  <div class="tweaq-ticket-icon">📝</div>
+                  <div class="tweaq-ticket-icon">⚡</div>
                   <div class="tweaq-ticket-info">
                     <div class="tweaq-ticket-instruction">${this.escapeHtml(ticket.instruction)}</div>
                     <div class="tweaq-ticket-meta">Target: ${ticket.target.identifier} • Confidence: ${(ticket.confidence * 100).toFixed(0)}%</div>
@@ -2259,7 +2584,7 @@
             </div>
             <div class="tweaq-confirmation-actions">
               <button class="tweaq-btn-secondary tweaq-cancel-conversation-btn">Cancel</button>
-              <button class="tweaq-btn-primary tweaq-confirm-conversation-btn">Create Tickets</button>
+              <button class="tweaq-btn-primary tweaq-confirm-conversation-btn">Create Tweaqs</button>
             </div>
           </div>
         `
@@ -2427,7 +2752,7 @@
       const { target, action } = this.conversationState.extractedInfo;
       
       if (!target || !action) {
-        console.error('Cannot create tickets: missing target or action');
+        console.error('Cannot create tweaqs: missing target or action');
         return;
       }
 
@@ -2448,13 +2773,13 @@
         };
       });
 
-      console.log('✅ Created ready tickets:', this.readyTickets);
+      console.log('✅ Created ready tweaqs:', this.readyTickets);
     }
 
     confirmConversation() {
       if (!this.readyTickets || this.readyTickets.length === 0) return;
 
-      console.log('✅ User confirmed conversation - creating structured edit tickets');
+      console.log('✅ User confirmed conversation - creating structured tweaqs');
 
       // Convert ready tickets to structured edit tickets
       this.readyTickets.forEach(ticket => {
@@ -2479,7 +2804,8 @@
           })),
           timestamp: Date.now(),
           status: 'pending',
-          confidence: ticket.confidence
+          confidence: ticket.confidence,
+          visible: true // Track if tweaq is currently visible
         };
 
         this.recordedEdits.push(editTicket);
@@ -2490,10 +2816,13 @@
       this.conversationMessages = [];
       this.readyTickets = null;
 
+      // Update edit indicators
+      this.updateAllEditIndicators();
+
       // Render panel to update
       this.renderPanel();
 
-      console.log(`📝 Created ${this.recordedEdits.length} structured edit tickets from conversation`);
+      console.log(`⚡ Created ${this.recordedEdits.length} structured tweaqs from conversation`);
     }
 
     cancelConversation() {
@@ -2576,33 +2905,21 @@
       
       const ticketsHTML = this.recordedEdits.length > 0
         ? this.recordedEdits.map((edit, index) => {
-            const isComment = edit.type === 'structured-change';
-            return `
-              <div class="tweaq-ticket-item">
-                <div class="tweaq-ticket-header">
-                  <span class="tweaq-ticket-icon">${isComment ? '💬' : '✏️'}</span>
-                  <span class="tweaq-ticket-type">${isComment ? 'Comment' : 'Edit'}</span>
-                  <button class="tweaq-ticket-delete" data-index="${index}" title="Delete">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div class="tweaq-ticket-content">${this.escapeHtml(edit.instruction || 'Edit')}</div>
-                ${edit.elementSelector ? `
-                  <div class="tweaq-ticket-target">
-                    <code>${edit.elementSelector}</code>
-                  </div>
-                ` : ''}
-              </div>
-            `;
+            const isStructuredChange = edit.type === 'structured-change';
+            
+            if (isStructuredChange) {
+              // For structured changes from conversation
+              return this.renderStructuredTicket(edit, index);
+            } else {
+              // For direct property edits
+              return this.renderPropertyTicket(edit, index);
+            }
           }).join('')
         : `
           <div class="tweaq-empty-state">
-            <div style="font-size: 32px; margin-bottom: 12px;">🎫</div>
-            <p style="color: #999; font-size: 14px; margin-bottom: 8px;">No tickets yet</p>
-            <p style="color: #bbb; font-size: 12px;">Use Select or Comment mode to create tickets</p>
+            <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
+            <p style="color: #999; font-size: 14px; margin-bottom: 8px;">No tweaqs yet</p>
+            <p style="color: #bbb; font-size: 12px;">Edit in Design, add Comments, or Chat to create tweaqs</p>
           </div>
         `;
 
@@ -2612,7 +2929,7 @@
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
             </svg>
-            Send ${ticketCount} ${ticketCount === 1 ? 'Ticket' : 'Tickets'} to Agent
+            Send ${ticketCount} ${ticketCount === 1 ? 'Tweaq' : 'Tweaqs'} to Agent
           </button>
         `
         : '';
@@ -2635,6 +2952,37 @@
         });
       });
 
+      // Attach toggle visibility listeners
+      const toggleButtons = this.propertiesPanel.querySelectorAll('.tweaq-ticket-toggle');
+      toggleButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation(); // Prevent triggering hover
+          const index = parseInt(btn.getAttribute('data-index'));
+          this.toggleEditVisibility(index);
+        });
+      });
+
+      // Attach target selector toggle listeners
+      const targetSelectors = this.propertiesPanel.querySelectorAll('.tweaq-target-selector');
+      targetSelectors.forEach(selector => {
+        selector.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selector.classList.toggle('expanded');
+        });
+      });
+
+      // Attach hover listeners to ticket cards
+      const ticketCards = this.propertiesPanel.querySelectorAll('.tweaq-ticket-card');
+      ticketCards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          const editIndex = parseInt(card.getAttribute('data-edit-index'));
+          this.highlightEditElement(editIndex);
+        });
+        card.addEventListener('mouseleave', () => {
+          this.clearEditHighlight();
+        });
+      });
+
       // Attach confirm button listener
       const confirmBtn = this.propertiesPanel.querySelector('#tweaq-confirm-edits');
       if (confirmBtn) {
@@ -2642,6 +2990,228 @@
           this.confirmEdits();
         });
       }
+    }
+
+    categorizeChange(property) {
+      // Map CSS properties to change categories
+      const categories = {
+        'textContent': { type: 'Copy Change', icon: '✏️', color: '#667eea' },
+        'color': { type: 'Color Change', icon: '🎨', color: '#f093fb' },
+        'backgroundColor': { type: 'Color Change', icon: '🎨', color: '#f093fb' },
+        'borderColor': { type: 'Color Change', icon: '🎨', color: '#f093fb' },
+        'fontSize': { type: 'Size Change', icon: '📏', color: '#4facfe' },
+        'width': { type: 'Size Change', icon: '📏', color: '#4facfe' },
+        'height': { type: 'Size Change', icon: '📏', color: '#4facfe' },
+        'padding': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'margin': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'paddingTop': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'paddingRight': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'paddingBottom': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'paddingLeft': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'marginTop': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'marginRight': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'marginBottom': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'marginLeft': { type: 'Spacing Change', icon: '📐', color: '#43e97b' },
+        'fontWeight': { type: 'Style Change', icon: '💎', color: '#fa709a' },
+        'textAlign': { type: 'Style Change', icon: '💎', color: '#fa709a' },
+        'opacity': { type: 'Style Change', icon: '💎', color: '#fa709a' },
+        'borderRadius': { type: 'Style Change', icon: '💎', color: '#fa709a' },
+      };
+      
+      return categories[property] || { type: 'Style Change', icon: '✨', color: '#a8edea' };
+    }
+
+    generatePlainEnglishSummary(changes, elementName) {
+      if (changes.length === 1) {
+        const change = changes[0];
+        const property = change.property;
+        
+        if (property === 'textContent') {
+          return `Change text to "${change.after.substring(0, 30)}${change.after.length > 30 ? '...' : ''}"`;
+        } else if (property === 'color' || property === 'backgroundColor') {
+          return `Change ${property === 'color' ? 'text' : 'background'} color to ${change.after}`;
+        } else if (property === 'fontSize') {
+          return `Change font size from ${change.before} to ${change.after}`;
+        } else if (property === 'fontWeight') {
+          const weights = {
+            '100': 'Thin', '200': 'Extra Light', '300': 'Light',
+            '400': 'Regular', '500': 'Medium', '600': 'Semi Bold',
+            '700': 'Bold', '800': 'Extra Bold', '900': 'Black'
+          };
+          return `Change font weight to ${weights[change.after] || change.after}`;
+        } else if (property.includes('padding') || property.includes('margin')) {
+          const type = property.includes('padding') ? 'padding' : 'margin';
+          return `Adjust ${type} to ${change.after}`;
+        } else {
+          return `Update ${property} to ${change.after}`;
+        }
+      } else {
+        // Multiple changes - categorize them
+        const types = [...new Set(changes.map(c => this.categorizeChange(c.property).type))];
+        if (types.length === 1) {
+          return `${changes.length} ${types[0].toLowerCase()} updates`;
+        } else {
+          return `${changes.length} property changes`;
+        }
+      }
+    }
+
+    renderPropertyTicket(edit, index) {
+      // Determine the primary change type
+      const changeTypes = edit.changes.map(c => this.categorizeChange(c.property));
+      const primaryType = changeTypes[0]; // Use first change's category as primary
+      
+      // Check if all changes are the same type
+      const allSameType = changeTypes.every(ct => ct.type === primaryType.type);
+      const displayType = allSameType ? primaryType : { 
+        type: 'Mixed Changes', 
+        icon: '🔄', 
+        color: '#a8edea' 
+      };
+      
+      // Generate plain English summary
+      const summary = this.generatePlainEnglishSummary(edit.changes, edit.elementName);
+      
+      return `
+        <div class="tweaq-ticket-card" data-edit-index="${index}">
+          <div class="tweaq-ticket-card-header">
+            <div class="tweaq-ticket-type-badge" style="background: ${displayType.color}20; color: ${displayType.color}; border-color: ${displayType.color}40;">
+              <span class="tweaq-ticket-badge-icon">${displayType.icon}</span>
+              <span class="tweaq-ticket-badge-text">${displayType.type}</span>
+            </div>
+            <div class="tweaq-ticket-actions">
+              <button class="tweaq-ticket-toggle" data-index="${index}" title="${edit.visible !== false ? 'Hide tweaq' : 'Show tweaq'}">
+                ${edit.visible !== false ? `
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                ` : `
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                  </svg>
+                `}
+              </button>
+              <button class="tweaq-ticket-delete" data-index="${index}" title="Delete">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                  <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div class="tweaq-ticket-card-body">
+            <div class="tweaq-ticket-summary">${this.escapeHtml(summary)}</div>
+            <div class="tweaq-ticket-target">
+              <span class="tweaq-target-label">Target:</span>
+              <code class="tweaq-target-selector">${edit.elementSelector || edit.elementName}</code>
+            </div>
+            
+            ${edit.changes.length > 0 ? `
+              <div class="tweaq-ticket-details">
+                <div class="tweaq-details-header">Property Changes:</div>
+                <div class="tweaq-details-list">
+                  ${edit.changes.map(change => {
+                    return `
+                      <div class="tweaq-detail-item">
+                        <div class="tweaq-detail-property">
+                          <span>${change.property === 'textContent' ? 'Text Content' : change.property}</span>
+                        </div>
+                        <div class="tweaq-detail-change">
+                          <span class="tweaq-detail-before">${this.escapeHtml(String(change.before).substring(0, 40))}${String(change.before).length > 40 ? '...' : ''}</span>
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.5; margin: 0 4px;">
+                            <path d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+                          </svg>
+                          <span class="tweaq-detail-after">${this.escapeHtml(String(change.after).substring(0, 40))}${String(change.after).length > 40 ? '...' : ''}</span>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    renderStructuredTicket(edit, index) {
+      // For conversation-based structured changes
+      const actionIcons = {
+        'content': '✏️',
+        'styling': '🎨',
+        'layout': '📐',
+        'structure': '🏗️',
+        'mixed': '🔄'
+      };
+      const actionColors = {
+        'content': '#667eea',
+        'styling': '#f093fb',
+        'layout': '#4facfe',
+        'structure': '#43e97b',
+        'mixed': '#fa709a'
+      };
+      
+      const icon = actionIcons[edit.actionType] || '💬';
+      const color = actionColors[edit.actionType] || '#667eea';
+      const typeLabel = edit.actionType ? edit.actionType.charAt(0).toUpperCase() + edit.actionType.slice(1) : 'Change';
+      
+      return `
+        <div class="tweaq-ticket-card" data-edit-index="${index}">
+          <div class="tweaq-ticket-card-header">
+            <div class="tweaq-ticket-type-badge" style="background: ${color}20; color: ${color}; border-color: ${color}40;">
+              <span class="tweaq-ticket-badge-icon">${icon}</span>
+              <span class="tweaq-ticket-badge-text">${typeLabel}</span>
+            </div>
+            <div class="tweaq-ticket-actions">
+              <button class="tweaq-ticket-toggle" data-index="${index}" title="${edit.visible !== false ? 'Hide tweaq' : 'Show tweaq'}">
+                ${edit.visible !== false ? `
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                ` : `
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                  </svg>
+                `}
+              </button>
+              <button class="tweaq-ticket-delete" data-index="${index}" title="Delete">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                  <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div class="tweaq-ticket-card-body">
+            <div class="tweaq-ticket-summary">${this.escapeHtml(edit.instruction)}</div>
+            ${edit.target ? `
+              <div class="tweaq-ticket-target">
+                <span class="tweaq-target-label">Target:</span>
+                <code class="tweaq-target-selector">${edit.target.identifier}</code>
+              </div>
+            ` : ''}
+            
+            ${edit.specifics && edit.specifics.length > 0 ? `
+              <div class="tweaq-ticket-details">
+                <div class="tweaq-details-header">Details:</div>
+                <div class="tweaq-details-list">
+                  ${edit.specifics.map(specific => `
+                    <div class="tweaq-detail-item">
+                      <div class="tweaq-detail-specific">• ${this.escapeHtml(specific)}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
     }
 
     renderProperties() {
@@ -2999,9 +3569,22 @@
       const color = styles.color;
       const textAlign = styles.textAlign;
       
+      // Get the text content - handle elements that only have text (no child elements with text)
+      const textContent = this.getEditableTextContent(element);
+      const hasEditableText = textContent.trim().length > 0;
+      
       return `
         <div class="tweaq-property-section">
           <h4 class="tweaq-section-header">Text</h4>
+          
+          ${hasEditableText ? `
+            <div class="tweaq-property tweaq-property-content">
+              <label class="tweaq-property-label">Content</label>
+              <div class="tweaq-property-value">
+                <textarea class="tweaq-textarea tweaq-content-input" data-property="textContent" rows="3">${this.escapeHtml(textContent)}</textarea>
+              </div>
+            </div>
+          ` : ''}
           
           <div class="tweaq-property">
             <label class="tweaq-property-label">Size</label>
@@ -3106,6 +3689,19 @@
         });
       });
 
+      // Handle textarea for text content with real-time updates
+      const textareas = this.propertiesPanel.querySelectorAll('.tweaq-textarea');
+      textareas.forEach(textarea => {
+        textarea.addEventListener('input', (e) => {
+          const property = e.target.dataset.property;
+          const value = e.target.value;
+          
+          if (property === 'textContent') {
+            this.applyTextContent(value);
+          }
+        });
+      });
+
       // Color swatch click handler
       const swatches = this.propertiesPanel.querySelectorAll('.tweaq-color-swatch');
       swatches.forEach(swatch => {
@@ -3178,6 +3774,8 @@
         element: element.tagName.toLowerCase(),
         elementId: element.id || null,
         elementClasses: Array.from(element.classList),
+        elementReference: element, // Store actual DOM element reference
+        visible: true, // Track if tweaq is currently visible
         status: 'pending', // pending, processing, completed, failed
         prUrl: null,
         error: null
@@ -3187,13 +3785,41 @@
       this.pendingEdits.clear();
       this.originalValues.clear();
 
+      // Update badge count
+      this.updateRightToolbarBadge();
+
+      // Update edit indicators
+      this.updateAllEditIndicators();
+      
+      console.log('📍 Added indicator for element:', edit.elementName, element);
+
       // Render properties to show the updates
       this.renderProperties();
     }
 
     deleteEdit(index) {
+      const edit = this.recordedEdits[index];
+      if (!edit) return;
+
+      // Revert changes if the tweaq was visible
+      if (edit.visible !== false) {
+        const element = edit.elementReference || this.findElementFromEdit(edit);
+        if (element && document.body.contains(element)) {
+          this.revertEditFromElement(element, edit);
+          console.log('🗑️ Reverted changes before deleting tweaq');
+        }
+      }
+
+      // Clear highlight if it was being shown
+      this.clearEditHighlight();
+
+      // Remove from array
       this.recordedEdits.splice(index, 1);
+      
+      // Update UI
       this.updateRightToolbarBadge();
+      this.updateAllEditIndicators();
+      
       if (this.mode === 'tickets') {
         this.renderTicketsView();
       } else {
@@ -3359,6 +3985,58 @@
       this.updateRecordButtonVisibility();
     }
 
+    applyTextContent(value) {
+      const element = this.selectedElement;
+      if (!element) return;
+      
+      // Initialize storage if needed
+      if (!this.originalValues) {
+        this.originalValues = new Map();
+      }
+      
+      // Store the original text content before making the change
+      if (!this.originalValues.has('textContent')) {
+        const originalText = this.getEditableTextContent(element);
+        this.originalValues.set('textContent', originalText);
+      }
+      
+      // Apply the change to the element
+      // For simple text elements, update textContent directly
+      // For elements with child nodes, try to update only text nodes
+      const hasSimpleContent = Array.from(element.childNodes).every(
+        node => node.nodeType === Node.TEXT_NODE || 
+                (node.nodeType === Node.ELEMENT_NODE && 
+                 ['BR', 'SPAN', 'STRONG', 'EM', 'B', 'I'].includes(node.tagName))
+      );
+      
+      if (hasSimpleContent && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+        // Simple text node - update directly
+        element.childNodes[0].textContent = value;
+      } else if (element.childNodes.length === 0 || hasSimpleContent) {
+        // Empty or simple element - set textContent
+        element.textContent = value;
+      } else {
+        // Complex element - try to update first text node
+        for (const node of element.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            node.textContent = value;
+            break;
+          }
+        }
+      }
+      
+      // Track the edit with before/after values
+      this.pendingEdits.set('textContent', {
+        before: this.originalValues.get('textContent'),
+        after: value
+      });
+      
+      console.log(`Applied textContent: "${this.originalValues.get('textContent')}" → "${value}"`, 'Pending edits:', this.pendingEdits.size);
+      
+      // Update the record button visibility
+      this.updateRecordButtonVisibility();
+    }
+
     updateRecordButtonVisibility() {
       const recordBtn = document.getElementById('tweaq-record-edit-icon');
       if (recordBtn) {
@@ -3384,19 +4062,47 @@
     }
 
     handleMouseMove(e) {
-      // Hover outline disabled for better performance
-      return;
+      // Only show hover outline in design mode
+      if (!this.isVisible || this.mode !== 'design') {
+        return;
+      }
+
+      const target = e.target;
+      
+      // Don't highlight overlay elements
+      if (target.closest('.tweaq-overlay-container') || 
+          target.closest('.tweaq-properties-panel') ||
+          target.closest('.tweaq-overlay-toolbar') ||
+          target.closest('.tweaq-comment-pill') ||
+          target.closest('.tweaq-right-toolbar') ||
+          target.closest('.tweaq-element-outline') ||
+          target.closest('.tweaq-selected-indicator') ||
+          target.closest('.tweaq-edit-indicator')) {
+        // Hide outline when hovering over overlay UI
+        if (!this.selectedElement) {
+          this.updateOutline(null);
+        }
+        return;
+      }
+
+      this.hoveredElement = target;
+      
+      // Only show outline for hovered element if no element is selected
+      if (!this.selectedElement) {
+        this.updateOutline(target);
+      }
     }
 
     handleClick(e) {
       if (!this.isVisible || (this.mode !== 'design' && this.mode !== 'comment')) return;
       
-      // Don't select elements in the overlay, comment pill, or right toolbar
+      // Don't select elements in the overlay, comment pill, right toolbar, or edit indicators
       if (e.target.closest('.tweaq-overlay-container') || 
           e.target.closest('.tweaq-properties-panel') ||
           e.target.closest('.tweaq-overlay-toolbar') ||
           e.target.closest('.tweaq-comment-pill') ||
-          e.target.closest('.tweaq-right-toolbar')) {
+          e.target.closest('.tweaq-right-toolbar') ||
+          e.target.closest('.tweaq-edit-indicator')) {
         return;
       }
       
@@ -3500,16 +4206,380 @@
       this.hideCommentPill();
     }
 
+    addEditIndicator(element, editCount = 1, allVisible = true) {
+      // Don't add indicator if one already exists
+      if (this.editIndicators.has(element)) {
+        this.updateEditIndicator(element, editCount, allVisible);
+        return;
+      }
+
+      const indicator = document.createElement('div');
+      indicator.className = `tweaq-edit-indicator${allVisible ? '' : ' tweaq-hidden'}`;
+      indicator.innerHTML = `
+        <span class="tweaq-edit-indicator-icon">⚡</span>
+        <span class="tweaq-edit-indicator-text">${editCount}</span>
+        <span class="tweaq-edit-indicator-toggle">${allVisible ? '👁️' : '👁️‍🗨️'}</span>
+      `;
+
+      // Add click handler to toggle visibility
+      indicator.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleElementTweaqs(element);
+      });
+
+      document.body.appendChild(indicator);
+      this.editIndicators.set(element, indicator);
+      
+      this.positionEditIndicator(element, indicator);
+      
+      console.log('⚡ Created indicator for', element.tagName, 'at count:', editCount);
+    }
+
+    updateEditIndicator(element, editCount, allVisible = true) {
+      const indicator = this.editIndicators.get(element);
+      if (!indicator) return;
+
+      const textElement = indicator.querySelector('.tweaq-edit-indicator-text');
+      if (textElement) {
+        textElement.textContent = editCount;
+      }
+
+      const toggleElement = indicator.querySelector('.tweaq-edit-indicator-toggle');
+      if (toggleElement) {
+        toggleElement.textContent = allVisible ? '👁️' : '👁️‍🗨️';
+      }
+
+      // Update indicator state
+      if (allVisible) {
+        indicator.classList.remove('tweaq-hidden');
+      } else {
+        indicator.classList.add('tweaq-hidden');
+      }
+    }
+
+    removeEditIndicator(element) {
+      const indicator = this.editIndicators.get(element);
+      if (indicator) {
+        indicator.remove();
+        this.editIndicators.delete(element);
+      }
+    }
+
+    positionEditIndicator(element, indicator) {
+      const rect = element.getBoundingClientRect();
+      
+      // Position at top-right corner of element
+      const left = rect.right + window.scrollX - 8;
+      const top = rect.top + window.scrollY - 8;
+      
+      indicator.style.left = `${left}px`;
+      indicator.style.top = `${top}px`;
+      
+      console.log('📍 Positioned indicator at', { left, top, rect, element: element.tagName });
+    }
+
+    updateIndicatorPositions() {
+      // Update all indicator positions on scroll/resize
+      this.editIndicators.forEach((indicator, element) => {
+        this.positionEditIndicator(element, indicator);
+      });
+    }
+
+    updateAllEditIndicators() {
+      // Clear all existing indicators
+      this.editIndicators.forEach(indicator => indicator.remove());
+      this.editIndicators.clear();
+
+      // Count edits per element and track visibility
+      const editCounts = new Map();
+      const elementVisibility = new Map();
+      
+      this.recordedEdits.forEach(edit => {
+        // Use stored element reference if available
+        let element = edit.elementReference;
+        
+        // Fallback to finding by selector if reference not available
+        if (!element || !document.body.contains(element)) {
+          if (edit.elementId) {
+            element = document.getElementById(edit.elementId);
+          } else if (edit.elementClasses && edit.elementClasses.length > 0) {
+            const selector = `${edit.element}.${edit.elementClasses.join('.')}`;
+            element = document.querySelector(selector);
+          } else {
+            // Fallback to element selector
+            try {
+              element = document.querySelector(edit.elementSelector);
+            } catch (e) {
+              console.warn('Could not find element for indicator:', edit.elementSelector);
+            }
+          }
+        }
+
+        if (element && document.body.contains(element)) {
+          const count = (editCounts.get(element) || 0) + 1;
+          editCounts.set(element, count);
+          
+          // Track if ALL edits for this element are visible
+          const currentVisibility = elementVisibility.get(element);
+          if (currentVisibility === undefined) {
+            elementVisibility.set(element, edit.visible !== false);
+          } else {
+            elementVisibility.set(element, currentVisibility && edit.visible !== false);
+          }
+        }
+      });
+
+      // Add indicators for all edited elements
+      editCounts.forEach((count, element) => {
+        const allVisible = elementVisibility.get(element);
+        this.addEditIndicator(element, count, allVisible);
+      });
+      
+      console.log('📍 Updated indicators for', editCounts.size, 'elements');
+    }
+
+    toggleEditVisibility(editIndex) {
+      const edit = this.recordedEdits[editIndex];
+      if (!edit) return;
+
+      // Find the element
+      const element = edit.elementReference || this.findElementFromEdit(edit);
+      if (!element || !document.body.contains(element)) {
+        console.warn('Could not find element to toggle visibility:', edit);
+        return;
+      }
+
+      // Toggle visibility
+      const newVisibility = edit.visible === false;
+      edit.visible = newVisibility;
+
+      console.log(`👁️ Toggling tweaq visibility - new state: ${newVisibility ? 'visible' : 'hidden'}`);
+
+      if (newVisibility) {
+        // Re-apply the changes
+        this.applyEditToElement(element, edit);
+      } else {
+        // Revert the changes
+        this.revertEditFromElement(element, edit);
+      }
+
+      // Update the indicator and re-render tickets view
+      this.updateAllEditIndicators();
+      this.renderTicketsView();
+    }
+
+    toggleElementTweaqs(element) {
+      // Find all edits for this element
+      const elementEdits = this.recordedEdits.filter(edit => {
+        const editElement = edit.elementReference || this.findElementFromEdit(edit);
+        return editElement === element;
+      });
+
+      if (elementEdits.length === 0) return;
+
+      // Determine new visibility state (if ANY are visible, hide all. If all hidden, show all)
+      const anyVisible = elementEdits.some(edit => edit.visible !== false);
+      const newVisibility = !anyVisible;
+
+      console.log(`👁️ Toggling ${elementEdits.length} tweaqs for element - new state: ${newVisibility ? 'visible' : 'hidden'}`);
+
+      // Toggle each edit's visibility
+      elementEdits.forEach(edit => {
+        edit.visible = newVisibility;
+
+        if (newVisibility) {
+          // Re-apply the changes
+          this.applyEditToElement(element, edit);
+        } else {
+          // Revert the changes
+          this.revertEditFromElement(element, edit);
+        }
+      });
+
+      // Update the indicator
+      this.updateAllEditIndicators();
+    }
+
+    findElementFromEdit(edit) {
+      if (edit.elementId) {
+        return document.getElementById(edit.elementId);
+      } else if (edit.elementClasses && edit.elementClasses.length > 0) {
+        const selector = `${edit.element}.${edit.elementClasses.join('.')}`;
+        return document.querySelector(selector);
+      } else if (edit.elementSelector) {
+        try {
+          return document.querySelector(edit.elementSelector);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    applyEditToElement(element, edit) {
+      if (!edit.changes) return;
+
+      edit.changes.forEach(change => {
+        if (change.property === 'textContent') {
+          // Handle text content
+          const hasSimpleContent = Array.from(element.childNodes).every(
+            node => node.nodeType === Node.TEXT_NODE || 
+                    (node.nodeType === Node.ELEMENT_NODE && 
+                     ['BR', 'SPAN', 'STRONG', 'EM', 'B', 'I'].includes(node.tagName))
+          );
+          
+          if (hasSimpleContent && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+            element.childNodes[0].textContent = change.after;
+          } else if (element.childNodes.length === 0 || hasSimpleContent) {
+            element.textContent = change.after;
+          } else {
+            for (const node of element.childNodes) {
+              if (node.nodeType === Node.TEXT_NODE) {
+                node.textContent = change.after;
+                break;
+              }
+            }
+          }
+        } else {
+          // Handle style properties
+          const property = change.property;
+          let value = change.after;
+          
+          // Add unit if needed
+          if (typeof value === 'number' || !isNaN(value)) {
+            const needsUnit = ['fontSize', 'width', 'height', 'padding', 'margin', 
+                              'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+                              'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+                              'borderRadius', 'top', 'left', 'right', 'bottom'].includes(property);
+            if (needsUnit && !String(value).match(/px|em|rem|%|vh|vw/)) {
+              value = value + 'px';
+            }
+          }
+          
+          element.style[property] = value;
+        }
+      });
+
+      console.log('✅ Applied tweaq to element');
+    }
+
+    revertEditFromElement(element, edit) {
+      if (!edit.changes) return;
+
+      edit.changes.forEach(change => {
+        if (change.property === 'textContent') {
+          // Revert text content
+          const hasSimpleContent = Array.from(element.childNodes).every(
+            node => node.nodeType === Node.TEXT_NODE || 
+                    (node.nodeType === Node.ELEMENT_NODE && 
+                     ['BR', 'SPAN', 'STRONG', 'EM', 'B', 'I'].includes(node.tagName))
+          );
+          
+          if (hasSimpleContent && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+            element.childNodes[0].textContent = change.before;
+          } else if (element.childNodes.length === 0 || hasSimpleContent) {
+            element.textContent = change.before;
+          } else {
+            for (const node of element.childNodes) {
+              if (node.nodeType === Node.TEXT_NODE) {
+                node.textContent = change.before;
+                break;
+              }
+            }
+          }
+        } else {
+          // Revert style properties
+          const property = change.property;
+          let value = change.before;
+          
+          // Add unit if needed
+          if (typeof value === 'number' || !isNaN(value)) {
+            const needsUnit = ['fontSize', 'width', 'height', 'padding', 'margin',
+                              'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+                              'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+                              'borderRadius', 'top', 'left', 'right', 'bottom'].includes(property);
+            if (needsUnit && !String(value).match(/px|em|rem|%|vh|vw/)) {
+              value = value + 'px';
+            }
+          }
+          
+          element.style[property] = value;
+        }
+      });
+
+      console.log('↩️ Reverted tweaq from element');
+    }
+
+    highlightEditElement(editIndex) {
+      const edit = this.recordedEdits[editIndex];
+      if (!edit) return;
+
+      // Find the element
+      const element = edit.elementReference || this.findElementFromEdit(edit);
+      if (!element || !document.body.contains(element)) {
+        console.warn('Could not find element to highlight for edit:', edit);
+        return;
+      }
+
+      // Scroll element into view if not visible
+      const rect = element.getBoundingClientRect();
+      const isInView = (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= window.innerHeight &&
+        rect.right <= window.innerWidth
+      );
+
+      if (!isInView) {
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'center'
+        });
+        
+        // Wait for scroll to complete before highlighting
+        setTimeout(() => {
+          this.showHighlight(element);
+        }, 300);
+      } else {
+        this.showHighlight(element);
+      }
+
+      console.log('🔦 Highlighting element for edit:', edit.elementName);
+    }
+
+    showHighlight(element) {
+      if (!this.hoverHighlight || !element) return;
+
+      const rect = element.getBoundingClientRect();
+      
+      this.hoverHighlight.style.display = 'block';
+      this.hoverHighlight.style.left = `${rect.left + window.scrollX}px`;
+      this.hoverHighlight.style.top = `${rect.top + window.scrollY}px`;
+      this.hoverHighlight.style.width = `${rect.width}px`;
+      this.hoverHighlight.style.height = `${rect.height}px`;
+    }
+
+    clearEditHighlight() {
+      if (this.hoverHighlight) {
+        this.hoverHighlight.style.display = 'none';
+      }
+    }
+
     attachEventListeners() {
       document.addEventListener('mousemove', this.handleMouseMove);
       document.addEventListener('click', this.handleClick, true);
       document.addEventListener('keydown', this.handleKeyDown);
+      window.addEventListener('scroll', this.updateIndicatorPositions, true);
+      window.addEventListener('resize', this.updateIndicatorPositions);
     }
 
     removeEventListeners() {
       document.removeEventListener('mousemove', this.handleMouseMove);
       document.removeEventListener('click', this.handleClick, true);
       document.removeEventListener('keydown', this.handleKeyDown);
+      window.removeEventListener('scroll', this.updateIndicatorPositions, true);
+      window.removeEventListener('resize', this.updateIndicatorPositions);
     }
 
     hide() {
@@ -3521,11 +4591,16 @@
       this.hideSelectModeIndicators();
       this.hideSelectedIndicator();
       
+      // Clean up edit indicators
+      this.editIndicators.forEach(indicator => indicator.remove());
+      this.editIndicators.clear();
+      
       // Wait for slide-out animation to complete before cleanup
       setTimeout(() => {
         if (this.overlayContainer) this.overlayContainer.remove();
         if (this.outlineElement) this.outlineElement.remove();
         if (this.selectedIndicator) this.selectedIndicator.remove();
+        if (this.hoverHighlight) this.hoverHighlight.remove();
         this.selectedCornerHandles.forEach(handle => handle.remove());
         if (this.commentPill) this.commentPill.remove();
         if (this.rightToolbar) this.rightToolbar.remove();
@@ -3534,6 +4609,7 @@
         this.overlayContainer = null;
         this.outlineElement = null;
         this.selectedIndicator = null;
+        this.hoverHighlight = null;
         this.resizeHandle = null;
         this.selectedCornerHandles = [];
         this.propertiesPanel = null;
