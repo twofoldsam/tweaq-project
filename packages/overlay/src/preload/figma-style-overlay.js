@@ -48,13 +48,12 @@
     style.id = 'tweaq-overlay-styles';
     style.textContent = `
       /* Tweaq Figma-Style Overlay */
-      
-      /* Overlay positioned over BrowserView (below toolbar) */
-      :root {
-        --toolbar-height: 60px;
-      }
 
-      /* Body adjustment for panel - no longer needed since overlay is in main window */
+      /* Body adjustment for panel */
+      body.tweaq-panel-open {
+        margin-right: calc(var(--tweaq-panel-width, 400px) + var(--tweaq-toolbar-width, 72px));
+        transition: margin-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
 
       /* Disable transition during resize for instant feedback */
       body.tweaq-resizing {
@@ -313,10 +312,10 @@
       /* Properties Panel */
       .tweaq-properties-panel {
         position: fixed;
-        top: var(--toolbar-height, 60px);
+        top: 0;
         right: var(--tweaq-toolbar-width, 72px);
         width: var(--tweaq-panel-width, 400px);
-        height: calc(100vh - var(--toolbar-height, 60px));
+        height: 100vh;
         pointer-events: auto;
         background: rgba(28, 28, 30, 0.98);
         backdrop-filter: blur(20px);
@@ -346,9 +345,9 @@
       .tweaq-panel-resize-handle {
         position: fixed;
         right: calc(var(--tweaq-toolbar-width, 56px) + var(--tweaq-panel-width, 320px) - 3px);
-        top: var(--toolbar-height, 60px);
+        top: 0;
         width: 6px;
-        height: calc(100vh - var(--toolbar-height, 60px));
+        height: 100vh;
         cursor: ew-resize;
         z-index: 1000010;
         background: transparent;
@@ -1842,9 +1841,9 @@
       /* Right Sidebar Toolbar Styles */
       .tweaq-right-toolbar {
         position: fixed;
-        top: var(--toolbar-height, 60px);
+        top: 0;
         right: 0;
-        height: calc(100vh - var(--toolbar-height, 60px));
+        height: 100vh;
         display: flex;
         flex-direction: column;
         gap: 0;
