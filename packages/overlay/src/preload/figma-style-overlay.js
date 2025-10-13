@@ -2082,13 +2082,42 @@
       if (this.isVisible) return;
 
       injectStyles();
+      
+      // Set mode before creating elements if provided
+      if (options.initialMode) {
+        this.mode = options.initialMode;
+      }
+      
+      // Restore state if provided (silent restoration after browser switch)
+      const restoreState = options.restoreState;
+      if (restoreState) {
+        this.mode = restoreState.mode || 'chat';
+        this.recordedEdits = restoreState.recordedEdits || [];
+      }
+      
       this.createOverlayElements();
       this.attachEventListeners();
       this.isVisible = true;
       
-      // Show panel immediately with CHAT view (default mode)
-      this.showPanel();
-      this.renderPanel();
+      // Show panel without animations if silent mode
+      if (options.silent) {
+        // Skip animations - restore state silently
+        if (restoreState && restoreState.isPanelVisible) {
+          this.propertiesPanel.classList.add('visible');
+          this.resizeHandle.classList.add('visible');
+          document.body.classList.add('tweaq-panel-open');
+          this.renderPanel();
+        } else {
+          // Just show toolbar, no panel
+          this.renderPanel();
+        }
+      } else {
+        // Normal mode with animations
+        this.showPanel();
+        this.renderPanel();
+      }
+      
+      console.log('🎨 Overlay injected, mode:', this.mode, 'silent:', !!options.silent);
     }
 
     createOverlayElements() {

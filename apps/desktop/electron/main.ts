@@ -675,19 +675,36 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
   }
   
   try {
-    // Check if overlay is currently visible in the old browser view
+    // Capture complete overlay state before switching
     const oldView = browserEngineManager.getCurrentBrowserView();
-    let wasOverlayVisible = false;
+    let overlaySnapshot: any = null;
     
     if (oldView) {
       try {
-        wasOverlayVisible = await oldView.webContents.executeJavaScript(`
-          !!(window.TweaqOverlay && window.TweaqOverlay._initialized && 
-             document.querySelector('.tweaq-right-toolbar'))
+        overlaySnapshot = await oldView.webContents.executeJavaScript(`
+          (function() {
+            if (!window.TweaqOverlay || !window.TweaqOverlay._initialized) {
+              return null;
+            }
+            
+            const overlay = window.TweaqOverlay._instance;
+            if (!overlay) return null;
+            
+            return {
+              isVisible: !!document.querySelector('.tweaq-right-toolbar'),
+              mode: overlay.mode,
+              isPanelVisible: overlay.panel?.classList.contains('visible') || false,
+              recordedEdits: overlay.recordedEdits || [],
+              selectedElement: overlay.selectedElement ? {
+                selector: overlay.selectedElement.getAttribute('data-selector') || '',
+                tagName: overlay.selectedElement.tagName
+              } : null
+            };
+          })()
         `);
-        console.log('Overlay visible before switch:', wasOverlayVisible);
+        console.log('📸 Captured overlay state:', overlaySnapshot);
       } catch (error) {
-        console.log('Could not check overlay state:', error);
+        console.log('Could not capture overlay state:', error);
       }
     }
     
@@ -702,7 +719,7 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
       // No need to call setupBrowserViewEvents here
       
       // If overlay was visible, re-inject it when the new page loads
-      if (wasOverlayVisible && browserView) {
+      if (overlaySnapshot && overlaySnapshot.isVisible && browserView) {
         const reinjectOverlay = async () => {
           try {
             const fs = require('fs');
@@ -713,16 +730,31 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
 
             await browserView!.webContents.executeJavaScript(overlayScript);
             
-            const initScript = `
+            // Restore overlay with captured state - pass silent: true to prevent animations
+            const restoreScript = `
               if (window.TweaqOverlay) {
-                window.TweaqOverlay.inject(${JSON.stringify(overlayState.options || {})});
+                window.TweaqOverlay.inject({
+                  ...${JSON.stringify(overlayState.options || {})},
+                  initialMode: ${JSON.stringify(overlaySnapshot.mode)},
+                  silent: true,
+                  restoreState: ${JSON.stringify(overlaySnapshot)}
+                });
+                
+                // If panel was visible, show it silently
+                if (${overlaySnapshot.isPanelVisible}) {
+                  const overlay = window.TweaqOverlay._instance;
+                  if (overlay && overlay.panel) {
+                    overlay.panel.classList.add('visible');
+                    document.body.classList.add('tweaq-panel-open');
+                  }
+                }
               }
             `;
-            await browserView!.webContents.executeJavaScript(initScript);
+            await browserView!.webContents.executeJavaScript(restoreScript);
             
-            console.log('✅ Re-injected overlay after browser switch');
+            console.log('✅ Restored overlay with state:', overlaySnapshot.mode, 'panel:', overlaySnapshot.isPanelVisible);
           } catch (error) {
-            console.error('❌ Failed to re-inject overlay:', error);
+            console.error('❌ Failed to restore overlay:', error);
           }
         };
 
@@ -1596,9 +1628,10 @@ safeIpcHandle('remove-overlay', async () => {
 
 safeIpcHandle('toggle-overlay', async (event, options = {}) => {
   try {
-    const currentView = browserEngineManager?.getCurrentBrowserView();
-    if (!currentView) {
-      return { success: false, error: 'No browser view available' };
+    // Inject overlay into MAIN WINDOW instead of BrowserView
+    // This way it persists across browser switches
+    if (!mainWindow) {
+      return { success: false, error: 'Main window not available' };
     }
 
     // First ensure the overlay script is injected (Figma-style with Chat)
@@ -1607,6 +1640,13 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
       path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
       'utf8'
     );
+
+    // Inject into main window's overlay iframe or direct injection
+    // We need to inject into the BrowserView's page, but keep track of state
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
 
     await currentView.webContents.executeJavaScript(overlayScript);
     
@@ -1620,8 +1660,9 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
 
     // Store the options for re-injection after browser switch
     overlayState.options = options;
+    overlayState.isVisible = !overlayState.isVisible;
     
-    console.log('Overlay toggled with options:', options);
+    console.log('Overlay toggled with options:', options, 'visible:', overlayState.isVisible);
 
     return { success: true };
   } catch (error) {
