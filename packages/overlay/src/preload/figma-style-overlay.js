@@ -1650,7 +1650,7 @@
       .tweaq-detail-item {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 6px;
         padding: 8px;
         background: rgba(255, 255, 255, 0.03);
         border-radius: 5px;
@@ -1658,14 +1658,12 @@
       }
 
       .tweaq-detail-property {
-        display: flex;
-        align-items: center;
-        gap: 5px;
         font-size: 10px;
         color: rgba(255, 255, 255, 0.7);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.3px;
+        margin-bottom: 4px;
       }
 
       .tweaq-detail-change {
@@ -1674,7 +1672,6 @@
         gap: 4px;
         font-size: 11px;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
-        padding-left: 18px;
       }
 
       .tweaq-detail-before {
@@ -2940,11 +2937,9 @@
                 <div class="tweaq-details-header">Property Changes:</div>
                 <div class="tweaq-details-list">
                   ${edit.changes.map(change => {
-                    const category = this.categorizeChange(change.property);
                     return `
                       <div class="tweaq-detail-item">
                         <div class="tweaq-detail-property">
-                          <span style="color: ${category.color};">${category.icon}</span>
                           <span>${change.property === 'textContent' ? 'Text Content' : change.property}</span>
                         </div>
                         <div class="tweaq-detail-change">
@@ -3595,6 +3590,9 @@
       this.recordedEdits.push(edit);
       this.pendingEdits.clear();
       this.originalValues.clear();
+
+      // Update badge count
+      this.updateRightToolbarBadge();
 
       // Render properties to show the updates
       this.renderProperties();
