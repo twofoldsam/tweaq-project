@@ -2259,7 +2259,8 @@
         elementSelector: this.generateSelector(this.selectedElement),
         element: elementInfo.tag,
         elementId: elementInfo.id,
-        elementClasses: elementInfo.classes ? elementInfo.classes.split('.').filter(c => c) : []
+        elementClasses: elementInfo.classes ? elementInfo.classes.split('.').filter(c => c) : [],
+        elementReference: this.selectedElement // Store actual DOM element reference
       };
 
       this.recordedEdits.push(edit);
@@ -3637,6 +3638,7 @@
         element: element.tagName.toLowerCase(),
         elementId: element.id || null,
         elementClasses: Array.from(element.classList),
+        elementReference: element, // Store actual DOM element reference
         status: 'pending', // pending, processing, completed, failed
         prUrl: null,
         error: null
@@ -3651,6 +3653,8 @@
 
       // Update edit indicators
       this.updateAllEditIndicators();
+      
+      console.log('📍 Added indicator for element:', edit.elementName, element);
 
       // Render properties to show the updates
       this.renderProperties();
@@ -4062,6 +4066,8 @@
       this.editIndicators.set(element, indicator);
       
       this.positionEditIndicator(element, indicator);
+      
+      console.log('⚡ Created indicator for', element.tagName, 'at count:', editCount);
     }
 
     updateEditIndicator(element, editCount) {
@@ -4086,8 +4092,13 @@
       const rect = element.getBoundingClientRect();
       
       // Position at top-right corner of element
-      indicator.style.left = `${rect.right + window.scrollX - 8}px`;
-      indicator.style.top = `${rect.top + window.scrollY - 8}px`;
+      const left = rect.right + window.scrollX - 8;
+      const top = rect.top + window.scrollY - 8;
+      
+      indicator.style.left = `${left}px`;
+      indicator.style.top = `${top}px`;
+      
+      console.log('📍 Positioned indicator at', { left, top, rect, element: element.tagName });
     }
 
     updateIndicatorPositions() {
@@ -4106,24 +4117,27 @@
       const editCounts = new Map();
       
       this.recordedEdits.forEach(edit => {
-        // Try to find the element by selector
-        let element = null;
+        // Use stored element reference if available
+        let element = edit.elementReference;
         
-        if (edit.elementId) {
-          element = document.getElementById(edit.elementId);
-        } else if (edit.elementClasses && edit.elementClasses.length > 0) {
-          const selector = `${edit.element}.${edit.elementClasses.join('.')}`;
-          element = document.querySelector(selector);
-        } else {
-          // Fallback to element selector
-          try {
-            element = document.querySelector(edit.elementSelector);
-          } catch (e) {
-            // Invalid selector, skip
+        // Fallback to finding by selector if reference not available
+        if (!element || !document.body.contains(element)) {
+          if (edit.elementId) {
+            element = document.getElementById(edit.elementId);
+          } else if (edit.elementClasses && edit.elementClasses.length > 0) {
+            const selector = `${edit.element}.${edit.elementClasses.join('.')}`;
+            element = document.querySelector(selector);
+          } else {
+            // Fallback to element selector
+            try {
+              element = document.querySelector(edit.elementSelector);
+            } catch (e) {
+              console.warn('Could not find element for indicator:', edit.elementSelector);
+            }
           }
         }
 
-        if (element) {
+        if (element && document.body.contains(element)) {
           const count = (editCounts.get(element) || 0) + 1;
           editCounts.set(element, count);
         }
@@ -4133,6 +4147,8 @@
       editCounts.forEach((count, element) => {
         this.addEditIndicator(element, count);
       });
+      
+      console.log('📍 Updated indicators for', editCounts.size, 'elements');
     }
 
     attachEventListeners() {
