@@ -1492,15 +1492,15 @@
       .tweaq-tickets-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
+        padding: 16px;
       }
 
       /* Ticket Card Styles */
       .tweaq-ticket-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        margin-bottom: 12px;
+        border-radius: 10px;
         transition: all 0.3s ease;
         overflow: hidden;
       }
@@ -1508,15 +1508,15 @@
       .tweaq-ticket-card:hover {
         background: rgba(255, 255, 255, 0.06);
         border-color: rgba(255, 255, 255, 0.2);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
       }
 
       .tweaq-ticket-card-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 16px;
+        padding: 10px 12px;
         background: rgba(0, 0, 0, 0.2);
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       }
@@ -1524,18 +1524,18 @@
       .tweaq-ticket-type-badge {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 11px;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 16px;
+        font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
         border: 1px solid;
       }
 
       .tweaq-ticket-badge-icon {
-        font-size: 14px;
+        font-size: 12px;
         line-height: 1;
       }
 
@@ -1548,8 +1548,8 @@
         border: none;
         color: rgba(255, 255, 255, 0.4);
         cursor: pointer;
-        padding: 6px;
-        border-radius: 6px;
+        padding: 4px;
+        border-radius: 4px;
         transition: all 0.2s;
         display: flex;
         align-items: center;
@@ -1562,39 +1562,39 @@
       }
 
       .tweaq-ticket-card-body {
-        padding: 16px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
       }
 
       .tweaq-ticket-summary {
-        font-size: 14px;
+        font-size: 13px;
         color: rgba(255, 255, 255, 0.95);
-        line-height: 1.5;
+        line-height: 1.4;
         font-weight: 500;
       }
 
       .tweaq-ticket-target {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
+        gap: 6px;
+        padding: 6px 10px;
         background: rgba(0, 0, 0, 0.3);
-        border-radius: 6px;
+        border-radius: 5px;
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
 
       .tweaq-target-label {
-        font-size: 11px;
+        font-size: 10px;
         color: rgba(255, 255, 255, 0.5);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
         font-weight: 600;
       }
 
       .tweaq-target-selector {
-        font-size: 12px;
+        font-size: 11px;
         color: #0A84FF;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
         background: transparent;
@@ -1605,43 +1605,43 @@
       .tweaq-ticket-details {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 12px;
+        gap: 6px;
+        padding: 10px;
         background: rgba(0, 0, 0, 0.2);
-        border-radius: 8px;
+        border-radius: 6px;
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
 
       .tweaq-details-header {
-        font-size: 11px;
+        font-size: 10px;
         color: rgba(255, 255, 255, 0.6);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
         font-weight: 600;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
       }
 
       .tweaq-details-list {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
       }
 
       .tweaq-detail-item {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        padding: 10px;
+        gap: 4px;
+        padding: 8px;
         background: rgba(255, 255, 255, 0.03);
-        border-radius: 6px;
+        border-radius: 5px;
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
 
       .tweaq-detail-property {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 11px;
+        gap: 5px;
+        font-size: 10px;
         color: rgba(255, 255, 255, 0.7);
         font-weight: 600;
         text-transform: uppercase;
@@ -1652,9 +1652,9 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        font-size: 12px;
+        font-size: 11px;
         font-family: 'SF Mono', Monaco, Consolas, monospace;
-        padding-left: 20px;
+        padding-left: 18px;
       }
 
       .tweaq-detail-before {
@@ -1669,9 +1669,9 @@
       }
 
       .tweaq-detail-specific {
-        font-size: 12px;
+        font-size: 11px;
         color: rgba(255, 255, 255, 0.8);
-        line-height: 1.5;
+        line-height: 1.4;
       }
 
       .tweaq-confirm-button {
