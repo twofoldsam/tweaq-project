@@ -27,6 +27,7 @@ function App() {
   const [canGoForward, setCanGoForward] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<'github' | 'cdp' | 'llm' | 'visual-agent'>('visual-agent');
+  const [qaMode, setQaMode] = useState(false);
   const [githubAuthState, setGithubAuthState] = useState<{
     isAuthenticated: boolean;
     user: GitHubUser | null;
@@ -190,7 +191,7 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app ${qaMode ? 'qa-mode' : 'browser-mode'}`}>
       <header className="toolbar">
         <div className="navigation-controls">
           <button 
@@ -269,13 +270,19 @@ function App() {
         <div className="status-area">
           {!showSettings && (
             <button 
-              className="overlay-button"
+              className={`qa-toggle-button ${qaMode ? 'active' : ''}`}
               onClick={async () => {
-                await window.electronAPI.toggleOverlay({ initialMode: 'measure' });
+                const newQaMode = !qaMode;
+                setQaMode(newQaMode);
+                if (newQaMode) {
+                  await window.electronAPI.toggleOverlay({ initialMode: 'chat' });
+                } else {
+                  await window.electronAPI.toggleOverlay({ initialMode: 'chat' });
+                }
               }}
-              title="Toggle Design Overlay (Ctrl+Shift+I)"
+              title="Toggle QA Mode (Ctrl+Shift+I)"
             >
-              📐
+              QA
             </button>
           )}
           

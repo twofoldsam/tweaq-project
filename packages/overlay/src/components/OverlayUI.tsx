@@ -9,6 +9,7 @@ import EditPanel from './EditPanel';
 import Ruler from './Ruler';
 import AlignmentGuides from './AlignmentGuides';
 import ChatPanel from './ChatPanel';
+import CommentPill from './CommentPill';
 
 interface NaturalLanguageEdit {
   id: string;
@@ -377,6 +378,42 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
     setNaturalLanguageEdits(prev => prev.filter(edit => edit.id !== id));
   }, []);
 
+  // Handle comment submission from CommentPill
+  const handleCommentSubmit = useCallback((comment: string) => {
+    if (!state.selectedElement) return;
+
+    const elementInfo = state.selectedElement.info;
+    const selector = generateElementSelector(state.selectedElement.element);
+
+    // Create a comprehensive natural language edit with all element context
+    const newEdit: NaturalLanguageEdit = {
+      id: `comment_${Date.now()}`,
+      type: 'natural-language',
+      instruction: comment,
+      targetElement: {
+        selector: selector,
+        tagName: elementInfo.tagName.toLowerCase(),
+        ...(elementInfo.className && { className: elementInfo.className })
+      },
+      context: {
+        scope: 'element',
+        userIntent: comment
+      },
+      timestamp: Date.now()
+    };
+
+    setNaturalLanguageEdits(prev => [...prev, newEdit]);
+    console.log('💬 Added comment as natural language edit:', newEdit);
+    console.log('📊 Element context:', {
+      selector,
+      tagName: elementInfo.tagName,
+      id: elementInfo.id,
+      className: elementInfo.className,
+      dimensions: elementInfo.dimensions,
+      computedStyles: elementInfo.computedStyles
+    });
+  }, [state.selectedElement]);
+
   // Submit combined edits
   const handleSubmit = useCallback(async () => {
     if (visualEdits.length === 0 && naturalLanguageEdits.length === 0) {
@@ -559,6 +596,14 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
           <AlignmentGuides
             selectedElement={state.selectedElement?.element || null}
             hoveredElement={state.hoveredElement}
+          />
+        )}
+
+        {/* Comment Pill */}
+        {state.selectedElement && (
+          <CommentPill
+            elementRect={state.selectedElement.element.getBoundingClientRect()}
+            onSubmitComment={handleCommentSubmit}
           />
         )}
       </div>

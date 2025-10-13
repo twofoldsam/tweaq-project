@@ -1,3 +1,6 @@
+// Import styles
+import './styles/overlay.css';
+
 // Legacy exports
 export { default as OverlayEditor } from './components/OverlayEditor';
 export { default as CodeHighlighter } from './components/CodeHighlighter';
@@ -13,6 +16,8 @@ export { default as EditPanel } from './components/EditPanel';
 export { default as PreviewControls } from './components/PreviewControls';
 export { default as Ruler } from './components/Ruler';
 export { default as AlignmentGuides } from './components/AlignmentGuides';
+export { default as ChatPanel } from './components/ChatPanel';
+export { default as CommentPill } from './components/CommentPill';
 export { injectOverlay, removeOverlay, toggleOverlay } from './utils/injector';
 
 // CSS Adapter utilities

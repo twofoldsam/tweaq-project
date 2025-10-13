@@ -40,6 +40,10 @@
       return;
     }
 
+    // Set CSS variables for dynamic sizing
+    document.documentElement.style.setProperty('--tweaq-toolbar-width', '56px');
+    document.documentElement.style.setProperty('--tweaq-panel-width', '320px');
+
     const style = document.createElement('style');
     style.id = 'tweaq-overlay-styles';
     style.textContent = `
@@ -47,8 +51,19 @@
 
       /* Body adjustment for panel */
       body.tweaq-panel-open {
-        margin-right: 400px;
+        margin-right: calc(var(--tweaq-panel-width, 400px) + var(--tweaq-toolbar-width, 72px));
         transition: margin-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      /* Disable transition during resize for instant feedback */
+      body.tweaq-resizing {
+        transition: none !important;
+      }
+
+      body.tweaq-resizing .tweaq-select-mode-glow,
+      body.tweaq-resizing .tweaq-outline-indicator,
+      body.tweaq-resizing .tweaq-selected-indicator {
+        transition: none !important;
       }
 
       /* Element outline (hover state) */
@@ -202,8 +217,8 @@
       .tweaq-properties-panel {
         position: fixed;
         top: 0;
-        right: 0;
-        width: 400px;
+        right: var(--tweaq-toolbar-width, 72px);
+        width: var(--tweaq-panel-width, 400px);
         height: 100vh;
         pointer-events: auto;
         background: rgba(28, 28, 30, 0.98);
@@ -211,10 +226,11 @@
         -webkit-backdrop-filter: blur(20px);
         border-left: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
-        overflow: hidden;
+        overflow-x: visible;
+        overflow-y: hidden;
         display: flex;
         flex-direction: column;
-        transform: translateX(100%);
+        transform: translateX(calc(100% + var(--tweaq-toolbar-width, 72px)));
         transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         z-index: 1000001;
         will-change: transform;
@@ -227,6 +243,33 @@
       /* Ensure content stays within panel during animation */
       .tweaq-properties-panel * {
         will-change: auto;
+      }
+
+      /* Panel Resize Handle */
+      .tweaq-panel-resize-handle {
+        position: fixed;
+        right: calc(var(--tweaq-toolbar-width, 56px) + var(--tweaq-panel-width, 320px) - 3px);
+        top: 0;
+        width: 6px;
+        height: 100vh;
+        cursor: ew-resize;
+        z-index: 1000010;
+        background: transparent;
+        transition: background 0.15s, right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        pointer-events: auto;
+        display: none;
+      }
+
+      .tweaq-panel-resize-handle.visible {
+        display: block;
+      }
+
+      .tweaq-panel-resize-handle:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .tweaq-panel-resize-handle:active {
+        background: transparent;
       }
 
       /* Panel Header */
@@ -920,14 +963,15 @@
       }
 
       .tweaq-chat-input-wrapper {
+        position: relative;
         display: flex;
-        flex-direction: column;
-        gap: 8px;
+        align-items: flex-end;
+        gap: 0;
       }
 
       .tweaq-chat-input {
         width: 100%;
-        padding: 12px;
+        padding: 12px 44px 12px 12px;
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
         font-size: 14px;
@@ -945,16 +989,21 @@
       }
 
       .tweaq-chat-send-btn {
-        align-self: flex-end;
-        padding: 10px 20px;
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 14px;
+        border-radius: 6px;
         cursor: pointer;
         transition: all 0.2s;
+        padding: 0;
       }
 
       .tweaq-chat-send-btn:hover:not(:disabled) {
@@ -963,8 +1012,13 @@
       }
 
       .tweaq-chat-send-btn:disabled {
-        opacity: 0.5;
+        opacity: 0.3;
         cursor: not-allowed;
+      }
+
+      .tweaq-chat-send-btn svg {
+        width: 14px;
+        height: 14px;
       }
 
       /* Chat Messages */
@@ -972,35 +1026,54 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
-        padding: 12px;
+        padding: 12px 14px;
         border-radius: 8px;
         animation: fadeIn 0.3s ease-out;
       }
 
       .tweaq-chat-message.user {
-        background: rgba(102, 126, 234, 0.15);
-        border-left: 3px solid #667eea;
+        background: rgba(255, 255, 255, 0.08);
+        border: none;
       }
 
       .tweaq-chat-message.assistant {
-        background: rgba(255, 255, 255, 0.05);
-        border-left: 3px solid #999;
-      }
-
-      .tweaq-message-role {
-        font-size: 11px;
-        font-weight: 600;
-        color: #999;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        background: transparent;
+        border: none;
       }
 
       .tweaq-message-content {
         color: #fff;
         font-size: 14px;
-        line-height: 1.5;
-        white-space: pre-wrap;
+        line-height: 1.6;
         word-wrap: break-word;
+      }
+
+      .tweaq-message-content strong {
+        font-weight: 600;
+        color: #fff;
+      }
+
+      .tweaq-message-content em {
+        font-style: italic;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .tweaq-message-content code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: Monaco, Menlo, 'Courier New', monospace;
+        font-size: 13px;
+        color: #fff;
+      }
+
+      .tweaq-message-content ul {
+        margin: 8px 0;
+        padding-left: 20px;
+      }
+
+      .tweaq-message-content li {
+        margin: 4px 0;
       }
 
       .tweaq-chat-welcome {
@@ -1062,7 +1135,7 @@
 
       /* When panel is open, glow stops at panel edge */
       body.tweaq-panel-open .tweaq-select-mode-glow {
-        right: 400px;
+        right: calc(var(--tweaq-panel-width, 400px) + var(--tweaq-toolbar-width, 72px));
       }
 
       @keyframes glowPulse {
@@ -1097,7 +1170,7 @@
 
       /* When panel is open, toast centers in visible webpage area */
       body.tweaq-panel-open .tweaq-select-mode-toast {
-        left: calc((100% - 400px) / 2);
+        left: calc((100% - var(--tweaq-panel-width, 400px) - var(--tweaq-toolbar-width, 72px)) / 2);
       }
 
       @keyframes toastSlideUp {
@@ -1240,6 +1313,328 @@
         color: #667eea;
         background: rgba(102, 126, 234, 0.1);
       }
+
+      /* Comment Pill Styles */
+      .tweaq-comment-pill {
+        position: absolute;
+        pointer-events: auto;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 20px;
+        padding: 8px 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        color: #0A84FF;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        user-select: none;
+        z-index: 1000002;
+      }
+
+      .tweaq-comment-pill:hover {
+        background: #0A84FF;
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 24px rgba(10, 132, 255, 0.3);
+      }
+
+      .tweaq-comment-pill svg {
+        flex-shrink: 0;
+      }
+
+      .tweaq-comment-pill-expanded {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 16px;
+        border-radius: 12px;
+        min-width: 320px;
+        cursor: default;
+        background: rgba(255, 255, 255, 0.98);
+        color: #333;
+      }
+
+      .tweaq-comment-pill-expanded:hover {
+        background: rgba(255, 255, 255, 0.98);
+        color: #333;
+        transform: none;
+      }
+
+      .tweaq-comment-textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        resize: vertical;
+        min-height: 80px;
+        background: white;
+        color: #333;
+        transition: border-color 0.2s;
+      }
+
+      .tweaq-comment-textarea:focus {
+        outline: none;
+        border-color: #0A84FF;
+        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1);
+      }
+
+      .tweaq-comment-textarea::placeholder {
+        color: #999;
+      }
+
+      .tweaq-comment-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .tweaq-comment-btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .tweaq-comment-cancel {
+        background: rgba(0, 0, 0, 0.05);
+        color: #666;
+      }
+
+      .tweaq-comment-cancel:hover {
+        background: rgba(0, 0, 0, 0.1);
+        color: #333;
+      }
+
+      .tweaq-comment-submit {
+        background: linear-gradient(135deg, #0A84FF 0%, #0066CC 100%);
+        color: white;
+      }
+
+      .tweaq-comment-submit:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+      }
+
+      .tweaq-comment-submit:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .tweaq-comment-hint {
+        font-size: 11px;
+        color: #999;
+        text-align: center;
+        padding-top: 4px;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+      }
+
+      .tweaq-comment-hint kbd {
+        background: rgba(0, 0, 0, 0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        font-size: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      /* Tickets View Styles */
+      .tweaq-tickets-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .tweaq-ticket-item {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 12px;
+        transition: all 0.2s;
+      }
+
+      .tweaq-ticket-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .tweaq-ticket-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .tweaq-ticket-icon {
+        font-size: 16px;
+      }
+
+      .tweaq-ticket-type {
+        font-size: 11px;
+        font-weight: 600;
+        color: #0A84FF;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex: 1;
+      }
+
+      .tweaq-ticket-delete {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+      }
+
+      .tweaq-ticket-delete:hover {
+        background: rgba(255, 59, 48, 0.2);
+        color: #FF3B30;
+      }
+
+      .tweaq-ticket-content {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.5;
+        margin-bottom: 8px;
+      }
+
+      .tweaq-ticket-target {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+      }
+
+      .tweaq-ticket-target code {
+        color: #0A84FF;
+      }
+
+      .tweaq-confirm-button {
+        width: 100%;
+        padding: 16px;
+        background: linear-gradient(135deg, #0A84FF 0%, #0066CC 100%);
+        color: white;
+        border: none;
+        border-radius: 0;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s;
+      }
+
+      .tweaq-confirm-button:hover {
+        background: linear-gradient(135deg, #0066CC 0%, #0A84FF 100%);
+        transform: translateY(-1px);
+      }
+
+      .tweaq-empty-state {
+        text-align: center;
+        padding: 40px 20px;
+      }
+
+      /* Right Sidebar Toolbar Styles */
+      .tweaq-right-toolbar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(28, 28, 30, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 16px 0 0 0;
+        z-index: 1000003;
+        pointer-events: auto;
+      }
+
+      .tweaq-toolbar-action {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 56px;
+        padding: 10px 0;
+        border: none;
+        background: transparent;
+        border-radius: 0;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        color: rgba(255, 255, 255, 0.5);
+        position: relative;
+      }
+
+      .tweaq-toolbar-action:hover {
+        background: transparent;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .tweaq-toolbar-action.active {
+        background: transparent;
+        color: #0A84FF;
+      }
+
+      .tweaq-toolbar-action svg {
+        width: 20px;
+        height: 20px;
+        stroke-width: 2;
+      }
+
+      .tweaq-toolbar-action-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.2px;
+        text-transform: capitalize;
+      }
+
+      .tweaq-toolbar-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        min-width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #FF3B30;
+        color: white;
+        border-radius: 8px;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 0 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .tweaq-toolbar-separator {
+        height: 1px;
+        width: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 12px auto;
+      }
     `;
 
     document.head.appendChild(style);
@@ -1260,12 +1655,11 @@
       this.selectedIndicator = null;
       this.selectedCornerHandles = [];
       this.propertiesPanel = null;
+      this.commentPill = null;
+      this.rightToolbar = null;
       
-      // Mode: 'chat' (default) or 'select'
+      // Mode: 'chat' (default), 'design', 'comment', or 'tickets'
       this.mode = 'chat';
-      
-      // Current tab in properties panel: 'properties' or 'edits'
-      this.currentTab = 'properties';
       
       // Conversational Intelligence state
       this.conversationState = null;
@@ -1323,6 +1717,372 @@
       this.propertiesPanel = document.createElement('div');
       this.propertiesPanel.className = 'tweaq-properties-panel';
       this.overlayContainer.appendChild(this.propertiesPanel);
+
+      // Create resize handle - attach to body, not panel
+      this.resizeHandle = document.createElement('div');
+      this.resizeHandle.className = 'tweaq-panel-resize-handle';
+      document.body.appendChild(this.resizeHandle);
+
+      // Initialize resize functionality
+      this.initPanelResize();
+
+      // Create comment pill
+      this.createCommentPill();
+
+      // Create right toolbar
+      this.createRightToolbar();
+    }
+
+    createCommentPill() {
+      this.commentPill = document.createElement('div');
+      this.commentPill.className = 'tweaq-comment-pill';
+      this.commentPill.style.display = 'none';
+      this.commentPill.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2.678 11.894a1 1 0 01.287.801 10.97 10.97 0 01-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 01.71-.074A8.06 8.06 0 008 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 01-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 00.244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 01-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
+        </svg>
+        <span>Comment</span>
+      `;
+      
+      this.commentPill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.expandCommentPill();
+      });
+      
+      document.body.appendChild(this.commentPill);
+    }
+
+    initPanelResize() {
+      if (!this.resizeHandle || !this.propertiesPanel) return;
+
+      let isResizing = false;
+      let startX = 0;
+      let startWidth = 320;
+
+      const onMouseDown = (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = parseInt(getComputedStyle(this.propertiesPanel).width);
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        document.body.classList.add('tweaq-resizing');
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      const onMouseMove = (e) => {
+        if (!isResizing) return;
+        
+        const deltaX = startX - e.clientX;
+        const newWidth = Math.max(280, Math.min(800, startWidth + deltaX));
+        document.documentElement.style.setProperty('--tweaq-panel-width', `${newWidth}px`);
+      };
+
+      const onMouseUp = () => {
+        if (isResizing) {
+          isResizing = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.body.classList.remove('tweaq-resizing');
+          
+          const newWidth = parseInt(getComputedStyle(this.propertiesPanel).width);
+          try {
+            localStorage.setItem('tweaq-panel-width', newWidth);
+          } catch (e) {
+            // Ignore localStorage errors
+          }
+        }
+      };
+
+      // Load saved width
+      try {
+        const savedWidth = localStorage.getItem('tweaq-panel-width');
+        if (savedWidth) {
+          document.documentElement.style.setProperty('--tweaq-panel-width', `${savedWidth}px`);
+        }
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+
+      this.resizeHandle.addEventListener('mousedown', onMouseDown);
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    }
+
+    createRightToolbar() {
+      this.rightToolbar = document.createElement('div');
+      this.rightToolbar.className = 'tweaq-right-toolbar';
+      
+      const ticketCount = this.recordedEdits.length;
+      
+      this.rightToolbar.innerHTML = `
+        <button class="tweaq-toolbar-action ${this.mode === 'chat' ? 'active' : ''}" data-mode="chat" title="Chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="tweaq-toolbar-action-label">Chat</span>
+        </button>
+        
+        <button class="tweaq-toolbar-action ${this.mode === 'design' ? 'active' : ''}" data-mode="design" title="Design">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+            <path d="M2 2l7.586 7.586"/>
+            <circle cx="11" cy="11" r="2"/>
+          </svg>
+          <span class="tweaq-toolbar-action-label">Design</span>
+        </button>
+        
+        <button class="tweaq-toolbar-action ${this.mode === 'comment' ? 'active' : ''}" data-mode="comment" title="Comment">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+          </svg>
+          <span class="tweaq-toolbar-action-label">Comment</span>
+        </button>
+        
+        <div class="tweaq-toolbar-separator"></div>
+        
+        <button class="tweaq-toolbar-action ${this.mode === 'tickets' ? 'active' : ''}" data-mode="tickets" title="Tickets">
+          ${ticketCount > 0 ? `<span class="tweaq-toolbar-badge">${ticketCount}</span>` : ''}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+          <span class="tweaq-toolbar-action-label">Tickets</span>
+        </button>
+      `;
+
+      // Add click handlers
+      const buttons = this.rightToolbar.querySelectorAll('.tweaq-toolbar-action');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const mode = btn.getAttribute('data-mode');
+          this.switchMode(mode);
+        });
+      });
+
+      document.body.appendChild(this.rightToolbar);
+    }
+
+    switchMode(newMode) {
+      console.log('Switching mode from', this.mode, 'to', newMode);
+      
+      const oldMode = this.mode;
+      this.mode = newMode;
+
+      // Update button states
+      const buttons = this.rightToolbar.querySelectorAll('.tweaq-toolbar-action');
+      buttons.forEach(btn => {
+        if (btn.getAttribute('data-mode') === newMode) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // Handle mode-specific behavior
+      if (newMode === 'design' || newMode === 'comment') {
+        // Enable element selection/hovering
+        this.showSelectModeIndicators();
+        if (this.selectedElement) {
+          this.updateSelectedIndicator(this.selectedElement);
+        }
+      } else {
+        // Disable element selection/hovering
+        this.hideSelectModeIndicators();
+        if (oldMode === 'design' || oldMode === 'comment') {
+          this.selectedElement = null;
+          this.hideSelectedIndicator();
+          this.updateOutline(null);
+        }
+      }
+
+      // Update panel based on mode
+      if (newMode === 'chat' || newMode === 'tickets' || newMode === 'design') {
+        // Always show panel for these modes
+        this.showPanel();
+        this.renderPanel();
+      } else if (newMode === 'comment') {
+        // Comment mode only shows panel when element is selected
+        if (!this.selectedElement) {
+          this.hidePanel();
+        } else {
+          this.showPanel();
+          this.renderPanel();
+        }
+      }
+    }
+
+    updateRightToolbarBadge() {
+      const ticketsButton = this.rightToolbar.querySelector('[data-mode="tickets"]');
+      if (!ticketsButton) return;
+
+      const ticketCount = this.recordedEdits.length;
+      let badge = ticketsButton.querySelector('.tweaq-toolbar-badge');
+      
+      if (ticketCount > 0) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'tweaq-toolbar-badge';
+          ticketsButton.insertBefore(badge, ticketsButton.firstChild);
+        }
+        badge.textContent = ticketCount;
+      } else {
+        if (badge) {
+          badge.remove();
+        }
+      }
+    }
+
+    expandCommentPill() {
+      if (!this.selectedElement) return;
+
+      const rect = this.selectedElement.getBoundingClientRect();
+      
+      this.commentPill.className = 'tweaq-comment-pill tweaq-comment-pill-expanded';
+      this.commentPill.innerHTML = `
+        <textarea class="tweaq-comment-textarea" placeholder="Add a comment..." rows="3"></textarea>
+        <div class="tweaq-comment-actions">
+          <button class="tweaq-comment-btn tweaq-comment-cancel">Cancel</button>
+          <button class="tweaq-comment-btn tweaq-comment-submit" disabled>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+            </svg>
+            Submit
+          </button>
+        </div>
+        <div class="tweaq-comment-hint">
+          Press <kbd>⌘</kbd>+<kbd>Enter</kbd> to submit, <kbd>Esc</kbd> to cancel
+        </div>
+      `;
+
+      const textarea = this.commentPill.querySelector('.tweaq-comment-textarea');
+      const submitBtn = this.commentPill.querySelector('.tweaq-comment-submit');
+      const cancelBtn = this.commentPill.querySelector('.tweaq-comment-cancel');
+
+      // Focus the textarea
+      setTimeout(() => textarea.focus(), 10);
+
+      // Handle textarea input
+      textarea.addEventListener('input', () => {
+        submitBtn.disabled = !textarea.value.trim();
+      });
+
+      // Handle keyboard shortcuts
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          if (textarea.value.trim()) {
+            this.submitComment(textarea.value.trim());
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.collapseCommentPill();
+        }
+      });
+
+      // Handle cancel button
+      cancelBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.collapseCommentPill();
+      });
+
+      // Handle submit button
+      submitBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (textarea.value.trim()) {
+          this.submitComment(textarea.value.trim());
+        }
+      });
+    }
+
+    collapseCommentPill() {
+      if (!this.commentPill) return;
+
+      this.commentPill.className = 'tweaq-comment-pill';
+      this.commentPill.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2.678 11.894a1 1 0 01.287.801 10.97 10.97 0 01-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 01.71-.074A8.06 8.06 0 008 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 01-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 00.244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 01-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
+        </svg>
+        <span>Comment</span>
+      `;
+
+      // Remove old event listeners by replacing the element with a clone
+      const newPill = this.commentPill.cloneNode(true);
+      this.commentPill.parentNode.replaceChild(newPill, this.commentPill);
+      this.commentPill = newPill;
+
+      this.commentPill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.expandCommentPill();
+      });
+
+      // Update position if we have a selected element
+      if (this.selectedElement) {
+        this.updateCommentPillPosition();
+      }
+    }
+
+    submitComment(comment) {
+      if (!this.selectedElement) return;
+
+      const elementInfo = this.getElementInfo(this.selectedElement);
+      
+      // Create a structured change edit with the comment
+      const edit = {
+        id: `comment_${Date.now()}`,
+        type: 'structured-change',
+        instruction: comment,
+        target: {
+          identifier: `${elementInfo.tag}${elementInfo.id}${elementInfo.classes}`,
+          type: 'element'
+        },
+        actionType: 'modify',
+        specifics: ['User comment: ' + comment],
+        confidence: 0.9,
+        timestamp: Date.now(),
+        // Include element context
+        elementSelector: this.generateSelector(this.selectedElement),
+        element: elementInfo.tag,
+        elementId: elementInfo.id,
+        elementClasses: elementInfo.classes ? elementInfo.classes.split('.').filter(c => c) : []
+      };
+
+      this.recordedEdits.push(edit);
+      console.log('💬 Added comment as edit:', edit);
+
+      // Update badge count
+      this.updateRightToolbarBadge();
+
+      // Collapse the pill and update the edits panel
+      this.collapseCommentPill();
+      
+      // Switch to tickets mode to show the new edit
+      this.switchMode('tickets');
+    }
+
+    updateCommentPillPosition() {
+      if (!this.selectedElement || !this.commentPill) return;
+
+      const rect = this.selectedElement.getBoundingClientRect();
+      const pillLeft = rect.right + window.scrollX + 12;
+      const pillTop = rect.top + window.scrollY;
+
+      this.commentPill.style.left = `${pillLeft}px`;
+      this.commentPill.style.top = `${pillTop}px`;
+      
+      // Only show comment pill in comment mode
+      if (this.mode === 'comment') {
+        this.commentPill.style.display = 'block';
+      } else {
+        this.commentPill.style.display = 'none';
+      }
+    }
+
+    hideCommentPill() {
+      if (this.commentPill) {
+        this.commentPill.style.display = 'none';
+      }
     }
 
     renderToolbar() {
@@ -1429,6 +2189,9 @@
       document.body.classList.add('tweaq-panel-open');
       setTimeout(() => {
         this.propertiesPanel.classList.add('visible');
+        if (this.resizeHandle) {
+          this.resizeHandle.classList.add('visible');
+        }
       }, 10);
     }
 
@@ -1437,17 +2200,25 @@
       document.body.classList.remove('tweaq-panel-open');
       // Then slide out panel
       this.propertiesPanel.classList.remove('visible');
+      if (this.resizeHandle) {
+        this.resizeHandle.classList.remove('visible');
+      }
     }
 
     renderPanel() {
       if (this.mode === 'chat') {
         this.renderChatView();
-      } else if (this.mode === 'select' && this.selectedElement) {
-        // Element selected - show properties view
+      } else if (this.mode === 'tickets') {
+        this.renderTicketsView();
+      } else if (this.mode === 'design') {
+        // Design mode - always show properties (page or element)
+        this.renderProperties();
+      } else if (this.mode === 'comment' && this.selectedElement) {
+        // Comment mode - only show properties when element is selected
         this.renderProperties();
       } else {
-        // Select mode but no element selected yet - show chat view with indicator
-        this.renderChatView();
+        // Comment mode but no element selected yet - hide panel
+        this.hidePanel();
       }
     }
 
@@ -1456,10 +2227,10 @@
       const messagesHTML = this.conversationMessages.length > 0
         ? this.conversationMessages.map(msg => {
             const isUser = msg.role === 'user';
+            const content = isUser ? this.escapeHtml(msg.content) : this.renderMarkdown(msg.content);
             return `
               <div class="tweaq-chat-message ${isUser ? 'user' : 'assistant'}">
-                <div class="tweaq-message-role">${isUser ? '👤 You' : '🤖 AI'}</div>
-                <div class="tweaq-message-content">${this.escapeHtml(msg.content)}</div>
+                <div class="tweaq-message-content">${content}</div>
               </div>
             `;
           }).join('')
@@ -1494,23 +2265,7 @@
         `
         : '';
 
-      // Cursor/Select icon SVG
-      const selectIcon = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
-          <path d="M13 13l6 6"/>
-        </svg>
-      `;
-
       this.propertiesPanel.innerHTML = `
-        <div class="tweaq-panel-header" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <button class="tweaq-mode-toggle-btn ${this.mode === 'select' ? 'active' : ''}" title="${this.mode === 'select' ? 'Click to cancel selection mode' : 'Click to select elements'}">
-              ${selectIcon}
-            </button>
-            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #fff;">Chat</h3>
-          </div>
-        </div>
         <div class="tweaq-panel-content" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1;">
           <div class="tweaq-chat-messages-container" style="flex: 1; display: flex; flex-direction: column; gap: 12px; min-height: 200px; overflow-y: auto;">
             ${messagesHTML}
@@ -1518,17 +2273,6 @@
           </div>
           ${confirmationHTML}
           ${!this.readyTickets ? `
-            <div class="tweaq-chat-input-wrapper">
-              <textarea 
-                class="tweaq-chat-input" 
-                placeholder="${this.conversationMessages.length === 0 ? 'Describe the change you want to make...' : 'Type your message...'}" 
-                rows="3"
-                ${this.awaitingResponse ? 'disabled' : ''}
-              ></textarea>
-              <button class="tweaq-chat-send-btn" ${this.awaitingResponse ? 'disabled' : ''}>
-                ${this.conversationMessages.length === 0 ? 'Start Conversation' : 'Send'}
-              </button>
-            </div>
             ${this.conversationMessages.length === 0 ? `
               <div class="tweaq-chat-examples">
                 <div class="tweaq-examples-label">Examples:</div>
@@ -1539,22 +2283,28 @@
                 </div>
               </div>
             ` : ''}
+            <div class="tweaq-chat-input-wrapper">
+              <textarea 
+                class="tweaq-chat-input" 
+                placeholder="${this.conversationMessages.length === 0 ? 'Describe the change you want to make...' : 'Type your message...'}" 
+                rows="3"
+                ${this.awaitingResponse ? 'disabled' : ''}
+              ></textarea>
+              <button class="tweaq-chat-send-btn" ${this.awaitingResponse ? 'disabled' : ''}>
+                <svg viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M.5 1.163A1 1 0 0 1 1.97.28l12.868 6.837a1 1 0 0 1 0 1.766L1.969 15.72A1 1 0 0 1 .5 14.836V10.33a1 1 0 0 1 .816-.983L8.5 8 1.316 6.653A1 1 0 0 1 .5 5.67V1.163Z"/>
+                </svg>
+              </button>
+            </div>
           ` : ''}
         </div>
       `;
 
       // Add event listeners
-      const modeToggleBtn = this.propertiesPanel.querySelector('.tweaq-mode-toggle-btn');
       const sendBtn = this.propertiesPanel.querySelector('.tweaq-chat-send-btn');
       const input = this.propertiesPanel.querySelector('.tweaq-chat-input');
       const confirmBtn = this.propertiesPanel.querySelector('.tweaq-confirm-conversation-btn');
       const cancelBtn = this.propertiesPanel.querySelector('.tweaq-cancel-conversation-btn');
-      
-      if (modeToggleBtn) {
-        modeToggleBtn.addEventListener('click', () => {
-          this.toggleMode();
-        });
-      }
 
       if (sendBtn) {
         sendBtn.addEventListener('click', () => {
@@ -1585,9 +2335,9 @@
 
       this.propertiesPanel.querySelectorAll('.tweaq-example-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-          if (input) {
+          if (input && !this.awaitingResponse) {
             input.value = chip.textContent;
-            input.focus();
+            this.addInstruction();
           }
         });
       });
@@ -1740,8 +2490,7 @@
       this.conversationMessages = [];
       this.readyTickets = null;
 
-      // Switch to Edits tab to show new tickets
-      this.currentTab = 'edits';
+      // Render panel to update
       this.renderPanel();
 
       console.log(`📝 Created ${this.recordedEdits.length} structured edit tickets from conversation`);
@@ -1764,6 +2513,57 @@
       return div.innerHTML;
     }
 
+    renderMarkdown(text) {
+      // First escape HTML to prevent XSS
+      let html = this.escapeHtml(text);
+      
+      // Bold: **text** or __text__
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+      
+      // Italic: *text* or _text_
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+      
+      // Inline code: `code`
+      html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+      
+      // Convert bullet points (lines starting with • or - or *)
+      const lines = html.split('\n');
+      let inList = false;
+      const processedLines = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const bulletMatch = line.match(/^(\s*)[•\-\*]\s+(.+)$/);
+        
+        if (bulletMatch) {
+          if (!inList) {
+            processedLines.push('<ul style="margin: 8px 0; padding-left: 20px;">');
+            inList = true;
+          }
+          processedLines.push(`<li style="margin: 4px 0;">${bulletMatch[2]}</li>`);
+        } else {
+          if (inList) {
+            processedLines.push('</ul>');
+            inList = false;
+          }
+          processedLines.push(line);
+        }
+      }
+      
+      if (inList) {
+        processedLines.push('</ul>');
+      }
+      
+      html = processedLines.join('\n');
+      
+      // Convert line breaks to <br> (but not inside lists)
+      html = html.replace(/\n(?!<\/?(ul|li))/g, '<br>');
+      
+      return html;
+    }
+
     removeInstruction(index) {
       this.naturalLanguageEdits.splice(index, 1);
       console.log('🗑️ Removed instruction at index:', index);
@@ -1771,63 +2571,88 @@
       this.renderPanel();
     }
 
-    renderProperties() {
-      // Cursor/Select icon SVG
-      const selectIcon = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
-          <path d="M13 13l6 6"/>
-        </svg>
-      `;
+    renderTicketsView() {
+      const ticketCount = this.recordedEdits.length;
+      
+      const ticketsHTML = this.recordedEdits.length > 0
+        ? this.recordedEdits.map((edit, index) => {
+            const isComment = edit.type === 'structured-change';
+            return `
+              <div class="tweaq-ticket-item">
+                <div class="tweaq-ticket-header">
+                  <span class="tweaq-ticket-icon">${isComment ? '💬' : '✏️'}</span>
+                  <span class="tweaq-ticket-type">${isComment ? 'Comment' : 'Edit'}</span>
+                  <button class="tweaq-ticket-delete" data-index="${index}" title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="tweaq-ticket-content">${this.escapeHtml(edit.instruction || 'Edit')}</div>
+                ${edit.elementSelector ? `
+                  <div class="tweaq-ticket-target">
+                    <code>${edit.elementSelector}</code>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')
+        : `
+          <div class="tweaq-empty-state">
+            <div style="font-size: 32px; margin-bottom: 12px;">🎫</div>
+            <p style="color: #999; font-size: 14px; margin-bottom: 8px;">No tickets yet</p>
+            <p style="color: #bbb; font-size: 12px;">Use Select or Comment mode to create tickets</p>
+          </div>
+        `;
 
-      const elementName = this.getElementName();
+      const confirmButton = this.recordedEdits.length > 0
+        ? `
+          <button class="tweaq-confirm-button" id="tweaq-confirm-edits">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+            </svg>
+            Send ${ticketCount} ${ticketCount === 1 ? 'Ticket' : 'Tickets'} to Agent
+          </button>
+        `
+        : '';
 
       this.propertiesPanel.innerHTML = `
-        <div class="tweaq-panel-header" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <button class="tweaq-mode-toggle-btn active" title="Back to Chat">
-              ${selectIcon}
-            </button>
-            <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #fff;">${elementName}</h3>
+        <div class="tweaq-panel-content">
+          <div class="tweaq-tickets-list">
+            ${ticketsHTML}
           </div>
         </div>
-        <div class="tweaq-panel-header" style="border-top: 1px solid rgba(255, 255, 255, 0.1);">
-          <div class="tweaq-panel-tabs">
-            <button class="tweaq-tab ${this.currentTab === 'properties' ? 'active' : ''}" data-tab="properties">
-              Properties
-            </button>
-            <button class="tweaq-tab ${this.currentTab === 'edits' ? 'active' : ''}" data-tab="edits">
-              Edits ${this.recordedEdits.length > 0 ? `(${this.recordedEdits.length})` : ''}
-            </button>
-          </div>
-        </div>
-        
-        ${this.currentTab === 'properties' ? this.renderPropertiesTab() : this.renderEditsTab()}
+        ${confirmButton}
       `;
 
-      // Attach mode toggle listener
-      const modeToggleBtn = this.propertiesPanel.querySelector('.tweaq-mode-toggle-btn');
-      if (modeToggleBtn) {
-        modeToggleBtn.addEventListener('click', () => {
-          this.toggleMode();
-        });
-      }
-
-      // Attach tab listeners
-      this.propertiesPanel.querySelectorAll('.tweaq-tab').forEach(tab => {
-        tab.addEventListener('click', (e) => {
-          this.currentTab = e.target.dataset.tab;
-          this.renderProperties();
+      // Attach delete listeners
+      const deleteButtons = this.propertiesPanel.querySelectorAll('.tweaq-ticket-delete');
+      deleteButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = parseInt(btn.getAttribute('data-index'));
+          this.deleteEdit(index);
         });
       });
 
-      if (this.currentTab === 'properties') {
-        // Attach input event listeners for properties
-        this.attachPropertyListeners();
-      } else {
-        // Attach listeners for edits tab
-        this.attachEditsListeners();
+      // Attach confirm button listener
+      const confirmBtn = this.propertiesPanel.querySelector('#tweaq-confirm-edits');
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+          this.confirmEdits();
+        });
       }
+    }
+
+    renderProperties() {
+      const elementName = this.getElementName();
+
+      this.propertiesPanel.innerHTML = `
+        ${this.renderPropertiesTab()}
+      `;
+
+      // Attach input event listeners for properties
+      this.attachPropertyListeners();
     }
 
     renderPropertiesTab() {
@@ -2362,14 +3187,18 @@
       this.pendingEdits.clear();
       this.originalValues.clear();
 
-      // Switch to edits tab to show the newly recorded edit
-      this.currentTab = 'edits';
+      // Render properties to show the updates
       this.renderProperties();
     }
 
     deleteEdit(index) {
       this.recordedEdits.splice(index, 1);
-      this.renderProperties();
+      this.updateRightToolbarBadge();
+      if (this.mode === 'tickets') {
+        this.renderTicketsView();
+      } else {
+        this.renderProperties();
+      }
     }
 
     async confirmEdits() {
@@ -2555,41 +3384,35 @@
     }
 
     handleMouseMove(e) {
-      if (!this.isVisible || this.mode !== 'select') return;
-      
-      // Don't highlight elements in the overlay
-      if (e.target.closest('.tweaq-overlay-container') || 
-          e.target.closest('.tweaq-properties-panel') ||
-          e.target.closest('.tweaq-overlay-toolbar')) {
-        this.updateOutline(null);
-        return;
-      }
-      
-      this.hoveredElement = e.target;
-      this.updateOutline(this.hoveredElement);
+      // Hover outline disabled for better performance
+      return;
     }
 
     handleClick(e) {
-      if (!this.isVisible || this.mode !== 'select') return;
+      if (!this.isVisible || (this.mode !== 'design' && this.mode !== 'comment')) return;
       
-      // Don't select elements in the overlay
+      // Don't select elements in the overlay, comment pill, or right toolbar
       if (e.target.closest('.tweaq-overlay-container') || 
           e.target.closest('.tweaq-properties-panel') ||
-          e.target.closest('.tweaq-overlay-toolbar')) {
+          e.target.closest('.tweaq-overlay-toolbar') ||
+          e.target.closest('.tweaq-comment-pill') ||
+          e.target.closest('.tweaq-right-toolbar')) {
         return;
       }
       
       e.preventDefault();
       e.stopPropagation();
       
+      // Collapse comment pill if it's expanded before selecting new element
+      if (this.commentPill && this.commentPill.classList.contains('tweaq-comment-pill-expanded')) {
+        this.collapseCommentPill();
+      }
+      
       this.selectedElement = e.target;
       
       // Hide hover outline and show selected indicator
       this.updateOutline(null);
       this.updateSelectedIndicator(this.selectedElement);
-      
-      // Always start at properties tab when selecting a new element
-      this.currentTab = 'properties';
       
       // Hide select mode indicators since we've selected an element
       this.hideSelectModeIndicators();
@@ -2661,6 +3484,9 @@
         this.selectedCornerHandles[1].style.left = `${rect.left + window.scrollX - 5}px`;
         this.selectedCornerHandles[1].style.top = `${rect.top + window.scrollY + rect.height - 5}px`;
       }
+
+      // Show comment pill
+      this.updateCommentPillPosition();
     }
 
     hideSelectedIndicator() {
@@ -2670,6 +3496,8 @@
       this.selectedCornerHandles.forEach(handle => {
         handle.style.display = 'none';
       });
+      // Hide comment pill
+      this.hideCommentPill();
     }
 
     attachEventListeners() {
@@ -2699,12 +3527,18 @@
         if (this.outlineElement) this.outlineElement.remove();
         if (this.selectedIndicator) this.selectedIndicator.remove();
         this.selectedCornerHandles.forEach(handle => handle.remove());
+        if (this.commentPill) this.commentPill.remove();
+        if (this.rightToolbar) this.rightToolbar.remove();
+        if (this.resizeHandle) this.resizeHandle.remove();
         
         this.overlayContainer = null;
         this.outlineElement = null;
         this.selectedIndicator = null;
+        this.resizeHandle = null;
         this.selectedCornerHandles = [];
         this.propertiesPanel = null;
+        this.commentPill = null;
+        this.rightToolbar = null;
         this.selectedElement = null;
         this.hoveredElement = null;
         this.isVisible = false;

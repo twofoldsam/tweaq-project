@@ -335,18 +335,28 @@ Generate a helpful response that:
 3. Provides 3-4 CONCRETE SUGGESTIONS or examples
 4. Keeps it conversational and friendly
 
+FORMATTING REQUIREMENTS (CRITICAL):
+- Use bullet points (•) with proper line breaks between items
+- Use **bold** for section names or key terms
+- Do NOT use weird indentation or nested bullets
+- Keep formatting clean and readable
+- Each bullet should be on its own line
+
 EXAMPLES OF GOOD RESPONSES:
 
 Missing target:
-"I can help make that friendlier! Which part of the page are you focusing on?
-• The hero section (headline and intro)
-• Navigation menu
-• Button text
-• Footer content
-• Or something else?"
+"I'd love to help make the copy more friendly! Which specific section should we focus on?
+
+• **Hero headline and tagline** - make the main message warmer and more welcoming
+• **Button labels** - change from formal to conversational
+• **Product descriptions** - add more conversational, benefit-focused language
+• **Error messages** - soften harsh technical language
+
+Once you point me to the right spot, I can suggest specific copy changes like switching from formal tone to casual, adding personality, or using more inclusive language. What area feels too cold or formal right now?"
 
 Missing action specifics:
 "Got it - let's make the hero warmer! What specific changes did you have in mind?
+
 • Use warmer color palette (oranges, reds)
 • Friendlier, more casual copy
 • Add welcoming imagery
@@ -354,12 +364,13 @@ Missing action specifics:
 
 Has both but low confidence:
 "I want to make sure I get this right. For making the hero colors warmer, are you thinking:
+
 • Background colors (like adding warm tones)
 • Text colors (making them more inviting)
 • Accent colors (buttons, links)
 • Or a combination?"
 
-Generate a response now (keep it under 100 words, be specific and helpful):`;
+Generate a response now (keep it under 150 words, be specific and helpful, with CLEAN formatting):`;
 
     try {
       const response = await this.llmProvider.generateText(prompt);

@@ -333,7 +333,8 @@ body {
 }
 
 .overlay-button,
-.settings-button {
+.settings-button,
+.qa-toggle-button {
   width: 36px;
   height: 36px;
   border: none;
@@ -352,8 +353,15 @@ body {
   -webkit-backdrop-filter: blur(10px);
 }
 
+.qa-toggle-button {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
 .overlay-button:hover,
-.settings-button:hover {
+.settings-button:hover,
+.qa-toggle-button:hover {
   background: rgba(255, 255, 255, 0.95);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15),
@@ -368,7 +376,8 @@ body {
               inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.settings-button.active {
+.settings-button.active,
+.qa-toggle-button.active {
   background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3),
@@ -422,7 +431,8 @@ body {
   }
   
   .overlay-button,
-  .settings-button {
+  .settings-button,
+  .qa-toggle-button {
     background: rgba(44, 44, 46, 0.8);
     color: #fff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3),
@@ -430,7 +440,8 @@ body {
   }
   
   .overlay-button:hover,
-  .settings-button:hover {
+  .settings-button:hover,
+  .qa-toggle-button:hover {
     background: rgba(58, 58, 60, 0.95);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -442,9 +453,139 @@ body {
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
   
-  .settings-button.active {
+  .settings-button.active,
+  .qa-toggle-button.active {
     background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
     box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
+}
+
+/* Browser Mode - Force Light Theme (even when system prefers dark) */
+.app.browser-mode .toolbar {
+  background: rgba(248, 248, 248, 0.95) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8), 
+              0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+.app.browser-mode .nav-button {
+  background: rgba(255, 255, 255, 0.8) !important;
+  color: #1d1d1f !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.app.browser-mode .nav-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+.app.browser-mode .nav-button:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.7) !important;
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.app.browser-mode .url-bar {
+  background: transparent !important;
+}
+
+.app.browser-mode .url-input {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #1d1d1f !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.app.browser-mode .url-input::placeholder {
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+
+.app.browser-mode .url-input:focus {
+  background: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3),
+              0 2px 8px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+.app.browser-mode .browser-selector {
+  background-color: white !important;
+  border-color: #ccc !important;
+  color: #1d1d1f !important;
+}
+
+.app.browser-mode .browser-selector:hover:not(:disabled) {
+  border-color: #007acc !important;
+  background-color: #f5f5f5 !important;
+}
+
+.app.browser-mode .browser-selector:focus {
+  border-color: #007acc !important;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1) !important;
+}
+
+.app.browser-mode .browser-selector:disabled {
+  background-color: #f0f0f0 !important;
+}
+
+.app.browser-mode .capability-badge.full-editing {
+  background-color: #e7f7ed !important;
+  color: #0e7329 !important;
+  border-color: #9ce0b5 !important;
+}
+
+.app.browser-mode .capability-badge.limited-editing {
+  background-color: #fff8e1 !important;
+  color: #856404 !important;
+  border-color: #ffc107 !important;
+}
+
+.app.browser-mode .capability-badge.read-only {
+  background-color: #e3f2fd !important;
+  color: #1976d2 !important;
+  border-color: #90caf9 !important;
+}
+
+.app.browser-mode .go-button {
+  background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.app.browser-mode .go-button:hover {
+  background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%) !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4) !important;
+}
+
+.app.browser-mode .overlay-button,
+.app.browser-mode .settings-button,
+.app.browser-mode .qa-toggle-button:not(.active) {
+  background: rgba(255, 255, 255, 0.8) !important;
+  color: #1d1d1f !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.app.browser-mode .overlay-button:hover,
+.app.browser-mode .settings-button:hover,
+.app.browser-mode .qa-toggle-button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.95) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+.app.browser-mode .page-title,
+.app.browser-mode .load-time {
+  color: #333 !important;
+}
+
+.app.browser-mode .content {
+  background: #ffffff !important;
 }
