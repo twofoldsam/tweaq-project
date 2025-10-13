@@ -124,6 +124,51 @@
         box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
       }
 
+      /* Tweaq indicator for edited elements */
+      .tweaq-edit-indicator {
+        position: absolute;
+        pointer-events: none;
+        z-index: 999998;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 10px;
+        padding: 3px 6px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-weight: 600;
+        animation: tweaq-indicator-appear 0.3s ease-out;
+        transition: opacity 0.2s ease;
+      }
+
+      @keyframes tweaq-indicator-appear {
+        from {
+          opacity: 0;
+          transform: scale(0.8) translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .tweaq-edit-indicator:hover {
+        opacity: 0.8;
+      }
+
+      .tweaq-edit-indicator-icon {
+        font-size: 11px;
+        line-height: 1;
+      }
+
+      .tweaq-edit-indicator-text {
+        font-size: 9px;
+        line-height: 1;
+        letter-spacing: 0.3px;
+      }
+
       /* Main overlay container */
       .tweaq-overlay-container {
         position: fixed;
@@ -1832,10 +1877,14 @@
       this.awaitingResponse = false;
       this.readyTickets = null; // ReadyTicket[] when conversation is complete
       
+      // Edit indicators for tweaqed elements
+      this.editIndicators = new Map(); // Map<HTMLElement, IndicatorElement>
+      
       // Bind methods
       this.handleMouseMove = this.handleMouseMove.bind(this);
       this.handleClick = this.handleClick.bind(this);
       this.handleKeyDown = this.handleKeyDown.bind(this);
+      this.updateIndicatorPositions = this.updateIndicatorPositions.bind(this);
     }
 
     async inject(options = {}) {
@@ -2218,6 +2267,9 @@
 
       // Update badge count
       this.updateRightToolbarBadge();
+
+      // Update edit indicators
+      this.updateAllEditIndicators();
 
       // Collapse the pill and update the edits panel
       this.collapseCommentPill();
@@ -2678,6 +2730,9 @@
       this.conversationState = null;
       this.conversationMessages = [];
       this.readyTickets = null;
+
+      // Update edit indicators
+      this.updateAllEditIndicators();
 
       // Render panel to update
       this.renderPanel();
@@ -3594,6 +3649,9 @@
       // Update badge count
       this.updateRightToolbarBadge();
 
+      // Update edit indicators
+      this.updateAllEditIndicators();
+
       // Render properties to show the updates
       this.renderProperties();
     }
@@ -3601,6 +3659,7 @@
     deleteEdit(index) {
       this.recordedEdits.splice(index, 1);
       this.updateRightToolbarBadge();
+      this.updateAllEditIndicators();
       if (this.mode === 'tickets') {
         this.renderTicketsView();
       } else {
@@ -3985,16 +4044,111 @@
       this.hideCommentPill();
     }
 
+    addEditIndicator(element, editCount = 1) {
+      // Don't add indicator if one already exists
+      if (this.editIndicators.has(element)) {
+        this.updateEditIndicator(element, editCount);
+        return;
+      }
+
+      const indicator = document.createElement('div');
+      indicator.className = 'tweaq-edit-indicator';
+      indicator.innerHTML = `
+        <span class="tweaq-edit-indicator-icon">⚡</span>
+        <span class="tweaq-edit-indicator-text">${editCount}</span>
+      `;
+
+      document.body.appendChild(indicator);
+      this.editIndicators.set(element, indicator);
+      
+      this.positionEditIndicator(element, indicator);
+    }
+
+    updateEditIndicator(element, editCount) {
+      const indicator = this.editIndicators.get(element);
+      if (!indicator) return;
+
+      const textElement = indicator.querySelector('.tweaq-edit-indicator-text');
+      if (textElement) {
+        textElement.textContent = editCount;
+      }
+    }
+
+    removeEditIndicator(element) {
+      const indicator = this.editIndicators.get(element);
+      if (indicator) {
+        indicator.remove();
+        this.editIndicators.delete(element);
+      }
+    }
+
+    positionEditIndicator(element, indicator) {
+      const rect = element.getBoundingClientRect();
+      
+      // Position at top-right corner of element
+      indicator.style.left = `${rect.right + window.scrollX - 8}px`;
+      indicator.style.top = `${rect.top + window.scrollY - 8}px`;
+    }
+
+    updateIndicatorPositions() {
+      // Update all indicator positions on scroll/resize
+      this.editIndicators.forEach((indicator, element) => {
+        this.positionEditIndicator(element, indicator);
+      });
+    }
+
+    updateAllEditIndicators() {
+      // Clear all existing indicators
+      this.editIndicators.forEach(indicator => indicator.remove());
+      this.editIndicators.clear();
+
+      // Count edits per element
+      const editCounts = new Map();
+      
+      this.recordedEdits.forEach(edit => {
+        // Try to find the element by selector
+        let element = null;
+        
+        if (edit.elementId) {
+          element = document.getElementById(edit.elementId);
+        } else if (edit.elementClasses && edit.elementClasses.length > 0) {
+          const selector = `${edit.element}.${edit.elementClasses.join('.')}`;
+          element = document.querySelector(selector);
+        } else {
+          // Fallback to element selector
+          try {
+            element = document.querySelector(edit.elementSelector);
+          } catch (e) {
+            // Invalid selector, skip
+          }
+        }
+
+        if (element) {
+          const count = (editCounts.get(element) || 0) + 1;
+          editCounts.set(element, count);
+        }
+      });
+
+      // Add indicators for all edited elements
+      editCounts.forEach((count, element) => {
+        this.addEditIndicator(element, count);
+      });
+    }
+
     attachEventListeners() {
       document.addEventListener('mousemove', this.handleMouseMove);
       document.addEventListener('click', this.handleClick, true);
       document.addEventListener('keydown', this.handleKeyDown);
+      window.addEventListener('scroll', this.updateIndicatorPositions, true);
+      window.addEventListener('resize', this.updateIndicatorPositions);
     }
 
     removeEventListeners() {
       document.removeEventListener('mousemove', this.handleMouseMove);
       document.removeEventListener('click', this.handleClick, true);
       document.removeEventListener('keydown', this.handleKeyDown);
+      window.removeEventListener('scroll', this.updateIndicatorPositions, true);
+      window.removeEventListener('resize', this.updateIndicatorPositions);
     }
 
     hide() {
@@ -4005,6 +4159,10 @@
       this.hidePanel();
       this.hideSelectModeIndicators();
       this.hideSelectedIndicator();
+      
+      // Clean up edit indicators
+      this.editIndicators.forEach(indicator => indicator.remove());
+      this.editIndicators.clear();
       
       // Wait for slide-out animation to complete before cleanup
       setTimeout(() => {
