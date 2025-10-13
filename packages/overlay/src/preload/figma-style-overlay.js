@@ -3810,6 +3810,9 @@
         }
       }
 
+      // Clear highlight if it was being shown
+      this.clearEditHighlight();
+
       // Remove from array
       this.recordedEdits.splice(index, 1);
       
