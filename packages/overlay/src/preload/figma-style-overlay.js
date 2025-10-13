@@ -506,6 +506,43 @@
         transition: all 0.15s ease;
       }
 
+      /* Textarea for content editing */
+      .tweaq-textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        transition: all 0.15s ease;
+        resize: vertical;
+        min-height: 60px;
+        line-height: 1.5;
+      }
+
+      .tweaq-textarea:focus {
+        outline: none;
+        border-color: #0A84FF;
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+      }
+
+      .tweaq-textarea:hover {
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+
+      /* Content property uses full width */
+      .tweaq-property-content {
+        grid-template-columns: 100px 1fr;
+        align-items: flex-start;
+      }
+
+      .tweaq-property-content .tweaq-property-label {
+        padding-top: 8px;
+      }
+
       /* Edit Tickets */
       .tweaq-edits-list {
         padding: 16px 24px;
@@ -2139,6 +2176,30 @@
       return `${tag}${id}${className}`;
     }
 
+    getEditableTextContent(element) {
+      // For elements with simple text content (no complex child elements)
+      // Get the direct text nodes
+      let textContent = '';
+      
+      for (const node of element.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          textContent += node.textContent;
+        } else if (node.nodeType === Node.ELEMENT_NODE && 
+                   (node.tagName === 'BR' || node.tagName === 'SPAN' || node.tagName === 'STRONG' || 
+                    node.tagName === 'EM' || node.tagName === 'B' || node.tagName === 'I')) {
+          // Include text from inline formatting elements
+          textContent += node.textContent;
+        }
+      }
+      
+      // If no direct text nodes found, use innerText as fallback
+      if (textContent.trim().length === 0) {
+        textContent = element.innerText || element.textContent || '';
+      }
+      
+      return textContent.trim();
+    }
+
     toggleMode() {
       this.mode = this.mode === 'chat' ? 'select' : 'chat';
       console.log('🔄 Mode switched to:', this.mode);
@@ -2999,9 +3060,22 @@
       const color = styles.color;
       const textAlign = styles.textAlign;
       
+      // Get the text content - handle elements that only have text (no child elements with text)
+      const textContent = this.getEditableTextContent(element);
+      const hasEditableText = textContent.trim().length > 0;
+      
       return `
         <div class="tweaq-property-section">
           <h4 class="tweaq-section-header">Text</h4>
+          
+          ${hasEditableText ? `
+            <div class="tweaq-property tweaq-property-content">
+              <label class="tweaq-property-label">Content</label>
+              <div class="tweaq-property-value">
+                <textarea class="tweaq-textarea tweaq-content-input" data-property="textContent" rows="3">${this.escapeHtml(textContent)}</textarea>
+              </div>
+            </div>
+          ` : ''}
           
           <div class="tweaq-property">
             <label class="tweaq-property-label">Size</label>
@@ -3103,6 +3177,19 @@
           }
           
           this.applyProperty(property, value);
+        });
+      });
+
+      // Handle textarea for text content with real-time updates
+      const textareas = this.propertiesPanel.querySelectorAll('.tweaq-textarea');
+      textareas.forEach(textarea => {
+        textarea.addEventListener('input', (e) => {
+          const property = e.target.dataset.property;
+          const value = e.target.value;
+          
+          if (property === 'textContent') {
+            this.applyTextContent(value);
+          }
         });
       });
 
@@ -3354,6 +3441,58 @@
       });
       
       console.log(`Applied ${property}: ${this.originalValues.get(property)} → ${value}`, 'Pending edits:', this.pendingEdits.size);
+      
+      // Update the record button visibility
+      this.updateRecordButtonVisibility();
+    }
+
+    applyTextContent(value) {
+      const element = this.selectedElement;
+      if (!element) return;
+      
+      // Initialize storage if needed
+      if (!this.originalValues) {
+        this.originalValues = new Map();
+      }
+      
+      // Store the original text content before making the change
+      if (!this.originalValues.has('textContent')) {
+        const originalText = this.getEditableTextContent(element);
+        this.originalValues.set('textContent', originalText);
+      }
+      
+      // Apply the change to the element
+      // For simple text elements, update textContent directly
+      // For elements with child nodes, try to update only text nodes
+      const hasSimpleContent = Array.from(element.childNodes).every(
+        node => node.nodeType === Node.TEXT_NODE || 
+                (node.nodeType === Node.ELEMENT_NODE && 
+                 ['BR', 'SPAN', 'STRONG', 'EM', 'B', 'I'].includes(node.tagName))
+      );
+      
+      if (hasSimpleContent && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+        // Simple text node - update directly
+        element.childNodes[0].textContent = value;
+      } else if (element.childNodes.length === 0 || hasSimpleContent) {
+        // Empty or simple element - set textContent
+        element.textContent = value;
+      } else {
+        // Complex element - try to update first text node
+        for (const node of element.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            node.textContent = value;
+            break;
+          }
+        }
+      }
+      
+      // Track the edit with before/after values
+      this.pendingEdits.set('textContent', {
+        before: this.originalValues.get('textContent'),
+        after: value
+      });
+      
+      console.log(`Applied textContent: "${this.originalValues.get('textContent')}" → "${value}"`, 'Pending edits:', this.pendingEdits.size);
       
       // Update the record button visibility
       this.updateRecordButtonVisibility();
