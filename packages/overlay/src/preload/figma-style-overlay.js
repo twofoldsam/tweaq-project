@@ -3798,9 +3798,25 @@
     }
 
     deleteEdit(index) {
+      const edit = this.recordedEdits[index];
+      if (!edit) return;
+
+      // Revert changes if the tweaq was visible
+      if (edit.visible !== false) {
+        const element = edit.elementReference || this.findElementFromEdit(edit);
+        if (element && document.body.contains(element)) {
+          this.revertEditFromElement(element, edit);
+          console.log('🗑️ Reverted changes before deleting tweaq');
+        }
+      }
+
+      // Remove from array
       this.recordedEdits.splice(index, 1);
+      
+      // Update UI
       this.updateRightToolbarBadge();
       this.updateAllEditIndicators();
+      
       if (this.mode === 'tickets') {
         this.renderTicketsView();
       } else {
