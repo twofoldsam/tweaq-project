@@ -675,39 +675,6 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
   }
   
   try {
-    // Capture complete overlay state before switching
-    const oldView = browserEngineManager.getCurrentBrowserView();
-    let overlaySnapshot: any = null;
-    
-    if (oldView) {
-      try {
-        overlaySnapshot = await oldView.webContents.executeJavaScript(`
-          (function() {
-            if (!window.TweaqOverlay || !window.TweaqOverlay._initialized) {
-              return null;
-            }
-            
-            const overlay = window.TweaqOverlay._instance;
-            if (!overlay) return null;
-            
-            return {
-              isVisible: !!document.querySelector('.tweaq-right-toolbar'),
-              mode: overlay.mode,
-              isPanelVisible: overlay.panel?.classList.contains('visible') || false,
-              recordedEdits: overlay.recordedEdits || [],
-              selectedElement: overlay.selectedElement ? {
-                selector: overlay.selectedElement.getAttribute('data-selector') || '',
-                tagName: overlay.selectedElement.tagName
-              } : null
-            };
-          })()
-        `);
-        console.log('📸 Captured overlay state:', overlaySnapshot);
-      } catch (error) {
-        console.log('Could not capture overlay state:', error);
-      }
-    }
-    
     const currentUrl = store.get('lastUrl');
     const result = await browserEngineManager.switchEngine(engine, currentUrl);
     
@@ -715,63 +682,13 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
       // Update the legacy browserView reference
       browserView = browserEngineManager.getCurrentBrowserView();
       
-      // Event handlers are automatically set up when views are created
-      // No need to call setupBrowserViewEvents here
-      
-      // If overlay was visible, re-inject it when the new page loads
-      if (overlaySnapshot && overlaySnapshot.isVisible && browserView) {
-        const reinjectOverlay = async () => {
-          try {
-            const fs = require('fs');
-            const overlayScript = fs.readFileSync(
-              path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
-              'utf8'
-            );
-
-            await browserView!.webContents.executeJavaScript(overlayScript);
-            
-            // Restore overlay with captured state - pass silent: true to prevent animations
-            const restoreScript = `
-              if (window.TweaqOverlay) {
-                window.TweaqOverlay.inject({
-                  ...${JSON.stringify(overlayState.options || {})},
-                  initialMode: ${JSON.stringify(overlaySnapshot.mode)},
-                  silent: true,
-                  restoreState: ${JSON.stringify(overlaySnapshot)}
-                });
-                
-                // If panel was visible, show it silently
-                if (${overlaySnapshot.isPanelVisible}) {
-                  const overlay = window.TweaqOverlay._instance;
-                  if (overlay && overlay.panel) {
-                    overlay.panel.classList.add('visible');
-                    document.body.classList.add('tweaq-panel-open');
-                  }
-                }
-              }
-            `;
-            await browserView!.webContents.executeJavaScript(restoreScript);
-            
-            console.log('✅ Restored overlay with state:', overlaySnapshot.mode, 'panel:', overlaySnapshot.isPanelVisible);
-          } catch (error) {
-            console.error('❌ Failed to restore overlay:', error);
-          }
-        };
-
-        // Listen for page load completion
-        const loadHandler = () => {
-          reinjectOverlay();
-          browserView!.webContents.removeListener('did-finish-load', loadHandler);
-        };
-        
-        browserView.webContents.once('did-finish-load', loadHandler);
-      }
-      
-      // Send notification to renderer about browser change
+      // Send notification to main window (where overlay lives) about browser change
       mainWindow?.webContents.send('browser-engine-changed', { 
         engine,
         config: browserEngineManager.getEngineConfig(engine)
       });
+      
+      console.log(`✅ Switched to ${engine} - overlay persists in main window`);
     }
     
     return result;
@@ -1634,35 +1551,29 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
       return { success: false, error: 'Main window not available' };
     }
 
-    // First ensure the overlay script is injected (Figma-style with Chat)
+    // First ensure the overlay script is injected into MAIN WINDOW
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
       path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
       'utf8'
     );
 
-    // Inject into main window's overlay iframe or direct injection
-    // We need to inject into the BrowserView's page, but keep track of state
-    const currentView = browserEngineManager?.getCurrentBrowserView();
-    if (!currentView) {
-      return { success: false, error: 'No browser view available' };
-    }
-
-    await currentView.webContents.executeJavaScript(overlayScript);
+    // Inject into main window's renderer process
+    await mainWindow.webContents.executeJavaScript(overlayScript);
     
-    // Then toggle with options (electronAPI is now available via preload)
+    // Then toggle with options
     const toggleScript = `
       if (window.TweaqOverlay) {
         window.TweaqOverlay.toggle(${JSON.stringify(options)});
       }
     `;
-    await currentView.webContents.executeJavaScript(toggleScript);
+    await mainWindow.webContents.executeJavaScript(toggleScript);
 
-    // Store the options for re-injection after browser switch
-    overlayState.options = options;
+    // Toggle the overlay state tracking
     overlayState.isVisible = !overlayState.isVisible;
+    overlayState.options = options;
     
-    console.log('Overlay toggled with options:', options, 'visible:', overlayState.isVisible);
+    console.log('✅ Overlay toggled in main window:', overlayState.isVisible);
 
     return { success: true };
   } catch (error) {
