@@ -407,13 +407,61 @@
         padding: 16px 24px 20px 24px;
       }
 
+      .tweaq-panel-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
       .tweaq-panel-title {
         font-size: 11px;
         font-weight: 600;
         color: #888888;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin: 0 0 8px 0;
+        margin: 0;
+      }
+
+      .tweaq-select-mode-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #888888;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .tweaq-select-mode-toggle svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .tweaq-select-mode-toggle:hover {
+        border-color: rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.08);
+        color: #cccccc;
+      }
+
+      .tweaq-select-mode-toggle.active {
+        border-color: #0A84FF;
+        background: rgba(10, 132, 255, 0.15);
+        color: #0A84FF;
+        box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.1);
+      }
+
+      .tweaq-select-mode-toggle.active:hover {
+        background: rgba(10, 132, 255, 0.2);
+      }
+
+      .tweaq-select-mode-toggle:active {
+        transform: scale(0.95);
       }
 
       .tweaq-element-name {
@@ -923,6 +971,168 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
+      }
+
+      /* Spacing Control (Figma-style) */
+      .tweaq-spacing-control {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .tweaq-spacing-link-toggle {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #888888;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+      }
+
+      .tweaq-spacing-link-toggle:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: #cccccc;
+      }
+
+      .tweaq-spacing-link-toggle[data-link-state="unlinked"] {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .tweaq-spacing-link-toggle svg {
+        pointer-events: none;
+      }
+
+      .tweaq-spacing-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        flex: 1;
+      }
+
+      .tweaq-spacing-inputs-individual {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+      }
+
+      .tweaq-spacing-input-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        padding: 2px 6px;
+      }
+
+      .tweaq-spacing-icon {
+        font-size: 12px;
+        color: #888888;
+        flex-shrink: 0;
+        width: 14px;
+        text-align: center;
+      }
+
+      .tweaq-spacing-value {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        background: transparent;
+        padding: 2px;
+        font-size: 11px;
+        text-align: center;
+      }
+
+      .tweaq-spacing-value:focus {
+        outline: none;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      /* Padding Overlay */
+      .tweaq-padding-overlay {
+        position: absolute;
+        pointer-events: none;
+        z-index: 999998;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .tweaq-padding-top,
+      .tweaq-padding-right,
+      .tweaq-padding-bottom,
+      .tweaq-padding-left {
+        position: absolute;
+        background: rgba(255, 107, 0, 0.2);
+        border: 1px dashed rgba(255, 107, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 107, 0, 1);
+        text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+      }
+
+      /* Measurement Overlay */
+      .tweaq-measurement-overlay {
+        position: absolute;
+        pointer-events: none;
+        z-index: 999999;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .tweaq-measurement {
+        position: absolute;
+        background: rgba(10, 132, 255, 0.95);
+        color: white;
+        padding: 3px 6px;
+        border-radius: 3px;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      .tweaq-measurement-line {
+        position: absolute;
+        background: rgba(10, 132, 255, 0.6);
+      }
+
+      .tweaq-measurement-line-h {
+        height: 1px;
+      }
+
+      .tweaq-measurement-line-v {
+        width: 1px;
+      }
+
+      .tweaq-measurement-cap {
+        position: absolute;
+        background: rgba(10, 132, 255, 0.8);
+      }
+
+      .tweaq-measurement-cap-h {
+        width: 1px;
+        height: 8px;
+      }
+
+      .tweaq-measurement-cap-v {
+        width: 8px;
+        height: 1px;
+      }
+
+      .tweaq-measurement-secondary {
+        font-size: 9px;
+        opacity: 0.8;
       }
 
       /* Empty State */
@@ -2058,9 +2268,14 @@
       this.propertiesPanel = null;
       this.commentPill = null;
       this.rightToolbar = null;
+      this.paddingOverlay = null;
+      this.measurementOverlay = null;
       
       // Mode: 'chat' (default), 'design', 'comment', or 'tickets'
       this.mode = 'chat';
+      
+      // Select mode state for design mode
+      this.isSelectModeActive = true;
       
       // Conversational Intelligence state
       this.conversationState = null;
@@ -2132,6 +2347,24 @@
       this.selectedIndicator.className = 'tweaq-selected-indicator';
       this.selectedIndicator.style.display = 'none';
       document.body.appendChild(this.selectedIndicator);
+
+      // Create padding overlay
+      this.paddingOverlay = document.createElement('div');
+      this.paddingOverlay.className = 'tweaq-padding-overlay';
+      this.paddingOverlay.style.display = 'none';
+      this.paddingOverlay.innerHTML = `
+        <div class="tweaq-padding-top"></div>
+        <div class="tweaq-padding-right"></div>
+        <div class="tweaq-padding-bottom"></div>
+        <div class="tweaq-padding-left"></div>
+      `;
+      document.body.appendChild(this.paddingOverlay);
+
+      // Create measurement overlay
+      this.measurementOverlay = document.createElement('div');
+      this.measurementOverlay.className = 'tweaq-measurement-overlay';
+      this.measurementOverlay.style.display = 'none';
+      document.body.appendChild(this.measurementOverlay);
 
       // Create hover highlight for ticket card hovers
       this.hoverHighlight = document.createElement('div');
@@ -2470,8 +2703,15 @@
 
       // Handle mode-specific behavior
       if (newMode === 'design' || newMode === 'comment') {
-        // Enable element selection/hovering
-        this.showSelectModeIndicators();
+        // Enable element selection/hovering only if select mode is active (for design) or in comment mode
+        if (newMode === 'design') {
+          if (this.isSelectModeActive) {
+            this.showSelectModeIndicators();
+          }
+        } else {
+          // Comment mode always has select mode
+          this.showSelectModeIndicators();
+        }
         if (this.selectedElement) {
           this.updateSelectedIndicator(this.selectedElement);
         }
@@ -2499,6 +2739,30 @@
           this.renderPanel();
         }
       }
+    }
+
+    toggleSelectMode() {
+      // Toggle the select mode state
+      this.isSelectModeActive = !this.isSelectModeActive;
+      
+      if (this.mode === 'design') {
+        if (this.isSelectModeActive) {
+          // Enable select mode indicators
+          this.showSelectModeIndicators();
+          if (this.selectedElement) {
+            this.updateSelectedIndicator(this.selectedElement);
+          }
+        } else {
+          // Disable select mode indicators and clear selection
+          this.hideSelectModeIndicators();
+          this.selectedElement = null;
+          this.hideSelectedIndicator();
+          this.updateOutline(null);
+        }
+      }
+      
+      // Re-render the panel to update the button state and show page properties if deselected
+      this.renderPanel();
     }
 
     updateRightToolbarBadge() {
@@ -3528,7 +3792,21 @@
       
       return `
         <div class="tweaq-tab-content-header">
-          <div class="tweaq-panel-title">${isPage ? 'PAGE' : 'ELEMENT'}</div>
+          <div class="tweaq-panel-title-row">
+            <div class="tweaq-panel-title">${isPage ? 'PAGE' : 'ELEMENT'}</div>
+            ${this.mode === 'design' ? `
+              <button 
+                class="tweaq-select-mode-toggle ${this.isSelectModeActive ? 'active' : ''}" 
+                id="tweaq-select-mode-toggle"
+                title="${this.isSelectModeActive ? 'Exit select mode' : 'Enter select mode'}"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M1 1l4.5 11L8 8l4-2.5L1 1z"/>
+                </svg>
+                <span>Select</span>
+              </button>
+            ` : ''}
+          </div>
           <div class="tweaq-element-header">
             <div class="tweaq-element-name">${this.getElementName()}</div>
             <button 
@@ -3801,6 +4079,21 @@
       const width = Math.round(rect.width);
       const height = Math.round(rect.height);
       
+      // Get gap value (for flex/grid)
+      const gap = parseInt(styles.gap) || 0;
+      const isFlexOrGrid = display === 'flex' || display === 'grid';
+      
+      // Get padding and margin values
+      const paddingTop = parseInt(styles.paddingTop) || 0;
+      const paddingRight = parseInt(styles.paddingRight) || 0;
+      const paddingBottom = parseInt(styles.paddingBottom) || 0;
+      const paddingLeft = parseInt(styles.paddingLeft) || 0;
+      
+      const marginTop = parseInt(styles.marginTop) || 0;
+      const marginRight = parseInt(styles.marginRight) || 0;
+      const marginBottom = parseInt(styles.marginBottom) || 0;
+      const marginLeft = parseInt(styles.marginLeft) || 0;
+      
       return `
         <div class="tweaq-property-section">
           <h4 class="tweaq-section-header">Layout</h4>
@@ -3832,6 +4125,18 @@
             </div>
           </div>
           
+          ${isFlexOrGrid ? `
+            <div class="tweaq-property">
+              <label class="tweaq-property-label">Gap</label>
+              <div class="tweaq-property-value">
+                <div class="tweaq-number-group">
+                  <input type="number" class="tweaq-input" value="${gap}" data-property="gap" data-unit="px" placeholder="0">
+                  <span class="tweaq-unit">px</span>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+          
           <div class="tweaq-property">
             <label class="tweaq-property-label">Size</label>
             <div class="tweaq-property-value">
@@ -3843,6 +4148,88 @@
                 <div class="tweaq-number-group">
                   <input type="text" class="tweaq-input" value="${height}" readonly>
                   <span class="tweaq-unit">H</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="tweaq-property">
+            <label class="tweaq-property-label">Padding</label>
+            <div class="tweaq-property-value">
+              <div class="tweaq-spacing-control" data-spacing-type="padding">
+                <button class="tweaq-spacing-link-toggle" data-link-state="linked" title="Unlink sides">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                    <path d="M6 1L6 11M1 6L11 6" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                </button>
+                <div class="tweaq-spacing-inputs" data-mode="linked">
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">⇅</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${paddingTop}" data-sides="top,bottom" data-property="paddingTop,paddingBottom" placeholder="0">
+                  </div>
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">⇄</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${paddingLeft}" data-sides="left,right" data-property="paddingLeft,paddingRight" placeholder="0">
+                  </div>
+                </div>
+                <div class="tweaq-spacing-inputs tweaq-spacing-inputs-individual" data-mode="individual" style="display: none;">
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">↑</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${paddingTop}" data-property="paddingTop" placeholder="0">
+                  </div>
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">→</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${paddingRight}" data-property="paddingRight" placeholder="0">
+                  </div>
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">↓</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${paddingBottom}" data-property="paddingBottom" placeholder="0">
+                  </div>
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">←</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${paddingLeft}" data-property="paddingLeft" placeholder="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="tweaq-property">
+            <label class="tweaq-property-label">Margin</label>
+            <div class="tweaq-property-value">
+              <div class="tweaq-spacing-control" data-spacing-type="margin">
+                <button class="tweaq-spacing-link-toggle" data-link-state="linked" title="Unlink sides">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                    <path d="M6 1L6 11M1 6L11 6" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                </button>
+                <div class="tweaq-spacing-inputs" data-mode="linked">
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">⇅</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${marginTop}" data-sides="top,bottom" data-property="marginTop,marginBottom" placeholder="0">
+                  </div>
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">⇄</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${marginLeft}" data-sides="left,right" data-property="marginLeft,marginRight" placeholder="0">
+                  </div>
+                </div>
+                <div class="tweaq-spacing-inputs tweaq-spacing-inputs-individual" data-mode="individual" style="display: none;">
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">↑</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${marginTop}" data-property="marginTop" placeholder="0">
+                  </div>
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">→</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${marginRight}" data-property="marginRight" placeholder="0">
+                  </div>
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">↓</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${marginBottom}" data-property="marginBottom" placeholder="0">
+                  </div>
+                  <div class="tweaq-spacing-input-group">
+                    <span class="tweaq-spacing-icon">←</span>
+                    <input type="number" class="tweaq-input tweaq-spacing-value" value="${marginLeft}" data-property="marginLeft" placeholder="0">
+                  </div>
                 </div>
               </div>
             </div>
@@ -3978,6 +4365,11 @@
           }
           
           this.applyProperty(property, value);
+          
+          // If display property changed, re-render panel to show/hide gap field
+          if (property === 'display') {
+            this.renderPanel();
+          }
         });
       });
 
@@ -4024,6 +4416,62 @@
       const recordIconBtn = document.getElementById('tweaq-record-edit-icon');
       if (recordIconBtn) {
         recordIconBtn.addEventListener('click', () => this.recordCurrentEdits());
+      }
+
+      // Select mode toggle button
+      const selectModeToggle = document.getElementById('tweaq-select-mode-toggle');
+      if (selectModeToggle) {
+        selectModeToggle.addEventListener('click', () => this.toggleSelectMode());
+      }
+
+      // Spacing link toggle buttons
+      const spacingToggles = this.propertiesPanel.querySelectorAll('.tweaq-spacing-link-toggle');
+      spacingToggles.forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+          const control = e.target.closest('.tweaq-spacing-control');
+          this.toggleSpacingMode(control);
+        });
+      });
+
+      // Spacing value inputs
+      const spacingInputs = this.propertiesPanel.querySelectorAll('.tweaq-spacing-value');
+      spacingInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+          const properties = e.target.dataset.property.split(',');
+          const value = e.target.value + 'px';
+          
+          // Apply to all properties in the data-property attribute
+          properties.forEach(prop => {
+            this.applyProperty(prop, value);
+          });
+        });
+      });
+    }
+
+    toggleSpacingMode(control) {
+      const toggle = control.querySelector('.tweaq-spacing-link-toggle');
+      const linkedInputs = control.querySelector('[data-mode="linked"]');
+      const individualInputs = control.querySelector('[data-mode="individual"]');
+      const currentState = toggle.getAttribute('data-link-state');
+      
+      if (currentState === 'linked') {
+        // Switch to individual mode
+        toggle.setAttribute('data-link-state', 'unlinked');
+        toggle.title = 'Link sides';
+        linkedInputs.style.display = 'none';
+        individualInputs.style.display = 'grid';
+        
+        // Update icon to show broken link
+        toggle.querySelector('svg').innerHTML = '<path d="M3 3L9 9M9 3L3 9" stroke="currentColor" stroke-width="1.5"/>';
+      } else {
+        // Switch to linked mode
+        toggle.setAttribute('data-link-state', 'linked');
+        toggle.title = 'Unlink sides';
+        linkedInputs.style.display = 'grid';
+        individualInputs.style.display = 'none';
+        
+        // Update icon to show linked
+        toggle.querySelector('svg').innerHTML = '<path d="M6 1L6 11M1 6L11 6" stroke="currentColor" stroke-width="1.5"/>';
       }
     }
 
@@ -4275,6 +4723,16 @@
       
       // Update the record button visibility
       this.updateRecordButtonVisibility();
+      
+      // If padding was changed, update the padding overlay
+      if (property.startsWith('padding')) {
+        this.updatePaddingOverlay(element);
+      }
+      
+      // If gap or display was changed, update measurement overlay
+      if (property === 'gap' || property === 'display') {
+        this.updateMeasurementOverlay(element);
+      }
     }
 
     applyTextContent(value) {
@@ -4354,8 +4812,8 @@
     }
 
     handleMouseMove(e) {
-      // Only show hover outline in design mode
-      if (!this.isVisible || this.mode !== 'design') {
+      // Only show hover outline in design mode when select mode is active
+      if (!this.isVisible || this.mode !== 'design' || !this.isSelectModeActive) {
         return;
       }
 
@@ -4386,9 +4844,9 @@
     }
 
     handleClick(e) {
-      if (!this.isVisible || (this.mode !== 'design' && this.mode !== 'comment')) return;
+      if (!this.isVisible) return;
       
-      // Don't select elements in the overlay, comment pill, right toolbar, or edit indicators
+      // Don't handle clicks on overlay UI elements
       if (e.target.closest('.tweaq-overlay-container') || 
           e.target.closest('.tweaq-properties-panel') ||
           e.target.closest('.tweaq-overlay-toolbar') ||
@@ -4397,6 +4855,21 @@
           e.target.closest('.tweaq-edit-indicator')) {
         return;
       }
+      
+      // In design mode with select mode OFF, clear any existing selection
+      if (this.mode === 'design' && !this.isSelectModeActive) {
+        if (this.selectedElement) {
+          this.selectedElement = null;
+          this.hideSelectedIndicator();
+          this.updateOutline(null);
+          this.renderPanel();
+        }
+        return;
+      }
+      
+      // Only allow selection in design mode with select ON, or comment mode
+      if (this.mode !== 'design' && this.mode !== 'comment') return;
+      if (this.mode === 'design' && !this.isSelectModeActive) return;
       
       e.preventDefault();
       e.stopPropagation();
@@ -4420,23 +4893,16 @@
 
     handleKeyDown(e) {
       if (e.key === 'Escape') {
-        if (this.selectedElement && this.mode === 'select') {
-          // First escape: deselect element and go back to chat
-          this.mode = 'chat';
+        // In design mode, escape toggles select mode off
+        if (this.mode === 'design' && this.isSelectModeActive) {
+          this.isSelectModeActive = false;
+          this.hideSelectModeIndicators();
           this.selectedElement = null;
-          this.updateOutline(null);
           this.hideSelectedIndicator();
-          this.hideSelectModeIndicators();
+          this.updateOutline(null);
           this.renderPanel();
-        } else if (this.mode === 'select') {
-          // In select mode but no element selected - go back to chat
-          this.mode = 'chat';
-          this.hideSelectModeIndicators();
-          this.renderPanel();
-        } else {
-          // Second escape: hide overlay
-          this.hide();
         }
+        // Note: We never close the panel with Escape
       }
     }
 
@@ -4485,6 +4951,181 @@
 
       // Show comment pill
       this.updateCommentPillPosition();
+      
+      // Update padding overlay
+      this.updatePaddingOverlay(element);
+      
+      // Update measurement overlay
+      this.updateMeasurementOverlay(element);
+    }
+
+    updateMeasurementOverlay(element) {
+      if (!element || element === document.body) {
+        this.hideMeasurementOverlay();
+        return;
+      }
+
+      console.log('📏 Updating measurement overlay for:', element);
+
+      if (!this.measurementOverlay) {
+        console.error('❌ Measurement overlay element not found!');
+        return;
+      }
+
+      const rect = element.getBoundingClientRect();
+      const styles = window.getComputedStyle(element);
+      
+      console.log('📐 Element rect:', { width: rect.width, height: rect.height, top: rect.top, left: rect.left });
+      
+      // Calculate rem values (assuming 16px base)
+      const remBase = 16;
+      const toRem = (px) => (px / remBase).toFixed(2);
+      
+      const width = rect.width;
+      const height = rect.height;
+      const paddingTop = parseInt(styles.paddingTop) || 0;
+      const paddingRight = parseInt(styles.paddingRight) || 0;
+      const paddingBottom = parseInt(styles.paddingBottom) || 0;
+      const paddingLeft = parseInt(styles.paddingLeft) || 0;
+      const marginTop = parseInt(styles.marginTop) || 0;
+      const marginRight = parseInt(styles.marginRight) || 0;
+      const marginBottom = parseInt(styles.marginBottom) || 0;
+      const marginLeft = parseInt(styles.marginLeft) || 0;
+      const gap = parseInt(styles.gap) || 0;
+      const isFlexOrGrid = styles.display === 'flex' || styles.display === 'grid';
+
+      this.measurementOverlay.style.display = 'block';
+      console.log('✅ Measurement overlay display set to block');
+      
+      let html = '';
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      
+      // Width measurement (top) - position above element, or below if near top
+      const hasSpaceAbove = rect.top > 30;
+      const widthY = hasSpaceAbove ? rect.top + scrollY - 25 : rect.bottom + scrollY + 5;
+      html += `
+        <div class="tweaq-measurement-line tweaq-measurement-line-h" style="left: ${rect.left + scrollX}px; top: ${widthY + 10}px; width: ${width}px;"></div>
+        <div class="tweaq-measurement-cap tweaq-measurement-cap-h" style="left: ${rect.left + scrollX}px; top: ${widthY + 6}px;"></div>
+        <div class="tweaq-measurement-cap tweaq-measurement-cap-h" style="left: ${rect.left + scrollX + width}px; top: ${widthY + 6}px;"></div>
+        <div class="tweaq-measurement" style="left: ${rect.left + scrollX + width / 2 - 40}px; top: ${widthY + 2}px;">
+          <span>${Math.round(width)}px</span>
+          <span class="tweaq-measurement-secondary">${toRem(width)}rem</span>
+        </div>
+      `;
+      
+      // Height measurement (right) - position to the right, or left if near right edge
+      const hasSpaceRight = (window.innerWidth - rect.right) > 100;
+      const heightX = hasSpaceRight ? rect.right + scrollX + 10 : rect.left + scrollX - 90;
+      html += `
+        <div class="tweaq-measurement-line tweaq-measurement-line-v" style="left: ${heightX}px; top: ${rect.top + scrollY}px; height: ${height}px;"></div>
+        <div class="tweaq-measurement-cap tweaq-measurement-cap-v" style="left: ${heightX - 4}px; top: ${rect.top + scrollY}px;"></div>
+        <div class="tweaq-measurement-cap tweaq-measurement-cap-v" style="left: ${heightX - 4}px; top: ${rect.top + scrollY + height}px;"></div>
+        <div class="tweaq-measurement" style="left: ${hasSpaceRight ? heightX + 5 : heightX - 80}px; top: ${rect.top + scrollY + height / 2 - 10}px;">
+          <span>${Math.round(height)}px</span>
+          <span class="tweaq-measurement-secondary">${toRem(height)}rem</span>
+        </div>
+      `;
+      
+      // Gap measurement (if flex/grid and has children)
+      if (isFlexOrGrid && gap > 0 && element.children.length > 1) {
+        const gapY = rect.bottom + scrollY + 5;
+        html += `
+          <div class="tweaq-measurement" style="left: ${rect.left + scrollX + 10}px; top: ${gapY}px;">
+            <span>Gap ${gap}px</span>
+            <span class="tweaq-measurement-secondary">${toRem(gap)}rem</span>
+          </div>
+        `;
+      }
+      
+      this.measurementOverlay.innerHTML = html;
+      console.log('📏 Measurement overlay HTML length:', html.length);
+      console.log('📏 Measurement overlay element:', this.measurementOverlay);
+    }
+
+    hideMeasurementOverlay() {
+      if (this.measurementOverlay) {
+        this.measurementOverlay.style.display = 'none';
+      }
+    }
+
+    updatePaddingOverlay(element) {
+      if (!element || element === document.body) {
+        this.hidePaddingOverlay();
+        return;
+      }
+
+      const rect = element.getBoundingClientRect();
+      const styles = window.getComputedStyle(element);
+      
+      const paddingTop = parseInt(styles.paddingTop) || 0;
+      const paddingRight = parseInt(styles.paddingRight) || 0;
+      const paddingBottom = parseInt(styles.paddingBottom) || 0;
+      const paddingLeft = parseInt(styles.paddingLeft) || 0;
+      
+      // Only show if there's padding
+      if (paddingTop === 0 && paddingRight === 0 && paddingBottom === 0 && paddingLeft === 0) {
+        this.hidePaddingOverlay();
+        return;
+      }
+
+      this.paddingOverlay.style.display = 'block';
+      
+      const topEl = this.paddingOverlay.querySelector('.tweaq-padding-top');
+      const rightEl = this.paddingOverlay.querySelector('.tweaq-padding-right');
+      const bottomEl = this.paddingOverlay.querySelector('.tweaq-padding-bottom');
+      const leftEl = this.paddingOverlay.querySelector('.tweaq-padding-left');
+      
+      // Position and size each padding area
+      if (paddingTop > 0) {
+        topEl.style.display = 'flex';
+        topEl.style.left = `${rect.left + window.scrollX}px`;
+        topEl.style.top = `${rect.top + window.scrollY}px`;
+        topEl.style.width = `${rect.width}px`;
+        topEl.style.height = `${paddingTop}px`;
+        topEl.textContent = `${paddingTop}`;
+      } else {
+        topEl.style.display = 'none';
+      }
+      
+      if (paddingRight > 0) {
+        rightEl.style.display = 'flex';
+        rightEl.style.left = `${rect.left + window.scrollX + rect.width - paddingRight}px`;
+        rightEl.style.top = `${rect.top + window.scrollY}px`;
+        rightEl.style.width = `${paddingRight}px`;
+        rightEl.style.height = `${rect.height}px`;
+        rightEl.textContent = `${paddingRight}`;
+      } else {
+        rightEl.style.display = 'none';
+      }
+      
+      if (paddingBottom > 0) {
+        bottomEl.style.display = 'flex';
+        bottomEl.style.left = `${rect.left + window.scrollX}px`;
+        bottomEl.style.top = `${rect.top + window.scrollY + rect.height - paddingBottom}px`;
+        bottomEl.style.width = `${rect.width}px`;
+        bottomEl.style.height = `${paddingBottom}px`;
+        bottomEl.textContent = `${paddingBottom}`;
+      } else {
+        bottomEl.style.display = 'none';
+      }
+      
+      if (paddingLeft > 0) {
+        leftEl.style.display = 'flex';
+        leftEl.style.left = `${rect.left + window.scrollX}px`;
+        leftEl.style.top = `${rect.top + window.scrollY}px`;
+        leftEl.style.width = `${paddingLeft}px`;
+        leftEl.style.height = `${rect.height}px`;
+        leftEl.textContent = `${paddingLeft}`;
+      } else {
+        leftEl.style.display = 'none';
+      }
+    }
+
+    hidePaddingOverlay() {
+      if (this.paddingOverlay) {
+        this.paddingOverlay.style.display = 'none';
+      }
     }
 
     hideSelectedIndicator() {
@@ -4496,6 +5137,10 @@
       });
       // Hide comment pill
       this.hideCommentPill();
+      // Hide padding overlay
+      this.hidePaddingOverlay();
+      // Hide measurement overlay
+      this.hideMeasurementOverlay();
     }
 
     addEditIndicator(element, editCount = 1, allVisible = true) {
@@ -4575,6 +5220,11 @@
       this.editIndicators.forEach((indicator, element) => {
         this.positionEditIndicator(element, indicator);
       });
+      
+      // Update selected element and padding overlay positions
+      if (this.selectedElement) {
+        this.updateSelectedIndicator(this.selectedElement);
+      }
     }
 
     updateAllEditIndicators() {
@@ -4893,6 +5543,8 @@
         if (this.outlineElement) this.outlineElement.remove();
         if (this.selectedIndicator) this.selectedIndicator.remove();
         if (this.hoverHighlight) this.hoverHighlight.remove();
+        if (this.paddingOverlay) this.paddingOverlay.remove();
+        if (this.measurementOverlay) this.measurementOverlay.remove();
         this.selectedCornerHandles.forEach(handle => handle.remove());
         if (this.commentPill) this.commentPill.remove();
         if (this.rightToolbar) this.rightToolbar.remove();
@@ -4902,6 +5554,8 @@
         this.outlineElement = null;
         this.selectedIndicator = null;
         this.hoverHighlight = null;
+        this.paddingOverlay = null;
+        this.measurementOverlay = null;
         this.resizeHandle = null;
         this.selectedCornerHandles = [];
         this.propertiesPanel = null;
