@@ -2408,21 +2408,58 @@
 
     createCommentPill() {
       this.commentPill = document.createElement('div');
-      this.commentPill.className = 'tweaq-comment-pill';
+      this.commentPill.className = 'tweaq-comment-pill tweaq-comment-pill-expanded';
       this.commentPill.style.display = 'none';
       this.commentPill.innerHTML = `
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M2.678 11.894a1 1 0 01.287.801 10.97 10.97 0 01-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 01.71-.074A8.06 8.06 0 008 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 01-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 00.244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 01-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
-        </svg>
-        <span>Comment</span>
+        <textarea class="tweaq-comment-textarea" placeholder="Add a comment..." rows="3"></textarea>
+        <div class="tweaq-comment-actions">
+          <button class="tweaq-comment-btn tweaq-comment-submit" disabled title="Type a comment to send">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+            </svg>
+          </button>
+        </div>
       `;
-      
-      this.commentPill.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.expandCommentPill();
-      });
-      
+
+      this.setupCommentPillListeners();
       document.body.appendChild(this.commentPill);
+    }
+
+    setupCommentPillListeners() {
+      const textarea = this.commentPill.querySelector('.tweaq-comment-textarea');
+      const submitBtn = this.commentPill.querySelector('.tweaq-comment-submit');
+
+      // Handle textarea input
+      textarea.addEventListener('input', () => {
+        submitBtn.disabled = !textarea.value.trim();
+        submitBtn.title = textarea.value.trim() ? "Send comment (⌘+Enter)" : "Type a comment to send";
+      });
+
+      // Handle keyboard shortcuts
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          if (textarea.value.trim()) {
+            this.submitComment(textarea.value.trim());
+            textarea.value = '';
+            submitBtn.disabled = true;
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          textarea.value = '';
+          submitBtn.disabled = true;
+        }
+      });
+
+      // Handle submit button
+      submitBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (textarea.value.trim()) {
+          this.submitComment(textarea.value.trim());
+          textarea.value = '';
+          submitBtn.disabled = true;
+        }
+      });
     }
 
     initPanelResize() {
@@ -2786,94 +2823,8 @@
       }
     }
 
-    expandCommentPill() {
-      if (!this.selectedElement) return;
-
-      const rect = this.selectedElement.getBoundingClientRect();
-      
-      this.commentPill.className = 'tweaq-comment-pill tweaq-comment-pill-expanded';
-      this.commentPill.innerHTML = `
-        <textarea class="tweaq-comment-textarea" placeholder="Add a comment..." rows="3"></textarea>
-        <div class="tweaq-comment-actions">
-          <button class="tweaq-comment-btn tweaq-comment-cancel">Cancel</button>
-          <button class="tweaq-comment-btn tweaq-comment-submit" disabled>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
-            </svg>
-            Submit
-          </button>
-        </div>
-        <div class="tweaq-comment-hint">
-          Press <kbd>⌘</kbd>+<kbd>Enter</kbd> to submit, <kbd>Esc</kbd> to cancel
-        </div>
-      `;
-
-      const textarea = this.commentPill.querySelector('.tweaq-comment-textarea');
-      const submitBtn = this.commentPill.querySelector('.tweaq-comment-submit');
-      const cancelBtn = this.commentPill.querySelector('.tweaq-comment-cancel');
-
-      // Focus the textarea
-      setTimeout(() => textarea.focus(), 10);
-
-      // Handle textarea input
-      textarea.addEventListener('input', () => {
-        submitBtn.disabled = !textarea.value.trim();
-      });
-
-      // Handle keyboard shortcuts
-      textarea.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault();
-          if (textarea.value.trim()) {
-            this.submitComment(textarea.value.trim());
-          }
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          this.collapseCommentPill();
-        }
-      });
-
-      // Handle cancel button
-      cancelBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.collapseCommentPill();
-      });
-
-      // Handle submit button
-      submitBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (textarea.value.trim()) {
-          this.submitComment(textarea.value.trim());
-        }
-      });
-    }
-
-    collapseCommentPill() {
-      if (!this.commentPill) return;
-
-      this.commentPill.className = 'tweaq-comment-pill';
-      this.commentPill.innerHTML = `
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M2.678 11.894a1 1 0 01.287.801 10.97 10.97 0 01-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 01.71-.074A8.06 8.06 0 008 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 01-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 00.244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 01-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
-        </svg>
-        <span>Comment</span>
-      `;
-
-      // Remove old event listeners by replacing the element with a clone
-      const newPill = this.commentPill.cloneNode(true);
-      this.commentPill.parentNode.replaceChild(newPill, this.commentPill);
-      this.commentPill = newPill;
-
-      this.commentPill.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.expandCommentPill();
-      });
-
-      // Update position if we have a selected element
-      if (this.selectedElement) {
-        this.updateCommentPillPosition();
-      }
-    }
+    // Comment pill is now always expanded when visible
+    // No need for expand/collapse methods
 
     submitComment(comment) {
       if (!this.selectedElement) return;
@@ -2931,6 +2882,11 @@
       // Only show comment pill in comment mode
       if (this.mode === 'comment') {
         this.commentPill.style.display = 'block';
+        // Auto-focus the textarea when shown
+        const textarea = this.commentPill.querySelector('.tweaq-comment-textarea');
+        if (textarea) {
+          setTimeout(() => textarea.focus(), 10);
+        }
       } else {
         this.commentPill.style.display = 'none';
       }
