@@ -1657,141 +1657,104 @@
         background: rgba(102, 126, 234, 0.1);
       }
 
-      /* Comment Pill Styles */
+      /* Comment Pill Styles - Dark Mode */
       .tweaq-comment-pill {
         position: absolute;
         pointer-events: auto;
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 20px;
-        padding: 8px 16px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 500;
-        color: #0A84FF;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        background: rgba(40, 40, 40, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         user-select: none;
         z-index: 1000002;
       }
 
-      .tweaq-comment-pill:hover {
-        background: #0A84FF;
-        color: white;
-        transform: translateY(-1px);
-        box-shadow: 0 6px 24px rgba(10, 132, 255, 0.3);
-      }
-
-      .tweaq-comment-pill svg {
-        flex-shrink: 0;
-      }
-
       .tweaq-comment-pill-expanded {
+        display: flex;
         flex-direction: column;
         align-items: stretch;
-        gap: 12px;
-        padding: 16px;
-        border-radius: 12px;
+        gap: 8px;
+        padding: 12px;
         min-width: 320px;
         cursor: default;
-        background: rgba(255, 255, 255, 0.98);
-        color: #333;
-      }
-
-      .tweaq-comment-pill-expanded:hover {
-        background: rgba(255, 255, 255, 0.98);
-        color: #333;
-        transform: none;
       }
 
       .tweaq-comment-textarea {
         width: 100%;
-        padding: 10px 12px;
-        border: 1px solid rgba(0, 0, 0, 0.2);
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
-        font-size: 13px;
+        font-size: 14px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
         resize: vertical;
         min-height: 80px;
-        background: white;
-        color: #333;
-        transition: border-color 0.2s;
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+        transition: all 0.2s;
       }
 
       .tweaq-comment-textarea:focus {
         outline: none;
-        border-color: #0A84FF;
-        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1);
+        border-color: rgba(0, 122, 204, 0.6);
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.15);
       }
 
       .tweaq-comment-textarea::placeholder {
-        color: #999;
+        color: rgba(255, 255, 255, 0.4);
       }
 
       .tweaq-comment-actions {
         display: flex;
-        gap: 8px;
         justify-content: flex-end;
       }
 
       .tweaq-comment-btn {
-        padding: 8px 16px;
+        padding: 8px;
         border: none;
         border-radius: 8px;
-        font-size: 13px;
-        font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-      }
-
-      .tweaq-comment-cancel {
-        background: rgba(0, 0, 0, 0.05);
-        color: #666;
-      }
-
-      .tweaq-comment-cancel:hover {
-        background: rgba(0, 0, 0, 0.1);
-        color: #333;
+        justify-content: center;
+        background: transparent;
       }
 
       .tweaq-comment-submit {
-        background: linear-gradient(135deg, #0A84FF 0%, #0066CC 100%);
-        color: white;
+        color: rgba(255, 255, 255, 0.4);
+        width: 36px;
+        height: 36px;
       }
 
       .tweaq-comment-submit:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .tweaq-comment-submit:not(:disabled) {
+        color: #007acc;
+      }
+
+      .tweaq-comment-submit:not(:disabled):hover {
+        background: rgba(0, 122, 204, 0.15);
+        color: #4db8ff;
+      }
+
+      .tweaq-comment-submit:not(:disabled):active {
+        transform: scale(0.95);
       }
 
       .tweaq-comment-submit:disabled {
-        opacity: 0.5;
         cursor: not-allowed;
       }
 
-      .tweaq-comment-hint {
-        font-size: 11px;
-        color: #999;
-        text-align: center;
-        padding-top: 4px;
-        border-top: 1px solid rgba(0, 0, 0, 0.06);
-      }
-
-      .tweaq-comment-hint kbd {
-        background: rgba(0, 0, 0, 0.05);
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-family: 'SF Mono', Monaco, Consolas, monospace;
-        font-size: 10px;
-        border: 1px solid rgba(0, 0, 0, 0.1);
+      .tweaq-comment-submit svg {
+        width: 18px;
+        height: 18px;
       }
 
       /* Tweaqs View Styles */
