@@ -2862,8 +2862,13 @@
       // Update edit indicators
       this.updateAllEditIndicators();
 
-      // Collapse the pill and update the edits panel
-      this.collapseCommentPill();
+      // Clear the comment textarea and reset submit button
+      if (this.commentPill) {
+        const textarea = this.commentPill.querySelector('.tweaq-comment-textarea');
+        const submitBtn = this.commentPill.querySelector('.tweaq-comment-submit');
+        if (textarea) textarea.value = '';
+        if (submitBtn) submitBtn.disabled = true;
+      }
       
       // Switch to tweaqs mode to show the new edit
       this.switchMode('tickets');
@@ -4830,9 +4835,12 @@
       e.preventDefault();
       e.stopPropagation();
       
-      // Collapse comment pill if it's expanded before selecting new element
-      if (this.commentPill && this.commentPill.classList.contains('tweaq-comment-pill-expanded')) {
-        this.collapseCommentPill();
+      // Clear comment textarea when selecting a new element
+      if (this.commentPill) {
+        const textarea = this.commentPill.querySelector('.tweaq-comment-textarea');
+        const submitBtn = this.commentPill.querySelector('.tweaq-comment-submit');
+        if (textarea) textarea.value = '';
+        if (submitBtn) submitBtn.disabled = true;
       }
       
       this.selectedElement = e.target;
