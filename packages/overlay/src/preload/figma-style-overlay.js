@@ -1757,6 +1757,142 @@
         height: 18px;
       }
 
+      /* Comment Bubble Styles (Figma-style) */
+      .tweaq-comment-bubble {
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        pointer-events: auto;
+        z-index: 1000002;
+        animation: commentBubbleAppear 0.3s ease-out;
+      }
+      
+      @keyframes commentBubbleAppear {
+        from {
+          opacity: 0;
+          transform: scale(0.5);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      
+      .tweaq-comment-bubble:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+      }
+      
+      .tweaq-bubble-count {
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      
+      /* Comment Thread Panel */
+      .tweaq-comment-thread {
+        position: absolute;
+        width: 320px;
+        background: rgba(40, 40, 40, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        pointer-events: auto;
+        z-index: 1000003;
+        animation: threadSlideIn 0.2s ease-out;
+      }
+      
+      @keyframes threadSlideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      
+      .tweaq-thread-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px 12px 0 0;
+      }
+      
+      .tweaq-thread-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+      }
+      
+      .tweaq-thread-close {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 18px;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        line-height: 1;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .tweaq-thread-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+      
+      .tweaq-thread-content {
+        padding: 16px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      
+      .tweaq-comment-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      
+      .tweaq-comment-author {
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.8);
+      }
+      
+      .tweaq-comment-text {
+        font-size: 14px;
+        color: #ffffff;
+        line-height: 1.5;
+        word-wrap: break-word;
+      }
+      
+      .tweaq-comment-time {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
       /* Tweaqs View Styles */
       .tweaq-tickets-list {
         display: flex;
@@ -2233,6 +2369,11 @@
       this.rightToolbar = null;
       this.paddingOverlay = null;
       this.measurementOverlay = null;
+      
+      // Comments system (separate from tweaqs/edits)
+      this.comments = []; // Array of comment objects
+      this.commentBubbles = new Map(); // Map<commentId, bubbleElement>
+      this.activeCommentThread = null; // Currently open comment thread
       
       // Mode: 'chat' (default), 'design', 'comment', or 'tickets'
       this.mode = 'chat';
@@ -2792,38 +2933,33 @@
     submitComment(comment) {
       if (!this.selectedElement) return;
 
+      const rect = this.selectedElement.getBoundingClientRect();
       const elementInfo = this.getElementInfo(this.selectedElement);
       
-      // Create a structured change edit with the comment
-      const edit = {
+      // Create a comment object (separate from tweaqs/edits)
+      const commentObj = {
         id: `comment_${Date.now()}`,
-        type: 'structured-change',
-        instruction: comment,
-        target: {
-          identifier: `${elementInfo.tag}${elementInfo.id}${elementInfo.classes}`,
-          type: 'element'
-        },
-        actionType: 'modify',
-        specifics: ['User comment: ' + comment],
-        confidence: 0.9,
+        text: comment,
         timestamp: Date.now(),
-        // Include element context
+        element: this.selectedElement,
         elementSelector: this.generateSelector(this.selectedElement),
-        element: elementInfo.tag,
-        elementId: elementInfo.id,
-        elementClasses: elementInfo.classes ? elementInfo.classes.split('.').filter(c => c) : [],
-        elementReference: this.selectedElement, // Store actual DOM element reference
-        visible: true // Track if tweaq is currently visible
+        position: {
+          x: rect.right + window.scrollX,
+          y: rect.top + window.scrollY
+        },
+        elementInfo: {
+          tag: elementInfo.tag,
+          id: elementInfo.id,
+          classes: elementInfo.classes
+        },
+        resolved: false
       };
 
-      this.recordedEdits.push(edit);
-      console.log('💬 Added comment as edit:', edit);
+      this.comments.push(commentObj);
+      console.log('💬 Added comment:', commentObj);
 
-      // Update badge count
-      this.updateRightToolbarBadge();
-
-      // Update edit indicators
-      this.updateAllEditIndicators();
+      // Create visual bubble indicator
+      this.createCommentBubble(commentObj);
 
       // Clear the comment textarea and reset submit button
       if (this.commentPill) {
@@ -2833,8 +2969,112 @@
         if (submitBtn) submitBtn.disabled = true;
       }
       
-      // Switch to tweaqs mode to show the new edit
-      this.switchMode('tickets');
+      // Hide the comment pill
+      this.hideCommentPill();
+      
+      // Deselect element
+      this.selectedElement = null;
+      if (this.selectedIndicator) {
+        this.selectedIndicator.style.display = 'none';
+      }
+    }
+    
+    createCommentBubble(commentObj) {
+      // Create bubble container
+      const bubble = document.createElement('div');
+      bubble.className = 'tweaq-comment-bubble';
+      bubble.dataset.commentId = commentObj.id;
+      
+      // Position bubble
+      const rect = commentObj.element.getBoundingClientRect();
+      bubble.style.position = 'absolute';
+      bubble.style.left = `${rect.right + window.scrollX + 8}px`;
+      bubble.style.top = `${rect.top + window.scrollY}px`;
+      bubble.style.zIndex = '1000002';
+      
+      // Add comment count (for now just 1)
+      bubble.innerHTML = `
+        <div class="tweaq-bubble-count">1</div>
+      `;
+      
+      // Click to show comment thread
+      bubble.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.showCommentThread(commentObj);
+      });
+      
+      // Add to document
+      document.body.appendChild(bubble);
+      
+      // Store reference
+      this.commentBubbles.set(commentObj.id, bubble);
+      
+      // Update position on scroll/resize
+      this.updateCommentBubblePosition(commentObj.id);
+    }
+    
+    updateCommentBubblePosition(commentId) {
+      const comment = this.comments.find(c => c.id === commentId);
+      const bubble = this.commentBubbles.get(commentId);
+      
+      if (!comment || !bubble || !comment.element) return;
+      
+      const rect = comment.element.getBoundingClientRect();
+      bubble.style.left = `${rect.right + window.scrollX + 8}px`;
+      bubble.style.top = `${rect.top + window.scrollY}px`;
+    }
+    
+    showCommentThread(commentObj) {
+      // TODO: Implement comment thread view
+      // For now, just show an alert with the comment
+      console.log('Show comment thread for:', commentObj);
+      
+      // Create thread panel (simple version for now)
+      const existingThread = document.querySelector('.tweaq-comment-thread');
+      if (existingThread) {
+        existingThread.remove();
+      }
+      
+      const thread = document.createElement('div');
+      thread.className = 'tweaq-comment-thread';
+      
+      const rect = commentObj.element.getBoundingClientRect();
+      thread.style.position = 'absolute';
+      thread.style.left = `${rect.right + window.scrollX + 48}px`;
+      thread.style.top = `${rect.top + window.scrollY}px`;
+      thread.style.zIndex = '1000003';
+      
+      thread.innerHTML = `
+        <div class="tweaq-thread-header">
+          <span class="tweaq-thread-title">Comment</span>
+          <button class="tweaq-thread-close">✕</button>
+        </div>
+        <div class="tweaq-thread-content">
+          <div class="tweaq-comment-item">
+            <div class="tweaq-comment-author">You</div>
+            <div class="tweaq-comment-text">${commentObj.text}</div>
+            <div class="tweaq-comment-time">${new Date(commentObj.timestamp).toLocaleString()}</div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(thread);
+      
+      // Close button
+      thread.querySelector('.tweaq-thread-close').addEventListener('click', () => {
+        thread.remove();
+      });
+      
+      // Click outside to close
+      setTimeout(() => {
+        const closeOnOutside = (e) => {
+          if (!thread.contains(e.target) && !e.target.closest('.tweaq-comment-bubble')) {
+            thread.remove();
+            document.removeEventListener('click', closeOnOutside);
+          }
+        };
+        document.addEventListener('click', closeOnOutside);
+      }, 100);
     }
 
     updateCommentPillPosition() {
