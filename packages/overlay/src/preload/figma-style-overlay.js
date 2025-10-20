@@ -2998,12 +2998,24 @@
       bubble.className = 'tweaq-comment-bubble';
       bubble.dataset.commentId = commentObj.id;
       
-      // Position bubble
+      // Position bubble with smart positioning
       const rect = commentObj.element.getBoundingClientRect();
+      const bubbleSize = 32; // width/height from CSS
+      const gap = 8;
+      
       bubble.style.position = 'absolute';
-      bubble.style.left = `${rect.right + window.scrollX + 8}px`;
-      bubble.style.top = `${rect.top + window.scrollY}px`;
       bubble.style.zIndex = '1000002';
+      
+      // Smart horizontal positioning
+      const spaceOnRight = window.innerWidth - rect.right;
+      if (spaceOnRight >= bubbleSize + gap) {
+        bubble.style.left = `${rect.right + window.scrollX + gap}px`;
+      } else {
+        // Position to the left
+        bubble.style.left = `${rect.left + window.scrollX - bubbleSize - gap}px`;
+      }
+      
+      bubble.style.top = `${rect.top + window.scrollY}px`;
       
       // Add comment count (for now just 1)
       bubble.innerHTML = `
@@ -3033,16 +3045,24 @@
       if (!comment || !bubble || !comment.element) return;
       
       const rect = comment.element.getBoundingClientRect();
-      bubble.style.left = `${rect.right + window.scrollX + 8}px`;
+      const bubbleSize = 32;
+      const gap = 8;
+      
+      // Smart horizontal positioning
+      const spaceOnRight = window.innerWidth - rect.right;
+      if (spaceOnRight >= bubbleSize + gap) {
+        bubble.style.left = `${rect.right + window.scrollX + gap}px`;
+      } else {
+        bubble.style.left = `${rect.left + window.scrollX - bubbleSize - gap}px`;
+      }
+      
       bubble.style.top = `${rect.top + window.scrollY}px`;
     }
     
     showCommentThread(commentObj) {
-      // TODO: Implement comment thread view
-      // For now, just show an alert with the comment
       console.log('Show comment thread for:', commentObj);
       
-      // Create thread panel (simple version for now)
+      // Create thread panel
       const existingThread = document.querySelector('.tweaq-comment-thread');
       if (existingThread) {
         existingThread.remove();
@@ -3052,10 +3072,30 @@
       thread.className = 'tweaq-comment-thread';
       
       const rect = commentObj.element.getBoundingClientRect();
+      const threadWidth = 320; // from CSS
+      const gap = 48; // space from element
+      
       thread.style.position = 'absolute';
-      thread.style.left = `${rect.right + window.scrollX + 48}px`;
-      thread.style.top = `${rect.top + window.scrollY}px`;
       thread.style.zIndex = '1000003';
+      
+      // Smart horizontal positioning
+      const spaceOnRight = window.innerWidth - rect.right;
+      if (spaceOnRight >= threadWidth + gap) {
+        // Position to the right
+        thread.style.left = `${rect.right + window.scrollX + gap}px`;
+      } else if (rect.left >= threadWidth + gap) {
+        // Position to the left
+        thread.style.left = `${rect.left + window.scrollX - threadWidth - gap}px`;
+      } else {
+        // Not enough space on either side - position where it fits best
+        if (spaceOnRight > rect.left) {
+          thread.style.left = `${rect.right + window.scrollX + 8}px`;
+        } else {
+          thread.style.left = `${rect.left + window.scrollX - threadWidth - 8}px`;
+        }
+      }
+      
+      thread.style.top = `${rect.top + window.scrollY}px`;
       
       thread.innerHTML = `
         <div class="tweaq-thread-header">
@@ -3094,8 +3134,51 @@
       if (!this.selectedElement || !this.commentPill) return;
 
       const rect = this.selectedElement.getBoundingClientRect();
-      const pillLeft = rect.right + window.scrollX + 12;
-      const pillTop = rect.top + window.scrollY;
+      const pillWidth = 320; // min-width from CSS
+      const pillHeight = 140; // approximate height
+      const gap = 12;
+      
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculate available space on right and left
+      const spaceOnRight = viewportWidth - rect.right;
+      const spaceOnLeft = rect.left;
+      
+      let pillLeft, pillTop;
+      
+      // Position horizontally - prefer right, but use left if not enough space
+      if (spaceOnRight >= pillWidth + gap) {
+        // Position to the right
+        pillLeft = rect.right + window.scrollX + gap;
+      } else if (spaceOnLeft >= pillWidth + gap) {
+        // Position to the left
+        pillLeft = rect.left + window.scrollX - pillWidth - gap;
+      } else {
+        // Not enough space on either side - center it or put it where it fits best
+        if (spaceOnRight > spaceOnLeft) {
+          pillLeft = rect.right + window.scrollX + gap;
+        } else {
+          pillLeft = rect.left + window.scrollX - pillWidth - gap;
+        }
+      }
+      
+      // Position vertically - start aligned with element top
+      pillTop = rect.top + window.scrollY;
+      
+      // Check if pill would go below viewport
+      if (rect.top + pillHeight > viewportHeight) {
+        // Position so bottom aligns with element bottom or viewport bottom
+        pillTop = Math.max(
+          window.scrollY + 10, // minimum top padding
+          rect.bottom + window.scrollY - pillHeight
+        );
+      }
+      
+      // Ensure pill doesn't go above viewport
+      if (pillTop < window.scrollY + 10) {
+        pillTop = window.scrollY + 10;
+      }
 
       this.commentPill.style.left = `${pillLeft}px`;
       this.commentPill.style.top = `${pillTop}px`;
