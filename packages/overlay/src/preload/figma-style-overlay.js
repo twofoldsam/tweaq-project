@@ -3137,6 +3137,7 @@
       const pillWidth = 320; // min-width from CSS
       const pillHeight = 140; // approximate height
       const gap = 12;
+      const padding = 10; // padding from viewport edges
       
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
@@ -3147,41 +3148,56 @@
       
       let pillLeft, pillTop;
       
+      // Use fixed positioning for better overlay behavior
+      this.commentPill.style.position = 'fixed';
+      
       // Position horizontally - prefer right, but use left if not enough space
-      if (spaceOnRight >= pillWidth + gap) {
-        // Position to the right
-        pillLeft = rect.right + window.scrollX + gap;
-      } else if (spaceOnLeft >= pillWidth + gap) {
+      if (spaceOnRight >= pillWidth + gap + padding) {
+        // Position to the right (fixed positioning, so no scrollX)
+        pillLeft = rect.right + gap;
+      } else if (spaceOnLeft >= pillWidth + gap + padding) {
         // Position to the left
-        pillLeft = rect.left + window.scrollX - pillWidth - gap;
+        pillLeft = rect.left - pillWidth - gap;
       } else {
-        // Not enough space on either side - center it or put it where it fits best
+        // Not enough space on either side - position within viewport bounds
         if (spaceOnRight > spaceOnLeft) {
-          pillLeft = rect.right + window.scrollX + gap;
+          // Align to right edge of viewport with padding
+          pillLeft = viewportWidth - pillWidth - padding;
         } else {
-          pillLeft = rect.left + window.scrollX - pillWidth - gap;
+          // Align to left edge of viewport with padding
+          pillLeft = padding;
         }
       }
       
+      // Ensure pill stays within viewport horizontally
+      pillLeft = Math.max(padding, pillLeft);
+      pillLeft = Math.min(viewportWidth - pillWidth - padding, pillLeft);
+      
       // Position vertically - start aligned with element top
-      pillTop = rect.top + window.scrollY;
+      pillTop = rect.top;
       
       // Check if pill would go below viewport
       if (rect.top + pillHeight > viewportHeight) {
         // Position so bottom aligns with element bottom or viewport bottom
         pillTop = Math.max(
-          window.scrollY + 10, // minimum top padding
-          rect.bottom + window.scrollY - pillHeight
+          padding,
+          rect.bottom - pillHeight
         );
       }
       
       // Ensure pill doesn't go above viewport
-      if (pillTop < window.scrollY + 10) {
-        pillTop = window.scrollY + 10;
+      if (pillTop < padding) {
+        pillTop = padding;
+      }
+      
+      // Ensure pill doesn't go below viewport
+      if (pillTop + pillHeight > viewportHeight - padding) {
+        pillTop = viewportHeight - pillHeight - padding;
       }
 
       this.commentPill.style.left = `${pillLeft}px`;
       this.commentPill.style.top = `${pillTop}px`;
+      this.commentPill.style.maxWidth = `${Math.min(pillWidth, viewportWidth - 2 * padding)}px`;
       
       // Only show comment pill in comment mode
       if (this.mode === 'comment') {
