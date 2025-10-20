@@ -2940,13 +2940,22 @@
       const id = this.selectedElement.id || '';
       const classes = Array.from(this.selectedElement.classList).join('.');
       
+      // Generate simple CSS selector
+      let selector = tag;
+      if (id) {
+        selector += `#${id}`;
+      }
+      if (classes) {
+        selector += `.${classes}`;
+      }
+      
       // Create a comment object (separate from tweaqs/edits)
       const commentObj = {
         id: `comment_${Date.now()}`,
         text: comment,
         timestamp: Date.now(),
         element: this.selectedElement,
-        elementSelector: this.generateSelector(this.selectedElement),
+        elementSelector: selector,
         position: {
           x: rect.right + window.scrollX,
           y: rect.top + window.scrollY
