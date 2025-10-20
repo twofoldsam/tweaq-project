@@ -2934,7 +2934,11 @@
       if (!this.selectedElement) return;
 
       const rect = this.selectedElement.getBoundingClientRect();
-      const elementInfo = this.getElementInfo(this.selectedElement);
+      
+      // Extract element info directly
+      const tag = this.selectedElement.tagName.toLowerCase();
+      const id = this.selectedElement.id || '';
+      const classes = Array.from(this.selectedElement.classList).join('.');
       
       // Create a comment object (separate from tweaqs/edits)
       const commentObj = {
@@ -2948,9 +2952,9 @@
           y: rect.top + window.scrollY
         },
         elementInfo: {
-          tag: elementInfo.tag,
-          id: elementInfo.id,
-          classes: elementInfo.classes
+          tag: tag,
+          id: id,
+          classes: classes
         },
         resolved: false
       };
