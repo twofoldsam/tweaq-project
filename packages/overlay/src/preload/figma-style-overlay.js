@@ -5001,6 +5001,8 @@
           target.closest('.tweaq-properties-panel') ||
           target.closest('.tweaq-overlay-toolbar') ||
           target.closest('.tweaq-comment-pill') ||
+          target.closest('.tweaq-comment-bubble') ||
+          target.closest('.tweaq-comment-thread') ||
           target.closest('.tweaq-right-toolbar') ||
           target.closest('.tweaq-element-outline') ||
           target.closest('.tweaq-selected-indicator') ||
@@ -5028,6 +5030,8 @@
           e.target.closest('.tweaq-properties-panel') ||
           e.target.closest('.tweaq-overlay-toolbar') ||
           e.target.closest('.tweaq-comment-pill') ||
+          e.target.closest('.tweaq-comment-bubble') ||
+          e.target.closest('.tweaq-comment-thread') ||
           e.target.closest('.tweaq-right-toolbar') ||
           e.target.closest('.tweaq-edit-indicator')) {
         return;
