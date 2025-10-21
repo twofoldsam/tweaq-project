@@ -1801,7 +1801,7 @@
       
       /* Comment Thread Panel */
       .tweaq-comment-thread {
-        position: absolute;
+        position: fixed;
         width: 320px;
         background: rgba(40, 40, 40, 0.98);
         backdrop-filter: blur(20px);
@@ -1812,6 +1812,9 @@
         pointer-events: auto;
         z-index: 1000003;
         animation: threadSlideIn 0.2s ease-out;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
       
       @keyframes threadSlideIn {
@@ -1865,8 +1868,9 @@
       
       .tweaq-thread-content {
         padding: 16px;
-        max-height: 400px;
+        flex: 1;
         overflow-y: auto;
+        min-height: 0;
       }
       
       .tweaq-comment-item {
@@ -2520,7 +2524,7 @@
           <button class="tweaq-comment-btn tweaq-comment-submit" disabled title="Type a comment to send">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
-            </svg>
+        </svg>
           </button>
         </div>
       `;
@@ -2976,8 +2980,8 @@
 
       // Clear the comment textarea and reset submit button
       if (this.commentPill) {
-        const textarea = this.commentPill.querySelector('.tweaq-comment-textarea');
-        const submitBtn = this.commentPill.querySelector('.tweaq-comment-submit');
+      const textarea = this.commentPill.querySelector('.tweaq-comment-textarea');
+      const submitBtn = this.commentPill.querySelector('.tweaq-comment-submit');
         if (textarea) textarea.value = '';
         if (submitBtn) submitBtn.disabled = true;
       }
@@ -3073,29 +3077,59 @@
       
       const rect = commentObj.element.getBoundingClientRect();
       const threadWidth = 320; // from CSS
+      const threadHeight = 200; // approximate height
       const gap = 48; // space from element
+      const padding = 10; // viewport edge padding
       
-      thread.style.position = 'absolute';
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Use fixed positioning to prevent overflow
+      thread.style.position = 'fixed';
       thread.style.zIndex = '1000003';
       
+      let threadLeft, threadTop;
+      
       // Smart horizontal positioning
-      const spaceOnRight = window.innerWidth - rect.right;
-      if (spaceOnRight >= threadWidth + gap) {
+      const spaceOnRight = viewportWidth - rect.right;
+      if (spaceOnRight >= threadWidth + gap + padding) {
         // Position to the right
-        thread.style.left = `${rect.right + window.scrollX + gap}px`;
-      } else if (rect.left >= threadWidth + gap) {
+        threadLeft = rect.right + gap;
+      } else if (rect.left >= threadWidth + gap + padding) {
         // Position to the left
-        thread.style.left = `${rect.left + window.scrollX - threadWidth - gap}px`;
+        threadLeft = rect.left - threadWidth - gap;
       } else {
-        // Not enough space on either side - position where it fits best
+        // Not enough space on either side - position within viewport bounds
         if (spaceOnRight > rect.left) {
-          thread.style.left = `${rect.right + window.scrollX + 8}px`;
+          // Align to right edge with padding
+          threadLeft = viewportWidth - threadWidth - padding;
         } else {
-          thread.style.left = `${rect.left + window.scrollX - threadWidth - 8}px`;
+          // Align to left edge with padding
+          threadLeft = padding;
         }
       }
       
-      thread.style.top = `${rect.top + window.scrollY}px`;
+      // Ensure thread stays within viewport horizontally
+      threadLeft = Math.max(padding, threadLeft);
+      threadLeft = Math.min(viewportWidth - threadWidth - padding, threadLeft);
+      
+      // Position vertically
+      threadTop = rect.top;
+      
+      // Ensure thread doesn't go below viewport
+      if (threadTop + threadHeight > viewportHeight - padding) {
+        threadTop = viewportHeight - threadHeight - padding;
+      }
+      
+      // Ensure thread doesn't go above viewport
+      if (threadTop < padding) {
+        threadTop = padding;
+      }
+      
+      thread.style.left = `${threadLeft}px`;
+      thread.style.top = `${threadTop}px`;
+      thread.style.maxWidth = `${Math.min(threadWidth, viewportWidth - 2 * padding)}px`;
+      thread.style.maxHeight = `${Math.min(400, viewportHeight - 2 * padding)}px`;
       
       thread.innerHTML = `
         <div class="tweaq-thread-header">
