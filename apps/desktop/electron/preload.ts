@@ -95,6 +95,9 @@ export interface ElectronAPI {
   // Conversational Intelligence API
   analyzeConversationMessage: (data: { message: string; conversationState?: any }) => Promise<{ success: boolean; analysis?: any; error?: string }>;
   
+  // Comments to Tweaqs Conversion API
+  convertCommentsToTweaqs: (commentsData: any[]) => Promise<{ success: boolean; tweaqs?: any[]; error?: string }>;
+  
   // Browser Engine Switching API
   browserGetCurrentEngine: () => Promise<{ engine: BrowserEngine }>;
   browserGetAvailableEngines: () => Promise<{ engines: BrowserEngineConfig[] }>;
@@ -261,6 +264,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Conversational Intelligence API implementations
   analyzeConversationMessage: (data: { message: string; conversationState?: any }) => ipcRenderer.invoke('analyze-conversation-message', data),
+  
+  // Comments to Tweaqs Conversion API implementations
+  convertCommentsToTweaqs: (commentsData: any[]) => ipcRenderer.invoke('convert-comments-to-tweaqs', commentsData),
   
   // Browser Engine Switching API implementations
   browserGetCurrentEngine: () => ipcRenderer.invoke('browser-get-current-engine'),

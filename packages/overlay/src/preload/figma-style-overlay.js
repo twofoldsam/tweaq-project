@@ -1772,7 +1772,7 @@
         justify-content: center;
         transition: all 0.2s ease;
         pointer-events: auto;
-        z-index: 1000002;
+        z-index: 999998;
         animation: commentBubbleAppear 0.3s ease-out;
       }
       
@@ -1895,6 +1895,503 @@
       .tweaq-comment-time {
         font-size: 11px;
         color: rgba(255, 255, 255, 0.5);
+      }
+
+      /* Comments Conversion Card Styles */
+      .tweaq-comments-conversion-card {
+        margin: 16px 16px 12px 16px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+      }
+
+      .tweaq-comments-conversion-card:hover {
+        border-color: rgba(139, 92, 246, 0.5);
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.25);
+        transform: translateY(-2px);
+      }
+
+      .tweaq-conversion-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .tweaq-conversion-icon {
+        font-size: 28px;
+        line-height: 1;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+      }
+
+      .tweaq-conversion-info {
+        flex: 1;
+      }
+
+      .tweaq-conversion-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+        margin: 0 0 4px 0;
+      }
+
+      .tweaq-conversion-subtitle {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.7);
+        margin: 0;
+      }
+
+      .tweaq-conversion-button {
+        width: 100%;
+        padding: 10px 16px;
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+      }
+
+      .tweaq-conversion-button:hover {
+        background: linear-gradient(135deg, #5558e3 0%, #9333ea 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+      }
+
+      .tweaq-conversion-button:active {
+        transform: translateY(0);
+      }
+
+      .tweaq-conversion-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 12px;
+      }
+
+      .tweaq-loading-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Conflict Indicator Styles */
+      .tweaq-conflict-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        margin: 8px 0;
+        background: rgba(255, 152, 0, 0.1);
+        border: 1px solid rgba(255, 152, 0, 0.3);
+        border-radius: 6px;
+        font-size: 12px;
+      }
+
+      .tweaq-conflict-text {
+        color: #ff9800;
+        flex: 1;
+        font-weight: 500;
+      }
+
+      .tweaq-conflict-review {
+        background: transparent;
+        border: none;
+        color: rgba(255, 152, 0, 0.8);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .tweaq-conflict-review:hover {
+        background: rgba(255, 152, 0, 0.2);
+        color: #ff9800;
+      }
+
+      /* Conflict Resolution Modal Styles */
+      .tweaq-conflict-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1000010;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: tweaqFadeIn 0.2s ease-out;
+      }
+
+      .tweaq-conflict-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+      }
+
+      .tweaq-conflict-dialog {
+        position: relative;
+        width: 90%;
+        max-width: 600px;
+        max-height: 85vh;
+        background: #1e1e1e;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        animation: tweaqSlideUp 0.3s ease-out;
+      }
+
+      @keyframes tweaqSlideUp {
+        from {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes tweaqFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .tweaq-conflict-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        flex-shrink: 0;
+      }
+
+      .tweaq-conflict-title-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .tweaq-conflict-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+        flex: 1;
+      }
+
+      .tweaq-conflict-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.6);
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .tweaq-conflict-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .tweaq-conflict-content {
+        overflow-y: auto;
+        flex: 1;
+        padding: 24px;
+      }
+
+      .tweaq-conflict-section {
+        margin-bottom: 24px;
+      }
+
+      .tweaq-conflict-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .tweaq-conflict-section-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+      }
+
+      .tweaq-conflict-property-name {
+        display: inline-block;
+        font-size: 16px;
+        font-weight: 600;
+        color: #fff;
+        font-family: 'SF Mono', Monaco, monospace;
+        margin-right: 8px;
+      }
+
+      .tweaq-conflict-type-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        background: rgba(255, 152, 0, 0.15);
+        color: #ff9800;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: capitalize;
+      }
+
+      .tweaq-conflict-comments {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .tweaq-conflict-comment-item {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+
+      .tweaq-conflict-comment-header {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        margin-bottom: 6px;
+      }
+
+      .tweaq-conflict-comment-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background: rgba(255, 152, 0, 0.2);
+        color: #ff9800;
+        border-radius: 50%;
+        font-size: 11px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+
+      .tweaq-conflict-comment-text {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .tweaq-conflict-comment-suggestion {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        padding-left: 28px;
+      }
+
+      .tweaq-conflict-comment-suggestion code {
+        background: rgba(255, 255, 255, 0.08);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'SF Mono', Monaco, monospace;
+        color: #4fc3f7;
+        font-size: 12px;
+      }
+
+      .tweaq-conflict-ai-choice {
+        background: rgba(76, 175, 80, 0.08);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+        border-radius: 8px;
+        padding: 12px;
+      }
+
+      .tweaq-conflict-ai-value {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .tweaq-conflict-ai-value code {
+        background: rgba(255, 255, 255, 0.08);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: 'SF Mono', Monaco, monospace;
+        color: #4caf50;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .tweaq-conflict-ai-reasoning {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.7);
+        line-height: 1.5;
+        padding-left: 22px;
+      }
+
+      .tweaq-conflict-alternatives {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .tweaq-conflict-alternative {
+        background: rgba(255, 255, 255, 0.03);
+        border: 2px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .tweaq-conflict-alternative:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+
+      .tweaq-conflict-alternative:has(.tweaq-conflict-radio:checked) {
+        background: rgba(33, 150, 243, 0.1);
+        border-color: #2196f3;
+      }
+
+      .tweaq-conflict-alt-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+
+      .tweaq-conflict-radio {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        cursor: pointer;
+        accent-color: #2196f3;
+      }
+
+      .tweaq-conflict-alt-value {
+        flex: 1;
+        font-size: 14px;
+        color: #fff;
+        cursor: pointer;
+        font-weight: 500;
+      }
+
+      .tweaq-conflict-alt-value code {
+        background: rgba(255, 255, 255, 0.08);
+        padding: 3px 7px;
+        border-radius: 4px;
+        font-family: 'SF Mono', Monaco, monospace;
+        color: #fff;
+        font-size: 13px;
+      }
+
+      .tweaq-conflict-alt-source {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+        padding: 2px 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+      }
+
+      .tweaq-conflict-alt-rationale {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        line-height: 1.5;
+        padding-left: 26px;
+      }
+
+      .tweaq-conflict-custom-input {
+        width: 100%;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #fff;
+        font-size: 13px;
+        font-family: 'SF Mono', Monaco, monospace;
+        margin-top: 8px;
+        outline: none;
+        transition: all 0.2s;
+      }
+
+      .tweaq-conflict-custom-input:focus {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: #2196f3;
+      }
+
+      .tweaq-conflict-custom-input:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .tweaq-conflict-footer {
+        padding: 16px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        flex-shrink: 0;
+      }
+
+      .tweaq-conflict-btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+      }
+
+      .tweaq-conflict-btn-secondary {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .tweaq-conflict-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .tweaq-conflict-btn-primary {
+        background: #2196f3;
+        color: #fff;
+      }
+
+      .tweaq-conflict-btn-primary:hover:not(:disabled) {
+        background: #1976d2;
+      }
+
+      .tweaq-conflict-btn-primary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
       }
 
       /* Tweaqs View Styles */
@@ -3008,7 +3505,7 @@
       const gap = 8;
       
       bubble.style.position = 'absolute';
-      bubble.style.zIndex = '1000002';
+      bubble.style.zIndex = '999998';
       
       // Smart horizontal positioning
       const spaceOnRight = window.innerWidth - rect.right;
@@ -3162,6 +3659,698 @@
         };
         document.addEventListener('click', closeOnOutside);
       }, 100);
+    }
+
+    async convertCommentsToTweaqs() {
+      if (!this.comments || this.comments.length === 0) {
+        console.log('No comments to convert');
+        return;
+      }
+
+      console.log('🔄 Converting comments to tweaqs...');
+
+      // Show loading state
+      const loadingEl = document.getElementById('tweaq-conversion-loading');
+      const buttonEl = document.getElementById('tweaq-convert-comments');
+      if (loadingEl && buttonEl) {
+        buttonEl.style.display = 'none';
+        loadingEl.style.display = 'flex';
+      }
+
+      try {
+        // Collect and format comment data
+        const commentsData = this.collectCommentsData();
+        
+        // Call the IPC handler to process with Claude
+        if (window.electronAPI && window.electronAPI.convertCommentsToTweaqs) {
+          const result = await window.electronAPI.convertCommentsToTweaqs(commentsData);
+          
+          if (result.success && result.tweaqs) {
+            console.log('✅ Received tweaqs from LLM:', result.tweaqs);
+            
+            // Convert each tweaq into a recorded edit
+            result.tweaqs.forEach(tweaq => {
+              const edit = this.convertTweaqToEdit(tweaq);
+              if (edit) {
+                this.recordedEdits.push(edit);
+              }
+            });
+            
+            // Remove comments from the page
+            this.removeAllComments();
+            
+            // Update the UI and visual indicators
+            this.updateRightToolbarBadge();
+            this.updateAllEditIndicators(); // Show visual indicators on tweaqed elements
+            this.renderPanel();
+            
+            console.log('✅ Successfully converted comments to tweaqs');
+          } else {
+            console.error('Failed to convert comments:', result.error);
+            alert('Failed to convert comments to tweaqs. Please try again.');
+          }
+        } else {
+          console.error('electronAPI.convertCommentsToTweaqs not available');
+          alert('This feature requires the desktop app.');
+        }
+      } catch (error) {
+        console.error('Error converting comments:', error);
+        alert('An error occurred while converting comments.');
+      } finally {
+        // Hide loading state
+        if (loadingEl && buttonEl) {
+          loadingEl.style.display = 'none';
+          buttonEl.style.display = 'flex';
+        }
+      }
+    }
+
+    collectCommentsData() {
+      // Format comments data for LLM processing
+      return this.comments.map(comment => {
+        const element = comment.element;
+        const rect = element ? element.getBoundingClientRect() : null;
+        
+        // Get computed styles if element exists
+        let computedStyles = {};
+        if (element) {
+          const styles = window.getComputedStyle(element);
+          computedStyles = {
+            color: styles.color,
+            backgroundColor: styles.backgroundColor,
+            fontSize: styles.fontSize,
+            fontWeight: styles.fontWeight,
+            fontFamily: styles.fontFamily,
+            textAlign: styles.textAlign,
+            padding: styles.padding,
+            margin: styles.margin,
+            borderRadius: styles.borderRadius,
+            display: styles.display,
+            position: styles.position,
+            width: styles.width,
+            height: styles.height
+          };
+        }
+        
+        // Get element's text content
+        const textContent = element ? element.textContent?.trim().substring(0, 200) : '';
+        
+        // Build a better selector suggestion
+        let suggestedSelector = null;
+        if (element) {
+          // Priority: ID > unique class combo > text content match
+          if (element.id) {
+            suggestedSelector = `#${element.id}`;
+          } else {
+            const tag = element.tagName.toLowerCase();
+            const classes = Array.from(element.classList);
+            
+            // If element has text content, suggest using :contains-like approach
+            if (textContent && textContent.length < 50) {
+              // For buttons with specific text, suggest the tag + text content
+              suggestedSelector = `${tag} containing "${textContent}"`;
+            } else if (classes.length > 0) {
+              // Use tag + first meaningful class (skip utility classes)
+              const meaningfulClass = classes.find(c => 
+                !c.match(/^(inline|flex|items|justify|whitespace|transition|duration|bg-|text-|hover:|h-|w-|px-|py-|rounded-)/)
+              ) || classes[0];
+              suggestedSelector = `${tag}.${meaningfulClass}`;
+            } else {
+              suggestedSelector = tag;
+            }
+          }
+        }
+        
+        return {
+          id: comment.id,
+          text: comment.text,
+          timestamp: comment.timestamp,
+          elementSelector: comment.elementSelector,
+          suggestedSimpleSelector: suggestedSelector,
+          elementInfo: {
+            tag: comment.elementInfo.tag,
+            id: comment.elementInfo.id,
+            classes: comment.elementInfo.classes,
+            textContent: textContent,
+            computedStyles: computedStyles
+          },
+          position: rect ? {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height
+          } : comment.position,
+          // Count of comments for this element (for grouping)
+          relatedCommentsCount: this.comments.filter(c => 
+            c.elementSelector === comment.elementSelector
+          ).length
+        };
+      });
+    }
+
+    formatSelectorForDisplay(selector) {
+      // Format a CSS selector into a readable element name
+      if (!selector) return 'Element';
+      
+      // Try to extract a meaningful name from the selector
+      // Priority: ID > first class > tag name
+      const idMatch = selector.match(/#([\w-]+)/);
+      if (idMatch) return `#${idMatch[1]}`;
+      
+      const classMatch = selector.match(/\.([\w-]+)/);
+      const tagMatch = selector.match(/^(\w+)/);
+      
+      if (classMatch && tagMatch) {
+        return `${tagMatch[1]}.${classMatch[1]}`;
+      } else if (classMatch) {
+        return `.${classMatch[1]}`;
+      } else if (tagMatch) {
+        return tagMatch[1];
+      }
+      
+      // Fallback: use first 30 chars of selector
+      return selector.substring(0, 30) + (selector.length > 30 ? '...' : '');
+    }
+
+    simplifySelector(complexSelector) {
+      // Simplify a complex CSS selector to make it valid and usable
+      if (!complexSelector) return null;
+      
+      console.log('🔧 Simplifying selector:', complexSelector);
+      
+      // Remove pseudo-classes (:hover, :active, etc.)
+      let simplified = complexSelector.replace(/:[a-z-]+(\([^)]*\))?/g, '');
+      
+      // Remove attribute selectors with special characters [attr=value]
+      simplified = simplified.replace(/\[[^\]]*\]/g, '');
+      
+      // Extract ID if present
+      const idMatch = simplified.match(/#([\w-]+)/);
+      if (idMatch) {
+        const cleanId = idMatch[0];
+        console.log('✅ Using ID selector:', cleanId);
+        return cleanId;
+      }
+      
+      // Extract tag and first 2 simple classes
+      const tagMatch = simplified.match(/^(\w+)/);
+      const classMatches = simplified.match(/\.([\w-]+)/g);
+      
+      if (tagMatch && classMatches && classMatches.length > 0) {
+        // Use tag + first 1-2 classes
+        const classes = classMatches.slice(0, 2).join('');
+        const result = tagMatch[1] + classes;
+        console.log('✅ Using simplified selector:', result);
+        return result;
+      } else if (tagMatch) {
+        console.log('✅ Using tag selector:', tagMatch[1]);
+        return tagMatch[1];
+      } else if (classMatches && classMatches.length > 0) {
+        const result = classMatches[0];
+        console.log('✅ Using class selector:', result);
+        return result;
+      }
+      
+      console.warn('⚠️ Could not simplify selector, returning original');
+      return complexSelector;
+    }
+
+    convertTweaqToEdit(tweaq) {
+      // Convert LLM-generated tweaq into a structured edit object
+      try {
+        // Map category to actionType expected by renderStructuredTicket
+        const categoryToActionType = {
+          'copy': 'content',
+          'style': 'styling',
+          'layout': 'layout',
+          'color': 'styling',
+          'spacing': 'layout',
+          'size': 'layout',
+          'visibility': 'styling'
+        };
+        
+        const actionType = categoryToActionType[tweaq.category] || 'mixed';
+        
+        // Create specifics array from changes
+        const specifics = [];
+        if (tweaq.changes && Array.isArray(tweaq.changes)) {
+          tweaq.changes.forEach(change => {
+            if (change.description) {
+              specifics.push(change.description);
+            } else {
+              // Generate description from property and values
+              const propName = change.property === 'textContent' ? 'text' : change.property;
+              specifics.push(`Update ${propName}: ${change.currentValue || 'current'} → ${change.newValue}`);
+            }
+          });
+        }
+        
+        // Add source comments as specifics
+        if (tweaq.sourceComments && tweaq.sourceComments.length > 0) {
+          specifics.push('---');
+          specifics.push('💬 Based on comments:');
+          tweaq.sourceComments.forEach(comment => {
+            specifics.push(`"${comment}"`);
+          });
+        }
+        
+        const edit = {
+          id: `tweaq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'structured-change',
+          timestamp: Date.now(),
+          instruction: tweaq.description || tweaq.summary || 'Update element',
+          actionType: actionType,
+          target: {
+            identifier: tweaq.elementSelector,
+            selector: tweaq.elementSelector
+          },
+          specifics: specifics,
+          // Add elementSelector at root level for findElementFromEdit
+          elementSelector: tweaq.elementSelector,
+          // Add elementName for display in property ticket
+          elementName: this.formatSelectorForDisplay(tweaq.elementSelector),
+          // Keep original format for agent processing
+          changes: tweaq.changes ? tweaq.changes.map(change => ({
+            property: change.property,
+            before: change.currentValue || change.before,
+            after: change.newValue || change.after,
+            description: change.description
+          })) : [],
+          sourceComments: tweaq.sourceComments || [],
+          metadata: {
+            generatedByAI: true,
+            originalCommentIds: tweaq.commentIds || [],
+            // Add conflict information if present
+            hasConflicts: tweaq.conflictInfo?.hasConflicts || false,
+            conflictInfo: tweaq.conflictInfo?.hasConflicts ? {
+              conflictType: tweaq.conflictInfo.conflictType,
+              conflictingComments: tweaq.conflictInfo.conflictingComments || [],
+              chosenSolution: tweaq.conflictInfo.chosenSolution,
+              resolutionReason: tweaq.conflictInfo.resolutionReason,
+              alternatives: tweaq.conflictInfo.alternatives || []
+            } : null
+          }
+        };
+
+        // Try to find the actual element and store as elementReference
+        let element = null;
+        let workingSelector = tweaq.elementSelector;
+        
+        // First, try to find the original comment element if we still have references
+        const matchingComment = this.comments.find(c => 
+          tweaq.commentIds && tweaq.commentIds.includes(c.id)
+        );
+        if (matchingComment && matchingComment.element && document.body.contains(matchingComment.element)) {
+          element = matchingComment.element;
+          console.log('✅ Using original comment element reference');
+        }
+        
+        // If we don't have the original element, try selectors
+        if (!element) {
+          try {
+            // First, try the original selector
+            element = document.querySelector(tweaq.elementSelector);
+            
+            if (!element) {
+              console.warn('⚠️ Original selector failed, trying simplified version...');
+              // If it fails, try a simplified version
+              workingSelector = this.simplifySelector(tweaq.elementSelector);
+              if (workingSelector) {
+                element = document.querySelector(workingSelector);
+              }
+            }
+            
+            // If still no match and we have text content, try matching by tag + text
+            if (!element && tweaq.sourceComments && tweaq.sourceComments.length > 0) {
+              console.log('⚠️ Simplified selector failed, trying text content match...');
+              const matchingComments = this.comments.filter(c => 
+                tweaq.commentIds && tweaq.commentIds.includes(c.id)
+              );
+              
+              for (const comment of matchingComments) {
+                if (comment.elementInfo && comment.elementInfo.textContent) {
+                  const textContent = comment.elementInfo.textContent.trim();
+                  const tag = comment.elementInfo.tag;
+                  
+                  // Find all elements of this tag with matching text
+                  const candidates = Array.from(document.querySelectorAll(tag));
+                  element = candidates.find(el => el.textContent?.trim() === textContent);
+                  
+                  if (element) {
+                    console.log('✅ Found element by matching text content:', textContent.substring(0, 30) + '...');
+                    break;
+                  }
+                }
+              }
+              
+              // Final fallback: try position-based matching
+              if (!element) {
+                console.log('⚠️ Text match failed, trying position-based match...');
+                for (const comment of matchingComments) {
+                  if (comment.elementInfo && comment.position) {
+                    const tag = comment.elementInfo.tag;
+                    const targetPos = comment.position;
+                    
+                    // Find elements near the original position
+                    const candidates = Array.from(document.querySelectorAll(tag));
+                    element = candidates.find(el => {
+                      const rect = el.getBoundingClientRect();
+                      // Match if position is within 50px
+                      return Math.abs(rect.x - targetPos.x) < 50 && 
+                             Math.abs(rect.y - targetPos.y) < 50;
+                    });
+                    
+                    if (element) {
+                      console.log('✅ Found element by matching position');
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('❌ Error finding element:', e);
+          }
+        }
+          
+        if (element) {
+            edit.elementReference = element;
+            edit.elementSelector = workingSelector; // Update to working selector
+            edit.target.identifier = workingSelector; // Update target too
+            edit.target.selector = workingSelector;
+            console.log('✅ Found element for tweaq using selector:', workingSelector.substring(0, 50) + '...');
+            
+            // Enrich the changes with actual current values from the element
+            if (edit.changes && edit.changes.length > 0) {
+              const computedStyles = window.getComputedStyle(element);
+              
+              edit.changes = edit.changes.map(change => {
+                let actualBefore = change.before;
+                
+                // Get actual current value from element
+                if (change.property === 'textContent') {
+                  actualBefore = element.textContent?.trim() || '';
+                } else {
+                  // Get computed style value
+                  actualBefore = computedStyles[change.property] || change.before;
+                }
+                
+                return {
+                  property: change.property,
+                  before: actualBefore,
+                  after: change.after,
+                  description: change.description
+                };
+              });
+              
+              console.log('✅ Enriched changes with actual values:', edit.changes);
+              
+              // Apply the tweaq immediately to the element (like Design tweaqs do)
+              this.applyEditToElement(element, edit);
+              console.log('✅ Applied tweaq changes to element');
+            } else {
+              console.warn('⚠️ No changes to apply for this tweaq');
+            }
+          } else {
+            console.warn('⚠️ Element not found on page for selector:', tweaq.elementSelector);
+          }
+        
+        return edit;
+      } catch (error) {
+        console.error('Error converting tweaq to edit:', error);
+        return null;
+      }
+    }
+
+    removeAllComments() {
+      // Remove all comment bubbles from the page
+      this.commentBubbles.forEach((bubble, commentId) => {
+        if (bubble && bubble.parentNode) {
+          bubble.remove();
+        }
+      });
+      
+      // Clear the comment bubbles map
+      this.commentBubbles.clear();
+      
+      // Close any open comment threads
+      const existingThread = document.querySelector('.tweaq-comment-thread');
+      if (existingThread) {
+        existingThread.remove();
+      }
+      
+      // Clear the comments array
+      this.comments = [];
+      
+      console.log('✅ Removed all comments from page');
+    }
+
+    showConflictResolutionReview(editIndex) {
+      const edit = this.recordedEdits[editIndex];
+      if (!edit || !edit.metadata?.hasConflicts) {
+        console.warn('No conflict information available for this tweaq');
+        return;
+      }
+
+      const conflictInfo = edit.metadata.conflictInfo;
+      
+      // Remove existing modal if present
+      const existingModal = document.querySelector('.tweaq-conflict-modal');
+      if (existingModal) {
+        existingModal.remove();
+      }
+      
+      // Get the property being changed
+      const propertyName = conflictInfo.conflictingComments[0]?.property || 'property';
+      const currentValue = edit.changes.find(c => c.property === propertyName)?.after || conflictInfo.chosenSolution;
+      
+      // Create modal
+      const modal = document.createElement('div');
+      modal.className = 'tweaq-conflict-modal';
+      modal.innerHTML = `
+        <div class="tweaq-conflict-backdrop"></div>
+        <div class="tweaq-conflict-dialog">
+          <div class="tweaq-conflict-header">
+            <div class="tweaq-conflict-title-row">
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style="color: #ff9800;">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+              </svg>
+              <h3 class="tweaq-conflict-title">Conflict Resolution Review</h3>
+            </div>
+            <button class="tweaq-conflict-close" title="Close">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="tweaq-conflict-content">
+            <div class="tweaq-conflict-section">
+              <div class="tweaq-conflict-section-label">Property</div>
+              <div class="tweaq-conflict-property-name">${propertyName}</div>
+              <div class="tweaq-conflict-type-badge">${conflictInfo.conflictType.replace(/_/g, ' ')}</div>
+            </div>
+            
+            <div class="tweaq-conflict-section">
+              <div class="tweaq-conflict-section-label">Conflicting Feedback (${conflictInfo.conflictingComments.length} stakeholders)</div>
+              <div class="tweaq-conflict-comments">
+                ${conflictInfo.conflictingComments.map((comment, i) => `
+                  <div class="tweaq-conflict-comment-item">
+                    <div class="tweaq-conflict-comment-header">
+                      <span class="tweaq-conflict-comment-num">#${i + 1}</span>
+                      <span class="tweaq-conflict-comment-text">"${this.escapeHtml(comment.text)}"</span>
+                    </div>
+                    <div class="tweaq-conflict-comment-suggestion">
+                      → Suggested: <code>${this.escapeHtml(String(comment.suggestedValue))}</code>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
+            <div class="tweaq-conflict-section">
+              <div class="tweaq-conflict-section-label">AI Resolution</div>
+              <div class="tweaq-conflict-ai-choice">
+                <div class="tweaq-conflict-ai-value">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="color: #4caf50;">
+                    <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+                  </svg>
+                  <code>${this.escapeHtml(String(currentValue))}</code>
+                </div>
+                <div class="tweaq-conflict-ai-reasoning">${this.escapeHtml(conflictInfo.resolutionReason)}</div>
+              </div>
+            </div>
+            
+            ${conflictInfo.alternatives && conflictInfo.alternatives.length > 0 ? `
+              <div class="tweaq-conflict-section">
+                <div class="tweaq-conflict-section-label">Alternative Options</div>
+                <div class="tweaq-conflict-alternatives">
+                  ${conflictInfo.alternatives.map((alt, i) => `
+                    <div class="tweaq-conflict-alternative" data-value="${this.escapeHtml(String(alt.value))}">
+                      <div class="tweaq-conflict-alt-header">
+                        <input type="radio" 
+                               name="conflict-choice" 
+                               id="alt-${i}" 
+                               value="${this.escapeHtml(String(alt.value))}"
+                               class="tweaq-conflict-radio">
+                        <label for="alt-${i}" class="tweaq-conflict-alt-value">
+                          <code>${this.escapeHtml(String(alt.value))}</code>
+                        </label>
+                        <span class="tweaq-conflict-alt-source">${alt.source}</span>
+                      </div>
+                      <div class="tweaq-conflict-alt-rationale">${this.escapeHtml(alt.rationale)}</div>
+                    </div>
+                  `).join('')}
+                  
+                  <div class="tweaq-conflict-alternative tweaq-conflict-custom">
+                    <div class="tweaq-conflict-alt-header">
+                      <input type="radio" 
+                             name="conflict-choice" 
+                             id="alt-custom" 
+                             value="__custom__"
+                             class="tweaq-conflict-radio">
+                      <label for="alt-custom" class="tweaq-conflict-alt-value">Custom Value</label>
+                    </div>
+                    <input type="text" 
+                           class="tweaq-conflict-custom-input" 
+                           placeholder="Enter custom value..."
+                           disabled>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+          
+          <div class="tweaq-conflict-footer">
+            <button class="tweaq-conflict-btn tweaq-conflict-btn-secondary" data-action="cancel">
+              Keep AI Choice
+            </button>
+            <button class="tweaq-conflict-btn tweaq-conflict-btn-primary" data-action="apply" disabled>
+              Apply Selected
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Store edit index for later use
+      modal.dataset.editIndex = editIndex;
+      
+      // Attach event listeners
+      this.attachConflictModalListeners(modal);
+      
+      console.log('🔍 Conflict Resolution Modal opened for edit:', editIndex);
+    }
+
+    attachConflictModalListeners(modal) {
+      // Close button
+      const closeBtn = modal.querySelector('.tweaq-conflict-close');
+      closeBtn?.addEventListener('click', () => {
+        modal.remove();
+      });
+
+      // Backdrop click
+      const backdrop = modal.querySelector('.tweaq-conflict-backdrop');
+      backdrop?.addEventListener('click', () => {
+        modal.remove();
+      });
+
+      // Cancel button
+      const cancelBtn = modal.querySelector('[data-action="cancel"]');
+      cancelBtn?.addEventListener('click', () => {
+        modal.remove();
+      });
+
+      // Radio buttons
+      const radioButtons = modal.querySelectorAll('.tweaq-conflict-radio');
+      const applyBtn = modal.querySelector('[data-action="apply"]');
+      const customInput = modal.querySelector('.tweaq-conflict-custom-input');
+
+      radioButtons.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          // Enable apply button
+          if (applyBtn) {
+            applyBtn.disabled = false;
+          }
+
+          // Handle custom input
+          if (radio.value === '__custom__') {
+            if (customInput) {
+              customInput.disabled = false;
+              customInput.focus();
+            }
+          } else {
+            if (customInput) {
+              customInput.disabled = true;
+            }
+          }
+        });
+      });
+
+      // Custom input
+      if (customInput) {
+        customInput.addEventListener('input', () => {
+          // Enable apply button if there's content
+          if (applyBtn) {
+            applyBtn.disabled = customInput.value.trim() === '';
+          }
+        });
+      }
+
+      // Apply button
+      if (applyBtn) {
+        applyBtn.addEventListener('click', () => {
+          const editIndex = parseInt(modal.dataset.editIndex);
+          const selectedRadio = modal.querySelector('.tweaq-conflict-radio:checked');
+          
+          if (!selectedRadio) return;
+
+          let newValue;
+          if (selectedRadio.value === '__custom__') {
+            newValue = customInput?.value.trim();
+          } else {
+            newValue = selectedRadio.value;
+          }
+
+          if (newValue) {
+            this.applyConflictResolution(editIndex, newValue);
+            modal.remove();
+          }
+        });
+      }
+    }
+
+    applyConflictResolution(editIndex, newValue) {
+      const edit = this.recordedEdits[editIndex];
+      if (!edit) return;
+
+      console.log(`✅ Applying conflict resolution: ${newValue}`);
+
+      // Find the property being changed
+      const conflictInfo = edit.metadata.conflictInfo;
+      const propertyName = conflictInfo.conflictingComments[0]?.property || 'property';
+
+      // Update the change
+      const changeIndex = edit.changes.findIndex(c => c.property === propertyName);
+      if (changeIndex !== -1) {
+        edit.changes[changeIndex].after = newValue;
+      }
+
+      // Mark that user has reviewed the conflict
+      edit.metadata.conflictInfo.userReviewed = true;
+      edit.metadata.conflictInfo.finalValue = newValue;
+
+      // Reapply to element
+      if (edit.elementReference) {
+        this.applyEditToElement(edit.elementReference, edit);
+      }
+
+      // Update UI
+      this.renderPanel();
+      this.updateAllEditIndicators();
+
+      console.log('✅ Conflict resolution applied and page updated');
     }
 
     updateCommentPillPosition() {
@@ -3768,13 +4957,42 @@
 
     renderTicketsView() {
       const ticketCount = this.recordedEdits.length;
+      const commentCount = this.comments ? this.comments.length : 0;
+      
+      // Comments conversion card (shown when there are comments)
+      const commentsConversionCard = commentCount > 0 ? `
+        <div class="tweaq-comments-conversion-card">
+          <div class="tweaq-conversion-header">
+            <div class="tweaq-conversion-icon">💬</div>
+            <div class="tweaq-conversion-info">
+              <h4 class="tweaq-conversion-title">${commentCount} Comment${commentCount === 1 ? '' : 's'} on Page</h4>
+              <p class="tweaq-conversion-subtitle">Convert comments into actionable tweaqs</p>
+            </div>
+          </div>
+          <button class="tweaq-conversion-button" id="tweaq-convert-comments">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5z"/>
+            </svg>
+            Create Tweaqs
+          </button>
+          <div class="tweaq-conversion-loading" id="tweaq-conversion-loading" style="display: none;">
+            <div class="tweaq-loading-spinner"></div>
+            <span>Analyzing comments with AI...</span>
+          </div>
+        </div>
+      ` : '';
       
       const ticketsHTML = this.recordedEdits.length > 0
         ? this.recordedEdits.map((edit, index) => {
             const isStructuredChange = edit.type === 'structured-change';
+            const hasPropertyChanges = edit.changes && edit.changes.length > 0 && 
+                                      edit.changes.some(c => c.property && c.before !== undefined && c.after !== undefined);
             
-            if (isStructuredChange) {
-              // For structured changes from conversation
+            // If it's an AI-generated tweaq with actual property changes, use property ticket renderer
+            if (isStructuredChange && hasPropertyChanges && edit.metadata?.generatedByAI) {
+              return this.renderPropertyTicket(edit, index);
+            } else if (isStructuredChange) {
+              // For conversation-based structured changes without property changes
               return this.renderStructuredTicket(edit, index);
             } else {
               // For direct property edits
@@ -3802,6 +5020,7 @@
 
       this.propertiesPanel.innerHTML = `
         <div class="tweaq-panel-content">
+          ${commentsConversionCard}
           <div class="tweaq-tickets-list">
             ${ticketsHTML}
           </div>
@@ -3856,6 +5075,24 @@
           this.confirmEdits();
         });
       }
+
+      // Attach convert comments button listener
+      const convertBtn = this.propertiesPanel.querySelector('#tweaq-convert-comments');
+      if (convertBtn) {
+        convertBtn.addEventListener('click', () => {
+          this.convertCommentsToTweaqs();
+        });
+      }
+
+      // Attach conflict review button listeners
+      const conflictReviewBtns = this.propertiesPanel.querySelectorAll('.tweaq-conflict-review');
+      conflictReviewBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation(); // Prevent triggering hover
+          const index = parseInt(btn.getAttribute('data-index'));
+          this.showConflictResolutionReview(index);
+        });
+      });
     }
 
     categorizeChange(property) {
@@ -3970,6 +5207,24 @@
           
           <div class="tweaq-ticket-card-body">
             <div class="tweaq-ticket-summary">${this.escapeHtml(summary)}</div>
+            
+            ${edit.metadata?.hasConflicts ? `
+              <div class="tweaq-conflict-indicator">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="color: #ff9800;">
+                  <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+                </svg>
+                <span class="tweaq-conflict-text">
+                  Resolved ${edit.metadata.conflictInfo.conflictingComments?.length || 2} conflicting comments
+                </span>
+                <button class="tweaq-conflict-review" data-index="${index}" title="Review conflict resolution">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+                  </svg>
+                </button>
+              </div>
+            ` : ''}
+            
             <div class="tweaq-ticket-target">
               <span class="tweaq-target-label">Target:</span>
               <code class="tweaq-target-selector">${edit.elementSelector || edit.elementName}</code>
@@ -5676,9 +6931,16 @@
     }
 
     applyEditToElement(element, edit) {
-      if (!edit.changes) return;
+      if (!edit.changes) {
+        console.warn('⚠️ No changes in edit to apply');
+        return;
+      }
+
+      console.log('🎨 Applying', edit.changes.length, 'changes to element:', element);
 
       edit.changes.forEach(change => {
+        console.log('  → Applying change:', change.property, '=', change.after);
+        
         if (change.property === 'textContent') {
           // Handle text content
           const hasSimpleContent = Array.from(element.childNodes).every(
@@ -5699,6 +6961,7 @@
               }
             }
           }
+          console.log('  ✅ Applied text content');
         } else {
           // Handle style properties
           const property = change.property;
@@ -5715,7 +6978,9 @@
             }
           }
           
+          console.log('  → Setting element.style[' + property + '] =', value);
           element.style[property] = value;
+          console.log('  ✅ Applied style property, result:', element.style[property]);
         }
       });
 

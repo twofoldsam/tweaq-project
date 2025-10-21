@@ -1473,6 +1473,230 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
   }
 });
 
+// Convert Comments to Tweaqs IPC handler
+safeIpcHandle('convert-comments-to-tweaqs', async (event, commentsData: any[]) => {
+  try {
+    console.log('💬➡️⚡ Converting comments to tweaqs...', commentsData.length, 'comments');
+    
+    // Get Claude API key
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return { 
+        success: false, 
+        error: 'No Anthropic API key found. Please set ANTHROPIC_API_KEY environment variable.' 
+      };
+    }
+    
+    // Import Anthropic
+    const { default: Anthropic } = await import('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey });
+    
+    // Build the prompt for Claude
+    const prompt = buildCommentsToTweaqsPrompt(commentsData);
+    
+    console.log('🤖 Calling Claude to analyze comments...');
+    
+    // Call Claude
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      temperature: 0.3,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
+    });
+    
+    const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+    console.log('✅ Claude response received');
+    console.log('Response preview:', responseText.substring(0, 200) + '...');
+    
+    // Parse the response (expecting JSON)
+    let tweaqs;
+    try {
+      // Try to extract JSON from the response
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        tweaqs = JSON.parse(jsonMatch[0]);
+      } else {
+        // Try parsing the whole response
+        tweaqs = JSON.parse(responseText);
+      }
+    } catch (parseError) {
+      console.error('Failed to parse Claude response as JSON:', parseError);
+      return {
+        success: false,
+        error: 'Failed to parse AI response. The AI may have generated invalid JSON.'
+      };
+    }
+    
+    console.log('✅ Successfully parsed tweaqs:', tweaqs.length);
+    
+    return {
+      success: true,
+      tweaqs: tweaqs
+    };
+  } catch (error) {
+    console.error('❌ Error converting comments to tweaqs:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to convert comments'
+    };
+  }
+});
+
+// Helper function to build the prompt for Claude
+function buildCommentsToTweaqsPrompt(commentsData: any[]): string {
+  const commentsJson = JSON.stringify(commentsData, null, 2);
+  
+  return `You are an expert UI/UX analyst helping convert user comments on a webpage into actionable change requests called "tweaqs". Each tweaq represents a specific change that needs to be made to the website.
+
+Your task:
+1. Analyze the comments provided
+2. Group related comments that refer to the same element
+3. Detect conflicts when multiple comments affect the SAME property differently
+4. Intelligently resolve conflicts and document your reasoning
+5. Create structured tweaq objects with all necessary information
+
+Important guidelines:
+- Combine comments that are asking for similar or identical changes into ONE tweaq
+- For example, if two comments say "Change this text to X", create only one tweaq
+- Be specific about what property needs to change (textContent, color, fontSize, etc.)
+- Include the original comment text(s) that led to this tweaq
+- Infer reasonable values when the comment is vague (e.g., "make this bigger" → increase fontSize by 2-4px)
+- For text changes, use the exact new text mentioned in the comment
+- For style changes, provide specific CSS values
+
+**CONFLICT RESOLUTION (Critical for Multiple Stakeholders):**
+When multiple comments affect the SAME property on the SAME element:
+
+1. **Detect the Conflict:**
+   - Identify conflicting values (e.g., "make it red" vs "make it blue")
+   - Classify: property_value, intent_opposite, or degree_different
+
+2. **Resolve Intelligently:**
+   - **Brand alignment**: Look at existing styles/colors on the page
+   - **Majority**: If 2+ comments agree, favor that
+   - **Context clues**: Use surrounding elements as hints
+   - **Compromise**: For colors, consider middle ground; for numbers, average
+   - **User intent**: Understand WHY each change was requested
+
+3. **Document Everything:**
+   - Mark the tweaq as having conflicts (hasConflicts: true)
+   - List ALL conflicting comments with their suggestions
+   - Explain your chosen solution and reasoning
+   - Suggest 2-3 alternative options with rationale
+
+4. **Generate Alternatives:**
+   - Original suggestions from each comment
+   - Compromise options (e.g., purple for red vs blue)
+   - Context-based options (matching nearby elements)
+- **IMPORTANT: Create SIMPLE, VALID CSS selectors:**
+  - NEVER include pseudo-classes like :hover, :active, :focus
+  - NEVER include Tailwind arbitrary values like [#color] or [-1px]
+  - Use the "suggestedSimpleSelector" field from the comment data when available
+  - If element has ID, ALWAYS use it: #elementId
+  - If element has text content (like buttons), create a selector that matches by text
+  - For buttons with text, you can use: button (and match by textContent in description)
+  - Prefer: ID (#myId) > suggested selector > tag + text description
+  - Example: "suggestedSimpleSelector": "button containing 'Submit'" → use "button" and note the text in description
+
+Here are the comments to analyze:
+
+${commentsJson}
+
+Please respond with a JSON array of tweaq objects. Each tweaq should have this structure:
+
+[
+  {
+    "description": "Clear, concise description including element identification (e.g., 'Change Submit button background color to red')",
+    "elementSelector": "Use suggestedSimpleSelector from comment data, or simplify the elementSelector",
+    "category": "One of: 'copy', 'style', 'layout', 'color', 'spacing', 'size', 'visibility'",
+    "changes": [
+      {
+        "property": "CSS property or 'textContent' for text changes",
+        "currentValue": "Current value (from elementInfo if available, otherwise 'unknown')",
+        "newValue": "New value based on the comment",
+        "description": "Brief explanation of this specific change"
+      }
+    ],
+    "sourceComments": [
+      "Full text of the original comment(s) that led to this tweaq"
+    ],
+    "commentIds": ["id1", "id2"],
+    "conflictInfo": {
+      "hasConflicts": false,
+      "conflictType": "property_value | intent_opposite | degree_different (only if hasConflicts is true)",
+      "conflictingComments": [
+        {
+          "commentId": "id1",
+          "text": "Original comment text",
+          "property": "Property being changed",
+          "suggestedValue": "What this comment suggested"
+        }
+      ],
+      "chosenSolution": "The value you chose and why you chose it",
+      "resolutionReason": "Detailed explanation of your decision-making process",
+      "alternatives": [
+        {
+          "value": "Alternative option value",
+          "rationale": "Why this could work",
+          "source": "compromise | original | context-based"
+        }
+      ]
+    }
+  }
+]
+
+Examples:
+
+Comment: "Change this button text to Submit Now"
+→ Tweaq:
+{
+  "description": "Change button text to 'Submit Now'",
+  "elementSelector": "button.submit-btn",
+  "category": "copy",
+  "changes": [{
+    "property": "textContent",
+    "currentValue": "Submit",
+    "newValue": "Submit Now",
+    "description": "Update button label"
+  }],
+  "sourceComments": ["Change this button text to Submit Now"],
+  "commentIds": ["comment_123"]
+}
+
+Comment: "Make this heading bigger and blue"
+→ Tweaq:
+{
+  "description": "Increase heading size and change color to blue",
+  "elementSelector": "h1.page-title",
+  "category": "style",
+  "changes": [
+    {
+      "property": "fontSize",
+      "currentValue": "24px",
+      "newValue": "32px",
+      "description": "Increase font size"
+    },
+    {
+      "property": "color",
+      "currentValue": "rgb(0, 0, 0)",
+      "newValue": "#0066cc",
+      "description": "Change text color to blue"
+    }
+  ],
+  "sourceComments": ["Make this heading bigger and blue"],
+  "commentIds": ["comment_456"]
+}
+
+IMPORTANT: 
+- Respond with ONLY the JSON array, no additional text or markdown
+- Combine similar comments into single tweaqs
+- Be specific and actionable
+- Include all comment IDs that contributed to each tweaq`;
+}
+
 // CDP Runtime Signals IPC handlers
 safeIpcHandle('inject-cdp', async () => {
   try {
