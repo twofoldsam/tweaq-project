@@ -341,8 +341,6 @@ export function GitHubSettings({ authState, onAuthStateChange }: GitHubSettingsP
 
   return (
     <div className="github-settings">
-      <h2>GitHub Settings</h2>
-      
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 

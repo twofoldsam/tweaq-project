@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { GitHubSettings } from './components/GitHubSettings';
-import CDPTest from './components/CDPTest';
-import { LLMSettings } from './components/LLMSettings';
-import VisualCodingAgent from './components/VisualCodingAgent';
-import { BrowserSelector } from './components/BrowserSelector';
 
 interface PageState {
   url: string;
@@ -26,7 +22,6 @@ function App() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState<'github' | 'cdp' | 'llm' | 'visual-agent'>('visual-agent');
   const [qaMode, setQaMode] = useState(false);
   const [githubAuthState, setGithubAuthState] = useState<{
     isAuthenticated: boolean;
@@ -237,32 +232,7 @@ function App() {
 
         {showSettings && (
           <div className="settings-title">
-            <div className="settings-tabs">
-              <button 
-                className={`tab-button ${activeTab === 'visual-agent' ? 'active' : ''} primary-tab`}
-                onClick={() => setActiveTab('visual-agent')}
-              >
-                🎨 Visual Agent
-              </button>
-              <button 
-                className={`tab-button ${activeTab === 'github' ? 'active' : ''}`}
-                onClick={() => setActiveTab('github')}
-              >
-                GitHub Settings
-              </button>
-              <button 
-                className={`tab-button ${activeTab === 'llm' ? 'active' : ''}`}
-                onClick={() => setActiveTab('llm')}
-              >
-                LLM Settings
-              </button>
-              <button 
-                className={`tab-button ${activeTab === 'cdp' ? 'active' : ''}`}
-                onClick={() => setActiveTab('cdp')}
-              >
-                CDP Test
-              </button>
-            </div>
+            <h1>Settings</h1>
           </div>
         )}
 
@@ -292,7 +262,7 @@ function App() {
               setShowSettings(newShowSettings);
               await window.electronAPI.toggleSettings(newShowSettings);
             }}
-            title="Visual Coding Agent & Settings"
+            title="Settings"
           >
             ⚙️
           </button>
@@ -339,17 +309,10 @@ function App() {
       </header>
       
       <main className="content">
-        {showSettings && activeTab === 'github' && (
+        {showSettings && (
           <GitHubSettings 
             authState={githubAuthState}
             onAuthStateChange={setGithubAuthState}
-          />
-        )}
-        {showSettings && activeTab === 'cdp' && <CDPTest />}
-        {showSettings && activeTab === 'llm' && <LLMSettings />}
-        {showSettings && activeTab === 'visual-agent' && (
-          <VisualCodingAgent 
-            onClose={() => setShowSettings(false)}
           />
         )}
       </main>
