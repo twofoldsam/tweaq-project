@@ -3,12 +3,14 @@ import simpleGit, { SimpleGit } from 'simple-git';
 import { LocalRepo } from '@smart-qa/github-remote';
 import { RemoteRepo } from '@smart-qa/github-remote';
 import { ToolExecutor } from './tools/ToolExecutor';
+import { TestingWorkflow } from './testing/TestingWorkflow';
 import type {
   AgentV5Config,
   AgentTaskResult,
   ToolCall,
   ConversationMessage,
-  RepoContext
+  RepoContext,
+  TestingResult
 } from './types/index';
 
 /**
@@ -271,12 +273,42 @@ export class ClaudeAgentV5 {
   }
 
   /**
+   * Run automated tests on changes
+   */
+  async testChanges(taskResult: AgentTaskResult): Promise<TestingResult> {
+    if (!this.initialized) {
+      throw new Error('Agent not initialized');
+    }
+
+    console.log('\n🧪 Running automated tests...');
+
+    const testingWorkflow = new TestingWorkflow({
+      workspacePath: this.workspacePath,
+      buildCommand: this.config.options?.buildCommand || 'npm run build',
+      testUrl: this.config.options?.testUrl,
+      verbose: this.config.options?.verbose
+    });
+
+    const testResult = await testingWorkflow.runTests(taskResult.filesModified);
+    
+    // Update task result with testing data
+    taskResult.testing = testResult;
+
+    return testResult;
+  }
+
+  /**
    * Create a pull request with the changes
+   * Optionally runs tests before creating PR
    */
   async createPullRequest(
     taskResult: AgentTaskResult,
     prTitle?: string,
-    prBody?: string
+    prBody?: string,
+    options?: {
+      runTests?: boolean;
+      requireTestsPass?: boolean;
+    }
   ): Promise<{ prNumber: number; prUrl: string }> {
     if (!this.initialized) {
       throw new Error('Agent not initialized');
@@ -288,8 +320,24 @@ export class ClaudeAgentV5 {
       throw new Error('No files were modified - nothing to commit');
     }
 
+    // Run tests if requested
+    const shouldTest = options?.runTests ?? this.config.options?.enableTesting ?? false;
+    
+    if (shouldTest) {
+      console.log('\n🧪 Running tests before creating PR...');
+      const testResult = await this.testChanges(taskResult);
+      
+      if (options?.requireTestsPass && !testResult.passed) {
+        throw new Error(
+          `Tests failed - PR not created. ${testResult.evidence.validationResults.filter(v => !v.passed && v.severity === 'error').length} critical errors found.`
+        );
+      }
+
+      console.log(testResult.summary);
+    }
+
     // Create feature branch
-    const branchName = `claude-agent-${Date.now()}`;
+    const branchName = `Tweaq-${Date.now()}`;
     console.log(`🌿 Creating branch: ${branchName}`);
     await this.git.checkoutLocalBranch(branchName);
 
@@ -494,7 +542,7 @@ When making style changes, follow this priority:
   }
 
   private generatePRBody(taskResult: AgentTaskResult): string {
-    return `## Changes Made by Claude Agent V5
+    let body = `## Changes Made by Claude Agent V5
 
 **Task:** ${taskResult.reasoning[0] || 'Automated changes'}
 
@@ -509,11 +557,50 @@ ${taskResult.filesModified.map(f => `- \`${f}\``).join('\n')}
 
 ### Agent Reasoning
 ${taskResult.reasoning.slice(0, 5).map((r, i) => `${i + 1}. ${r}`).join('\n\n')}
+`;
+
+    // Add testing results if available
+    if (taskResult.testing) {
+      const { testing } = taskResult;
+      const checks = testing.evidence.validationResults;
+      const passed = checks.filter(c => c.passed).length;
+      const failed = checks.filter(c => !c.passed).length;
+      const errors = checks.filter(c => !c.passed && c.severity === 'error').length;
+
+      body += `
+
+---
+
+## 🧪 Automated Testing Results
+
+**Overall Status:** ${testing.passed ? '✅ All checks passed' : errors > 0 ? '❌ Some checks failed' : '⚠️ Warnings present'}
+
+| Status | Check | Result |
+|--------|-------|--------|
+${checks.map(c => `| ${c.passed ? '✅' : c.severity === 'error' ? '❌' : '⚠️'} | ${c.name} | ${c.message} |`).join('\n')}
+
+**Summary:** ${passed} passed, ${failed} failed (${errors} critical errors)
+
+<details>
+<summary>View Test Logs</summary>
+
+\`\`\`
+${testing.evidence.logs.slice(0, 20).join('\n')}
+\`\`\`
+
+</details>
+`;
+    }
+
+    body += `
 
 ---
 
 🤖 *This PR was created autonomously by Claude Agent V5*
+${taskResult.testing ? '\n🧪 *Changes were automatically tested before PR creation*' : ''}
 `;
+
+    return body;
   }
 }
 

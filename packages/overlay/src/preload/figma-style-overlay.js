@@ -6177,7 +6177,7 @@
           timestamp: edit.timestamp
         }));
 
-      console.log('📦 Sending to Agent V4:');
+      console.log('📦 Sending to Agent V5:');
       console.log('  Property edits:', propertyEdits.length);
       console.log('  Structured change requests:', naturalLanguageEdits.length);
       if (naturalLanguageEdits.length > 0) {
@@ -6186,7 +6186,7 @@
         });
       }
 
-      // Send to Electron main process to trigger combined edits with Agent V4
+      // Send to Electron main process to trigger combined edits with Agent V5
       if (window.electronAPI && window.electronAPI.processCombinedEdits) {
         try {
           const result = await window.electronAPI.processCombinedEdits({
@@ -6219,7 +6219,7 @@
           this.processingEdits = false;
           this.renderProperties();
         } catch (error) {
-          console.error('Failed to trigger Agent V4:', error);
+          console.error('Failed to trigger Agent V5:', error);
           
           // Update all processing edits to failed
           this.recordedEdits.forEach(edit => {
@@ -6233,12 +6233,12 @@
           this.renderProperties();
         }
       } else {
-        console.error('electronAPI.triggerAgentV4 not available');
+        console.error('electronAPI.processCombinedEdits not available');
         
         this.recordedEdits.forEach(edit => {
           if (edit.status === 'processing') {
             edit.status = 'failed';
-            edit.error = 'Agent V4 integration not available';
+            edit.error = 'Agent integration not available';
           }
         });
         

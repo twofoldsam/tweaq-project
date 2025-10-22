@@ -57,7 +57,9 @@ export async function createAgentFromDesktopApp(
       maxTurns: 20,
       model: 'claude-sonnet-4-5-20250929',
       temperature: 0,
-      verbose: true
+      verbose: true,
+      enableTesting: true,
+      buildCommand: 'npm run build'
     }
   };
 
@@ -120,12 +122,16 @@ export async function processVisualRequestWithAgentV5(params: {
       };
     }
 
-    // Create PR
+    // Create PR with automated testing
     console.log('📝 Creating pull request...');
     const pr = await agent.createPullRequest(
       result,
       `feat: ${params.instruction.substring(0, 50)}`,
-      `Changes made by Claude Agent V5\n\n**Task:** ${params.instruction}`
+      `Changes made by Claude Agent V5\n\n**Task:** ${params.instruction}`,
+      {
+        runTests: true,
+        requireTestsPass: false  // Don't block PR, but include test results
+      }
     );
 
     return {

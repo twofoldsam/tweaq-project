@@ -142,87 +142,6 @@ importers:
         specifier: ^7.0.1
         version: 7.2.0
 
-  packages/agent-core:
-    dependencies:
-      '@smart-qa/change-engine':
-        specifier: workspace:*
-        version: link:../change-engine
-      '@smart-qa/github':
-        specifier: workspace:*
-        version: link:../github
-      '@smart-qa/repo-analyzer':
-        specifier: workspace:*
-        version: link:../repo-analyzer
-    devDependencies:
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.2
-
-  packages/agent-v2:
-    dependencies:
-      '@babel/generator':
-        specifier: ^7.22.0
-        version: 7.28.3
-      '@babel/parser':
-        specifier: ^7.22.0
-        version: 7.28.4
-      '@babel/traverse':
-        specifier: ^7.22.0
-        version: 7.28.4
-      '@babel/types':
-        specifier: ^7.22.0
-        version: 7.28.4
-      '@smart-qa/github':
-        specifier: workspace:*
-        version: link:../github
-      '@smart-qa/repo-analyzer':
-        specifier: workspace:*
-        version: link:../repo-analyzer
-      fs-extra:
-        specifier: ^11.1.1
-        version: 11.3.2
-      glob:
-        specifier: ^10.3.0
-        version: 10.4.5
-      prettier:
-        specifier: ^3.0.0
-        version: 3.6.2
-      simple-git:
-        specifier: ^3.19.1
-        version: 3.28.0
-      tmp:
-        specifier: ^0.2.1
-        version: 0.2.5
-    devDependencies:
-      '@types/fs-extra':
-        specifier: ^11.0.1
-        version: 11.0.4
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.17
-      '@types/tmp':
-        specifier: ^0.2.3
-        version: 0.2.6
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.2
-
-  packages/agent-v3:
-    dependencies:
-      '@smart-qa/github-remote':
-        specifier: workspace:*
-        version: link:../github-remote
-      '@smart-qa/repo-analyzer':
-        specifier: workspace:*
-        version: link:../repo-analyzer
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.17
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.2
-
   packages/agent-v4:
     devDependencies:
       '@types/node':
@@ -246,6 +165,10 @@ importers:
       simple-git:
         specifier: ^3.19.1
         version: 3.28.0
+    optionalDependencies:
+      playwright:
+        specifier: ^1.40.0
+        version: 1.56.0
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -1832,13 +1755,6 @@ packages:
   /@types/estree@1.0.8:
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
-  /@types/fs-extra@11.0.4:
-    resolution: {integrity: sha512-yTbItCNreRooED33qjunPthRcSjERP1r4MqCZc7wv0u2sUkzTFp45tgUfS5+r7FrZPdmCCNflLhVSP/o+SemsQ==}
-    dependencies:
-      '@types/jsonfile': 6.1.4
-      '@types/node': 20.19.17
-    dev: true
-
   /@types/fs-extra@9.0.13:
     resolution: {integrity: sha512-nEnwB++1u5lVDM2UI4c1+5R+FYaKfaAzS4OococimjVm3nQw3TuzH5UNsocrcTBbhnerblyHj4A49qXbIiZdpA==}
     dependencies:
@@ -1880,12 +1796,6 @@ packages:
 
   /@types/json-schema@7.0.15:
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
-    dev: true
-
-  /@types/jsonfile@6.1.4:
-    resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
-    dependencies:
-      '@types/node': 20.19.17
     dev: true
 
   /@types/keyv@3.1.4:
@@ -1955,10 +1865,6 @@ packages:
 
   /@types/stack-utils@2.0.3:
     resolution: {integrity: sha512-9aEbYZ3TbYMznPdcdr3SmIrLXwC/AKZXQeCf9Pgao5CKb8CyHuEX5jzWPTkvregvhRJHcpRO6BFoGW9ycaOkYw==}
-    dev: true
-
-  /@types/tmp@0.2.6:
-    resolution: {integrity: sha512-chhaNf2oKHlRkDGt+tiKE2Z5aJ6qalm7Z9rlLdBwmOiAAf09YQvvoLXjWK4HWPF1xU/fqvMgfNfpVoBscA/tKA==}
     dev: true
 
   /@types/verror@1.10.11:
@@ -4128,15 +4034,6 @@ packages:
       universalify: 2.0.1
     dev: true
 
-  /fs-extra@11.3.2:
-    resolution: {integrity: sha512-Xr9F6z6up6Ws+NjzMCZc6WXg2YFRlrLP9NQDO3VQrWrfiojdhS56TzueT88ze0uBdCTwEIhQ3ptnmKeWGFAe0A==}
-    engines: {node: '>=14.14'}
-    dependencies:
-      graceful-fs: 4.2.11
-      jsonfile: 6.2.0
-      universalify: 2.0.1
-    dev: false
-
   /fs-extra@7.0.1:
     resolution: {integrity: sha512-YJDaCJZEnBmcbw13fvdAM9AwNOJwOzrE4pqMqBq5nFiEqXUqHwlK4B+3pUw6JNvfSPtX05xFHtYy/1ni01eGCw==}
     engines: {node: '>=6 <7 || >=8'}
@@ -4371,6 +4268,7 @@ packages:
 
   /graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+    dev: true
 
   /graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
@@ -5396,6 +5294,7 @@ packages:
       universalify: 2.0.1
     optionalDependencies:
       graceful-fs: 4.2.11
+    dev: true
 
   /jsx-ast-utils@3.3.5:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
@@ -6189,6 +6088,7 @@ packages:
     resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
     engines: {node: '>=14'}
     hasBin: true
+    dev: true
 
   /pretty-format@29.7.0:
     resolution: {integrity: sha512-Pdlw/oPxN+aXdmM9R00JVC9WVFoCLTKJvDVLgmJ+qAffBMxsV85l/Lu7sNx4zSzPyoL2euImuEwHhOXdEgNFZQ==}
@@ -7101,6 +7001,7 @@ packages:
   /tmp@0.2.5:
     resolution: {integrity: sha512-voyz6MApa1rQGUxT3E+BK7/ROe8itEx7vD8/HEvt4xwXucvQ5G5oeEiHkmHZJuBO21RpOf+YYm9MOivj709jow==}
     engines: {node: '>=14.14'}
+    dev: true
 
   /tmpl@1.0.5:
     resolution: {integrity: sha512-3f0uOEAQwIqGuWW2MVzYg8fV/QNnc/IpuJNG837rLuczAaLVHslWHZQj4IGiEl5Hs3kkbhwL9Ab7Hrsmuj+Smw==}
@@ -7309,6 +7210,7 @@ packages:
   /universalify@2.0.1:
     resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
     engines: {node: '>= 10.0.0'}
+    dev: true
 
   /update-browserslist-db@1.1.3(browserslist@4.26.2):
     resolution: {integrity: sha512-UxhIZQ+QInVdunkDAaiazvvT/+fXL5Osr0JZlJulepYu6Jd7qJtDZjlur0emRlT71EN3ScPoE7gvsuIKKNavKw==}

@@ -14,6 +14,9 @@ export interface AgentV5Config {
     model?: string;
     temperature?: number;
     verbose?: boolean;
+    enableTesting?: boolean;
+    buildCommand?: string;
+    testUrl?: string;
   };
 }
 
@@ -40,6 +43,33 @@ export interface ToolResult {
 }
 
 /**
+ * Testing result from automated validation
+ */
+export interface TestingResult {
+  success: boolean;
+  passed: boolean;
+  evidence: {
+    screenshots: Array<{
+      timestamp: number;
+      description: string;
+      dataUrl: string;
+    }>;
+    logs: string[];
+    cdpSignals?: any;
+    buildOutput?: string;
+    validationResults: Array<{
+      name: string;
+      passed: boolean;
+      severity: 'error' | 'warning' | 'info';
+      message: string;
+      details?: any;
+    }>;
+  };
+  summary: string;
+  error?: string;
+}
+
+/**
  * Agent task result
  */
 export interface AgentTaskResult {
@@ -50,6 +80,7 @@ export interface AgentTaskResult {
   conversation: ConversationMessage[];
   summary: string;
   validation?: ValidationResult;
+  testing?: TestingResult;
   error?: string;
 }
 

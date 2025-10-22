@@ -1275,15 +1275,22 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
 
     // Try Agent V5 first - convert combined edits to natural language instruction
     console.log('🚀 Attempting Agent V5 for combined edits...');
+    console.log('📊 Raw request data:', JSON.stringify(request, null, 2).substring(0, 500));
     
     try {
       // Convert visual edits to natural language description
       const visualInstructions = request.visualEdits?.map((edit: any) => {
+        console.log('🔍 Processing visual edit:', edit);
         const changes = edit.changes?.map((c: any) => 
-          `Change ${c.property} from "${c.before}" to "${c.after}"`
+          `${c.property}: "${c.before}" → "${c.after}"`
         ).join(', ') || '';
-        return `For ${edit.selector || edit.element}: ${changes}`;
-      }).join('. ') || '';
+        const selector = edit.selector || edit.elementSelector || edit.element || 'element';
+        if (!changes) {
+          console.warn('⚠️  No changes found in edit:', edit);
+          return '';
+        }
+        return `For ${selector}: ${changes}`;
+      }).filter(s => s).join('. ') || '';
 
       // Combine with natural language instructions
       const nlInstructions = request.naturalLanguageEdits?.map((edit: any) => 
@@ -1294,7 +1301,7 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
         .filter(s => s)
         .join('. ') || 'Apply the requested changes';
 
-      console.log('📝 Combined instruction for Agent V5:', combinedInstruction.substring(0, 100) + '...');
+      console.log('📝 Combined instruction for Agent V5:', combinedInstruction);
 
       // Get credentials directly (keytar is available here)
       const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
