@@ -218,21 +218,11 @@ export class BrowserEngineManager {
   }
 
   /**
-   * Update browser view bounds
+   * Update browser view bounds with default panel width
    */
   updateBrowserViewBounds(): void {
-    if (!this.mainWindow) return;
-
-    const currentView = this.getCurrentBrowserView();
-    if (!currentView) return;
-
-    const { width, height } = this.mainWindow.getBounds();
-    currentView.setBounds({
-      x: 0,
-      y: this.toolbarHeight,
-      width: width,
-      height: height - this.toolbarHeight
-    });
+    // Use default panel width of 320px
+    this.updateLayoutWithLeftPane(320);
   }
 
   /**
@@ -263,6 +253,42 @@ export class BrowserEngineManager {
       width: rightViewWidth,
       height: height - this.toolbarHeight
     });
+  }
+
+  /**
+   * Update bounds for layout with left pane
+   * Positions the BrowserView to create an inset effect
+   */
+  updateLayoutWithLeftPane(panelWidth: number = 320): void {
+    if (!this.mainWindow) return;
+
+    const currentView = this.getCurrentBrowserView();
+    if (!currentView) return;
+
+    const { width, height } = this.mainWindow.getBounds();
+    
+    // Layout constants
+    const toolbarWidth = 56;
+    const urlBarHeight = 60;
+    const marginTop = 24;
+    const marginLeft = 24;
+    const marginRight = 24;
+    const marginBottom = 24;
+    
+    // Calculate BrowserView position to create inset effect
+    const x = toolbarWidth + panelWidth + marginLeft;
+    const y = urlBarHeight + marginTop;
+    const viewWidth = width - x - marginRight;
+    const viewHeight = height - y - marginBottom;
+    
+    currentView.setBounds({
+      x: Math.round(x),
+      y: Math.round(y),
+      width: Math.max(100, Math.round(viewWidth)), // Minimum width
+      height: Math.max(100, Math.round(viewHeight)) // Minimum height
+    });
+    
+    console.log(`BrowserView positioned: x=${x}, y=${y}, w=${viewWidth}, h=${viewHeight}, panelWidth=${panelWidth}`);
   }
 
   /**

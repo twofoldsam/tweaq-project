@@ -68,6 +68,23 @@ interface ElectronAPI {
   
   // Overlay API
   toggleOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => Promise<{ success: boolean; error?: string }>;
+  updatePanelWidth: (width: number) => void;
+  onPanelWidthChanged?: (callback: (width: number) => void) => () => void;
+  overlaySetMode: (mode: string) => Promise<{ success: boolean; error?: string }>;
+  overlayToggleSelectMode: () => Promise<{ success: boolean; error?: string }>;
+  overlayHighlightElement: (selector: string) => Promise<{ success: boolean; error?: string }>;
+  overlayApplyStyle: (selector: string, property: string, value: string) => Promise<{ success: boolean; error?: string }>;
+  overlayRecordEdit: (editData: any) => Promise<{ success: boolean; error?: string }>;
+  overlayGetRecordedEdits: () => Promise<{ success: boolean; edits?: any[]; error?: string }>;
+  overlayDeleteEdit: (index: number) => Promise<{ success: boolean; error?: string }>;
+  overlayHighlightEdit: (index: number) => Promise<{ success: boolean; error?: string }>;
+  overlayClearHighlight: () => Promise<{ success: boolean; error?: string }>;
+  convertCommentsToTweaqs: (commentsData: any[]) => Promise<{ success: boolean; tweaqs?: any[]; error?: string }>;
+  overlayGetComments: () => Promise<{ success: boolean; comments?: any[]; error?: string }>;
+  overlayRemoveAllComments: () => Promise<{ success: boolean; error?: string }>;
+  onElementSelected?: (callback: (data: any) => void) => () => void;
+  onElementHovered?: (callback: (data: any) => void) => () => void;
+  sendOverlayMessage?: (channel: string, data: any) => void;
   
   // PR Watcher API
   prWatcherStart: (options: { owner: string; repo: string; prNumber: number }) => Promise<{ success: boolean; watcherKey?: string; error?: string }>;

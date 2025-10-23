@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { GitHubSettings } from './components/GitHubSettings';
+import { LeftToolbar, ToolbarMode } from './components/LeftToolbar';
+import { LeftPanel } from './components/LeftPanel';
 
 interface PageState {
   url: string;
   title: string;
   loading: boolean;
-  error?: string;
+  error: string | undefined;
   favicon?: string;
   httpStatus?: number;
   loadTime?: number;
@@ -16,13 +18,17 @@ function App() {
   const [pageState, setPageState] = useState<PageState>({
     url: '',
     title: '',
-    loading: false
+    loading: false,
+    error: undefined
   });
   const [urlInput, setUrlInput] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [qaMode, setQaMode] = useState(false);
+  const [hasNavigated, setHasNavigated] = useState(false); // Track if user has navigated
+  const [panelWidth, setPanelWidth] = useState(320); // Track QA panel width (default)
+  const [toolbarMode, setToolbarMode] = useState<ToolbarMode>('chat'); // Current toolbar mode
+  const [isPanelVisible, setIsPanelVisible] = useState(true); // Panel visibility
   const [githubAuthState, setGithubAuthState] = useState<{
     isAuthenticated: boolean;
     user: GitHubUser | null;
@@ -35,10 +41,17 @@ function App() {
   const loadStartTime = useRef<number>(0);
 
   useEffect(() => {
+    // Send initial panel width to Electron on mount
+    window.electronAPI.updatePanelWidth(panelWidth);
+    
     // Initialize current URL
     window.electronAPI.getCurrentUrl().then(url => {
       setPageState(prev => ({ ...prev, url }));
       setUrlInput(url);
+      // Check if we have a URL that's not the default
+      if (url && url !== 'https://www.google.com' && url !== 'about:blank' && url !== '') {
+        setHasNavigated(true);
+      }
     });
 
     // Initialize GitHub authentication state
@@ -83,6 +96,11 @@ function App() {
     };
 
     checkGithubAuth();
+
+    // Listen for panel width changes
+    const cleanupPanelWidth = window.electronAPI.onPanelWidthChanged?.((width) => {
+      setPanelWidth(width);
+    });
 
     // Update navigation state
     const updateNavigationState = async () => {
@@ -151,6 +169,7 @@ function App() {
       cleanupLoading();
       cleanupLoaded();
       cleanupError();
+      if (cleanupPanelWidth) cleanupPanelWidth();
     };
   }, []);
 
@@ -165,6 +184,8 @@ function App() {
         error: result.error,
         loading: false 
       }));
+    } else {
+      setHasNavigated(true); // Mark that user has navigated
     }
   };
 
@@ -185,9 +206,50 @@ function App() {
     return `${(ms / 1000).toFixed(1)}s`;
   };
 
+  const handleModeChange = async (mode: ToolbarMode) => {
+    setToolbarMode(mode);
+    setIsPanelVisible(true); // Show panel when mode changes
+    
+    // Send mode change to BrowserView overlay
+    try {
+      await window.electronAPI.overlaySetMode(mode);
+    } catch (error) {
+      console.error('Failed to set overlay mode:', error);
+    }
+  };
+
+  const handlePanelWidthChange = (width: number) => {
+    setPanelWidth(width);
+    // Notify main process of width change
+    window.electronAPI.updatePanelWidth(width);
+  };
+
+  const handleSettingsClick = () => {
+    setShowSettings(!showSettings);
+  };
+
   return (
-    <div className={`app ${qaMode ? 'qa-mode' : 'browser-mode'}`}>
-      <header className="toolbar">
+    <div 
+      className={`app qa-mode ${!hasNavigated ? 'initial-state' : ''}`}
+      style={{
+        '--panel-width': `${panelWidth}px`
+      } as React.CSSProperties}
+    >
+      {/* Left toolbar and panel */}
+      <LeftToolbar
+        currentMode={toolbarMode}
+        onModeChange={handleModeChange}
+        onSettingsClick={handleSettingsClick}
+      />
+      <LeftPanel
+        mode={toolbarMode}
+        width={panelWidth}
+        onWidthChange={handlePanelWidthChange}
+        visible={isPanelVisible && !showSettings}
+      />
+      
+      {hasNavigated && (
+      <header className="toolbar" style={{ marginLeft: `calc(56px + ${panelWidth}px + 24px)` }}>
         <div className="navigation-controls">
           <button 
             className="nav-button" 
@@ -238,36 +300,6 @@ function App() {
 
         <div className="status-area">
           {!showSettings && (
-            <button 
-              className={`qa-toggle-button ${qaMode ? 'active' : ''}`}
-              onClick={async () => {
-                const newQaMode = !qaMode;
-                setQaMode(newQaMode);
-                if (newQaMode) {
-                  await window.electronAPI.toggleOverlay({ initialMode: 'chat' });
-                } else {
-                  await window.electronAPI.toggleOverlay({ initialMode: 'chat' });
-                }
-              }}
-              title="Toggle QA Mode (Ctrl+Shift+I)"
-            >
-              QA
-            </button>
-          )}
-          
-          <button 
-            className={`settings-button ${showSettings ? 'active' : ''}`}
-            onClick={async () => {
-              const newShowSettings = !showSettings;
-              setShowSettings(newShowSettings);
-              await window.electronAPI.toggleSettings(newShowSettings);
-            }}
-            title="Settings"
-          >
-            ⚙️
-          </button>
-
-          {!showSettings && (
             <>
               {pageState.favicon && (
                 <img 
@@ -307,8 +339,26 @@ function App() {
           )}
         </div>
       </header>
+      )}
       
-      <main className="content">
+      {!hasNavigated && !showSettings && (
+        <div className="initial-center">
+          <form className="centered-url-bar" onSubmit={handleNavigate}>
+            <input
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="Enter URL to start browsing..."
+              className="centered-url-input"
+              autoFocus
+            />
+            <button type="submit" className="centered-go-button">Go</button>
+          </form>
+        </div>
+      )}
+      
+      
+      <main className="content" style={{ marginLeft: `calc(56px + ${panelWidth}px + 24px)` }}>
         {showSettings && (
           <GitHubSettings 
             authState={githubAuthState}

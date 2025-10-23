@@ -199,6 +199,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   injectOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => ipcRenderer.invoke('inject-overlay', options),
   removeOverlay: () => ipcRenderer.invoke('remove-overlay'),
   toggleOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => ipcRenderer.invoke('toggle-overlay', options),
+  overlaySetMode: (mode: string) => ipcRenderer.invoke('overlay-set-mode', mode),
+  overlayToggleSelectMode: () => ipcRenderer.invoke('overlay-toggle-select-mode'),
+  overlayHighlightElement: (selector: string) => ipcRenderer.invoke('overlay-highlight-element', selector),
+  onElementSelected: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('element-selected', listener);
+    return () => ipcRenderer.removeListener('element-selected', listener);
+  },
+  onElementHovered: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('element-hovered', listener);
+    return () => ipcRenderer.removeListener('element-hovered', listener);
+  },
   
   // CDP Runtime Signals API implementations
   injectCDP: () => ipcRenderer.invoke('inject-cdp'),
@@ -255,6 +268,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Visual Coding Agent
   initializeVisualAgent: (config: any) => ipcRenderer.invoke('initialize-visual-agent', config),
   processVisualRequest: (request: any) => ipcRenderer.invoke('process-visual-request', request),
+  
+  // Panel width updates
+  updatePanelWidth: (width: number) => ipcRenderer.send('update-panel-width', width),
+  onPanelWidthChanged: (callback: (width: number) => void) => {
+    const listener = (_: any, width: number) => callback(width);
+    ipcRenderer.on('panel-width-changed', listener);
+    return () => ipcRenderer.removeListener('panel-width-changed', listener);
+  },
+  
+  // Overlay element selection and editing
+  sendOverlayMessage: (channel: string, data: any) => ipcRenderer.send(channel, data),
+  overlayApplyStyle: (selector: string, property: string, value: string) => ipcRenderer.invoke('overlay-apply-style', selector, property, value),
+  overlayRecordEdit: (editData: any) => ipcRenderer.invoke('overlay-record-edit', editData),
+  overlayGetRecordedEdits: () => ipcRenderer.invoke('overlay-get-recorded-edits'),
+  overlayDeleteEdit: (index: number) => ipcRenderer.invoke('overlay-delete-edit', index),
+  overlayHighlightEdit: (index: number) => ipcRenderer.invoke('overlay-highlight-edit', index),
+  overlayClearHighlight: () => ipcRenderer.invoke('overlay-clear-highlight'),
+  overlayGetComments: () => ipcRenderer.invoke('overlay-get-comments'),
+  overlayRemoveAllComments: () => ipcRenderer.invoke('overlay-remove-all-comments'),
   
   // Agent V4 - Visual Edits to PR
   triggerAgentV4: (data: { edits: any[]; url: string }) => ipcRenderer.invoke('trigger-agent-v4', data),

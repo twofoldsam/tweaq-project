@@ -1,0 +1,69 @@
+.left-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 56px;
+  height: 100vh;
+  background: #0f0f0f;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 60px; /* Space for traffic lights */
+  padding-bottom: 16px;
+  z-index: 10001;
+  -webkit-app-region: no-drag;
+}
+
+.toolbar-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.toolbar-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 20px;
+  padding: 0;
+}
+
+.toolbar-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.toolbar-button.active {
+  background: rgba(10, 132, 255, 0.2);
+  color: #0A84FF;
+}
+
+.toolbar-button-icon {
+  display: block;
+  line-height: 1;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 0 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+

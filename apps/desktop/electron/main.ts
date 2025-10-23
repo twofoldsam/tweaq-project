@@ -526,8 +526,9 @@ function createWindow(): void {
   mainWindow.on('resize', () => {
     if (rightPaneView && mainWindow?.getBrowserViews().includes(rightPaneView)) {
       updateLayoutWithRightPane();
-    } else {
-      updateBrowserViewBounds();
+    } else if (browserEngineManager) {
+      // Update BrowserView bounds with current panel width
+      browserEngineManager.updateLayoutWithLeftPane(currentPanelWidth);
     }
   });
 
@@ -564,6 +565,9 @@ function createWindow(): void {
   }
 }
 
+// Track current panel width
+let currentPanelWidth = 320; // Match React default panel width
+
 // Helper function to setup navigation events for a browser view
 function setupBrowserViewEvents(view: BrowserView) {
   // Track navigation events
@@ -571,15 +575,46 @@ function setupBrowserViewEvents(view: BrowserView) {
     mainWindow?.webContents.send('page-loading', true);
   });
 
-  view.webContents.on('did-finish-load', () => {
+  // Re-inject overlay on every page load to ensure it's always visible
+  view.webContents.on('did-finish-load', async () => {
     const url = view.webContents.getURL() || '';
     const title = view.webContents.getTitle() || '';
     
+    // Send page loaded event first
     mainWindow?.webContents.send('page-loaded', {
       url,
       title,
       loading: false
     });
+
+    // Then inject overlay
+    try {
+      const fs = require('fs');
+      const overlayScript = fs.readFileSync(
+        path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
+        'utf8'
+      );
+      
+      await view.webContents.executeJavaScript(overlayScript);
+      
+      // Show overlay immediately (not toggle)
+      const showScript = `
+        if (window.TweaqOverlay) {
+          window.TweaqOverlay.inject({ initialMode: 'chat' });
+        }
+      `;
+      await view.webContents.executeJavaScript(showScript);
+      
+      // Mark overlay as visible and adjust browser view bounds
+      overlayState.isVisible = true;
+      if (browserEngineManager) {
+        browserEngineManager.updateLayoutWithLeftPane(currentPanelWidth);
+      }
+      
+      console.log('✅ Overlay auto-injected on page load');
+    } catch (error) {
+      console.error('Failed to inject overlay on page load:', error);
+    }
   });
 
   view.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
@@ -600,6 +635,21 @@ function setupBrowserViewEvents(view: BrowserView) {
     mainWindow?.webContents.send('page-navigation', { url });
   });
 }
+
+// Handle panel width updates from BrowserView
+ipcMain.on('update-panel-width', (event, width: number) => {
+  currentPanelWidth = width;
+  
+  // Update BrowserView position immediately
+  if (browserEngineManager) {
+    browserEngineManager.updateLayoutWithLeftPane(width);
+  }
+  
+  // Forward to main window
+  if (mainWindow) {
+    mainWindow.webContents.send('panel-width-changed', width);
+  }
+});
 
 // IPC handlers
 safeIpcHandle('navigate', async (event, url: string) => {
@@ -1863,11 +1913,288 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
     
     console.log('Overlay toggled:', overlayState.isVisible);
 
+    // Don't adjust browser view bounds - overlay handles layout with body margin
     return { success: true };
   } catch (error) {
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to toggle overlay' 
+    };
+  }
+});
+
+// Overlay communication IPC handlers
+safeIpcHandle('overlay-set-mode', async (event, mode: string) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+        window.TweaqOverlay._instance.setMode('${mode}');
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to set mode' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-toggle-select-mode', async (event) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+        window.TweaqOverlay._instance.toggleSelectMode();
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to toggle select mode' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-delete-edit', async (event, index: number) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+        window.TweaqOverlay._instance.deleteEdit(${index});
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to delete edit' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-highlight-edit', async (event, index: number) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+        window.TweaqOverlay._instance.highlightEditElement(${index});
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to highlight edit' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-clear-highlight', async (event) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+        window.TweaqOverlay._instance.clearEditHighlight();
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to clear highlight' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-get-comments', async (event) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    const comments = await currentView.webContents.executeJavaScript(`
+      (function() {
+        if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+          return window.TweaqOverlay._instance.collectCommentsData();
+        }
+        return [];
+      })()
+    `);
+
+    return { success: true, comments };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to get comments' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-remove-all-comments', async (event) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+        window.TweaqOverlay._instance.removeAllComments();
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to remove comments' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-highlight-element', async (event, selector: string) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+        const element = document.querySelector('${selector}');
+        if (element) {
+          window.TweaqOverlay._instance.highlightElement(element);
+        }
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to highlight element' 
+    };
+  }
+});
+
+// Listen for element selection from BrowserView
+ipcMain.on('overlay-element-selected', (event, data) => {
+  // Forward to main window
+  if (mainWindow) {
+    mainWindow.webContents.send('element-selected', data);
+  }
+});
+
+// Listen for element hover from BrowserView
+ipcMain.on('overlay-element-hovered', (event, data) => {
+  // Forward to main window
+  if (mainWindow) {
+    mainWindow.webContents.send('element-hovered', data);
+  }
+});
+
+// Apply style changes live to element
+safeIpcHandle('overlay-apply-style', async (event, selector: string, property: string, value: string) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      (function() {
+        const element = document.querySelector('${selector}');
+        if (element) {
+          element.style['${property}'] = '${value}';
+          return true;
+        }
+        return false;
+      })()
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to apply style' 
+    };
+  }
+});
+
+// Record edit as tweaq
+safeIpcHandle('overlay-record-edit', async (event, editData: any) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+        window.TweaqOverlay._instance.recordEdit(${JSON.stringify(editData)});
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to record edit' 
+    };
+  }
+});
+
+// Get recorded edits
+safeIpcHandle('overlay-get-recorded-edits', async () => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    const edits = await currentView.webContents.executeJavaScript(`
+      (function() {
+        if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+          return window.TweaqOverlay._instance.recordedEdits || [];
+        }
+        return [];
+      })()
+    `);
+
+    return { success: true, edits };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to get recorded edits' 
     };
   }
 });
