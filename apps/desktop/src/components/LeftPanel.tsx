@@ -135,6 +135,22 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
     };
   }, []);
 
+  // Auto-select body element when in design mode with nothing selected
+  useEffect(() => {
+    const selectBodyElement = async () => {
+      if (mode === 'design' && !selectedElement && visible) {
+        try {
+          // Request body element selection
+          await window.electronAPI.overlaySelectElement('body');
+        } catch (error) {
+          console.error('Failed to auto-select body element:', error);
+        }
+      }
+    };
+
+    selectBodyElement();
+  }, [mode, visible]);
+
   useEffect(() => {
     // Fetch recorded edits and comments when switching to tickets mode
     if (mode === 'tickets') {
@@ -1113,9 +1129,11 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
         className={`left-panel ${visible ? 'visible' : ''} ${isResizing ? 'resizing' : ''}`}
         style={{ width: `${width}px`, left: '56px' }}
       >
-        <div className="panel-header">
-          <h3>{mode.charAt(0).toUpperCase() + mode.slice(1)}</h3>
-        </div>
+        {mode !== 'design' && (
+          <div className="panel-header">
+            <h3>{mode.charAt(0).toUpperCase() + mode.slice(1)}</h3>
+          </div>
+        )}
         {renderPanelContent()}
       </div>
       

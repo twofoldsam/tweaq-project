@@ -1946,6 +1946,28 @@ safeIpcHandle('overlay-set-mode', async (event, mode: string) => {
   }
 });
 
+safeIpcHandle('overlay-select-element', async (event, selector) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    await currentView.webContents.executeJavaScript(`
+      if (window.TweaqOverlay && window.TweaqOverlay.selectElement) {
+        window.TweaqOverlay.selectElement(${JSON.stringify(selector)});
+      }
+    `);
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to select element'
+    };
+  }
+});
+
 safeIpcHandle('overlay-toggle-select-mode', async (event) => {
   try {
     const currentView = browserEngineManager?.getCurrentBrowserView();

@@ -201,6 +201,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => ipcRenderer.invoke('toggle-overlay', options),
   overlaySetMode: (mode: string) => ipcRenderer.invoke('overlay-set-mode', mode),
   overlayToggleSelectMode: () => ipcRenderer.invoke('overlay-toggle-select-mode'),
+  overlaySelectElement: (selector: string) => ipcRenderer.invoke('overlay-select-element', selector),
   overlayHighlightElement: (selector: string) => ipcRenderer.invoke('overlay-highlight-element', selector),
   onElementSelected: (callback: (data: any) => void) => {
     const listener = (_event: any, data: any) => callback(data);

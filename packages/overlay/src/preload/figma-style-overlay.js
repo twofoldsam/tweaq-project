@@ -377,6 +377,23 @@
       }
     }
 
+    // Programmatically select an element by selector and send data to React
+    selectElementBySelector(selector) {
+      try {
+        const element = document.querySelector(selector);
+        if (element) {
+          this.selectedElement = element;
+          this.updateSelectionHighlight(element);
+          this.sendElementDataToReact(element);
+          console.log(`✅ Programmatically selected element: ${selector}`);
+        } else {
+          console.warn(`⚠️ Element not found: ${selector}`);
+        }
+      } catch (error) {
+        console.error('Failed to select element:', error);
+      }
+    }
+
     // Clear highlight
     clearEditHighlight() {
       this.deselectElement();
@@ -540,6 +557,14 @@
       document.body.classList.remove('tweaq-select-mode');
       
       console.log('✅ Tweaq Overlay removed');
+    },
+    
+    selectElement: function(selector) {
+      if (this._instance) {
+        this._instance.selectElementBySelector(selector);
+      } else {
+        console.warn('⚠️ TweaqOverlay not initialized');
+      }
     }
   };
 
