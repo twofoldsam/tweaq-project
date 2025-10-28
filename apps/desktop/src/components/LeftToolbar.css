@@ -24,18 +24,20 @@
 
 .toolbar-button {
   width: 40px;
-  height: 40px;
+  min-height: 48px;
   border-radius: 8px;
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2px;
   transition: all 0.2s ease;
   font-size: 20px;
-  padding: 0;
+  padding: 4px 0;
 }
 
 .toolbar-button:hover {
@@ -44,13 +46,40 @@
 }
 
 .toolbar-button.active {
-  background: rgba(10, 132, 255, 0.2);
-  color: #0A84FF;
+  background: transparent;
+  color: #FFFFFF;
 }
 
 .toolbar-button-icon {
   display: block;
   line-height: 1;
+  font-size: 18px;
+}
+
+.toolbar-button-svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: brightness(0) saturate(100%) invert(100%) opacity(0.7);
+  transition: filter 0.2s ease;
+}
+
+.toolbar-button:hover .toolbar-button-svg {
+  filter: brightness(0) saturate(100%) invert(100%) opacity(0.9);
+}
+
+.toolbar-button.active .toolbar-button-svg {
+  filter: brightness(0) saturate(100%) invert(100%) opacity(1);
+}
+
+.toolbar-button-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: capitalize;
+  white-space: nowrap;
+  margin-top: 1px;
 }
 
 .toolbar-spacer {

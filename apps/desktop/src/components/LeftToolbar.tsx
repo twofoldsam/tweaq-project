@@ -1,5 +1,14 @@
-import { useState } from 'react';
 import './LeftToolbar.css';
+import designIcon from '../assets/design-icon.svg';
+import chatIcon from '../assets/chat-icon.svg';
+import commentIcon from '../assets/comment-icon.svg';
+import tweaqIcon from '../assets/tweaq-icon.svg';
+import settingsIcon from '../assets/settings-icon.svg';
+import designIconFilled from '../assets/design-icon-filled.svg';
+import chatIconFilled from '../assets/chat-icon-filled.svg';
+import commentIconFilled from '../assets/comment-icon-filled.svg';
+import tweaqIconFilled from '../assets/tweaq-icon-filled.svg';
+import settingsIconFilled from '../assets/settings-icon-filled.svg';
 
 export type ToolbarMode = 'design' | 'chat' | 'comment' | 'tickets';
 
@@ -11,25 +20,31 @@ interface LeftToolbarProps {
 
 export function LeftToolbar({ currentMode, onModeChange, onSettingsClick }: LeftToolbarProps) {
   const toolbarButtons = [
-    { id: 'design' as ToolbarMode, icon: '✏️', label: 'Design' },
-    { id: 'chat' as ToolbarMode, icon: '💬', label: 'Chat' },
-    { id: 'comment' as ToolbarMode, icon: '💭', label: 'Comment' },
-    { id: 'tickets' as ToolbarMode, icon: '🎫', label: 'Tickets' }
+    { id: 'design' as ToolbarMode, label: 'Design', svgPath: designIcon, svgPathFilled: designIconFilled },
+    { id: 'chat' as ToolbarMode, label: 'Chat', svgPath: chatIcon, svgPathFilled: chatIconFilled },
+    { id: 'comment' as ToolbarMode, label: 'Comment', svgPath: commentIcon, svgPathFilled: commentIconFilled },
+    { id: 'tickets' as ToolbarMode, label: 'Tweaqs', svgPath: tweaqIcon, svgPathFilled: tweaqIconFilled }
   ];
 
   return (
     <div className="left-toolbar">
       <div className="toolbar-buttons">
-        {toolbarButtons.map(button => (
-          <button
-            key={button.id}
-            className={`toolbar-button ${currentMode === button.id ? 'active' : ''}`}
-            onClick={() => onModeChange(button.id)}
-            title={button.label}
-          >
-            <span className="toolbar-button-icon">{button.icon}</span>
-          </button>
-        ))}
+        {toolbarButtons.map(button => {
+          const isActive = currentMode === button.id;
+          const iconSrc = isActive ? button.svgPathFilled : button.svgPath;
+          
+          return (
+            <button
+              key={button.id}
+              className={`toolbar-button ${isActive ? 'active' : ''}`}
+              onClick={() => onModeChange(button.id)}
+              title={button.label}
+            >
+              <img src={iconSrc} alt={button.label} className="toolbar-button-svg" />
+              <span className="toolbar-button-label">{button.label}</span>
+            </button>
+          );
+        })}
       </div>
       
       <div className="toolbar-spacer" />
@@ -40,7 +55,8 @@ export function LeftToolbar({ currentMode, onModeChange, onSettingsClick }: Left
           onClick={onSettingsClick}
           title="Settings"
         >
-          <span className="toolbar-button-icon">⚙️</span>
+          <img src={settingsIcon} alt="Settings" className="toolbar-button-svg" />
+          <span className="toolbar-button-label">Settings</span>
         </button>
       </div>
     </div>
