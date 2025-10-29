@@ -352,16 +352,45 @@
     }
 
     getElementSelector(element) {
+      // If element has a unique ID, use it
       if (element.id) {
         return `#${element.id}`;
       }
-      if (element.className && typeof element.className === 'string') {
-        const classes = element.className.split(' ').filter(c => c && !c.includes('tweaq'));
-        if (classes.length > 0) {
-          return `.${classes[0]}`;
+      
+      // Generate a unique CSS selector path from root to element
+      const path = [];
+      let current = element;
+      
+      while (current && current !== document.body && current !== document.documentElement) {
+        let selector = current.tagName.toLowerCase();
+        
+        // Add classes if available (excluding tweaq classes)
+        if (current.className && typeof current.className === 'string') {
+          const classes = current.className.split(' ')
+            .filter(c => c && !c.includes('tweaq'))
+            .slice(0, 2); // Use first 2 classes for specificity
+          if (classes.length > 0) {
+            selector += '.' + classes.join('.');
+          }
         }
+        
+        // Add nth-child to ensure uniqueness
+        if (current.parentElement) {
+          const siblings = Array.from(current.parentElement.children);
+          const index = siblings.indexOf(current);
+          if (siblings.length > 1) {
+            selector += `:nth-child(${index + 1})`;
+          }
+        }
+        
+        path.unshift(selector);
+        current = current.parentElement;
+        
+        // Limit path depth to avoid extremely long selectors
+        if (path.length >= 5) break;
       }
-      return element.tagName.toLowerCase();
+      
+      return path.join(' > ');
     }
 
     // Highlight element by selector (for hover from React)
