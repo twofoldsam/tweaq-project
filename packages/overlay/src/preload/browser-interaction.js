@@ -118,6 +118,7 @@
       this.comments = [];
       this.commentCounter = 0;
       this.recordedEdits = [];
+      this.resizeObserver = null;
       
       this.init();
     }
@@ -126,7 +127,19 @@
       injectStyles();
       this.createHighlightBoxes();
       this.setupEventListeners();
+      this.setupResizeObserver();
       console.log('✅ Tweaq DOM Overlay initialized');
+    }
+
+    setupResizeObserver() {
+      // Create a ResizeObserver to watch for element size changes
+      this.resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.target === this.selectedElement) {
+            this.updateSelectionHighlight(this.selectedElement);
+          }
+        }
+      });
     }
 
     createHighlightBoxes() {
@@ -221,8 +234,18 @@
       const element = e.target;
       if (!element || element === document.body || element === document.documentElement) return;
       
+      // Stop observing previous element
+      if (this.selectedElement && this.resizeObserver) {
+        this.resizeObserver.unobserve(this.selectedElement);
+      }
+      
       this.selectedElement = element;
       this.updateSelectionHighlight(element);
+      
+      // Start observing new element for size changes
+      if (this.resizeObserver) {
+        this.resizeObserver.observe(element);
+      }
       
       // Send element data to React
       this.sendElementDataToReact(element);
@@ -264,6 +287,11 @@
     }
 
     deselectElement() {
+      // Stop observing when deselecting
+      if (this.selectedElement && this.resizeObserver) {
+        this.resizeObserver.unobserve(this.selectedElement);
+      }
+      
       this.selectedElement = null;
       if (this.highlightBox) this.highlightBox.style.display = 'none';
     }
@@ -418,8 +446,19 @@
       try {
         const element = document.querySelector(selector);
         if (element) {
+          // Stop observing previous element
+          if (this.selectedElement && this.resizeObserver) {
+            this.resizeObserver.unobserve(this.selectedElement);
+          }
+          
           this.selectedElement = element;
           this.updateSelectionHighlight(element);
+          
+          // Start observing new element for size changes
+          if (this.resizeObserver) {
+            this.resizeObserver.observe(element);
+          }
+          
           this.sendElementDataToReact(element);
           console.log(`✅ Programmatically selected element: ${selector}`);
         } else {
@@ -444,6 +483,14 @@
             element.textContent = value;
           } else {
             element.style[property] = value;
+          }
+          
+          // Update selection highlight if this is the currently selected element
+          if (this.selectedElement === element) {
+            // Use requestAnimationFrame to ensure the DOM has updated
+            requestAnimationFrame(() => {
+              this.updateSelectionHighlight(element);
+            });
           }
         });
         console.log(`✅ Applied ${property}: ${value} to ${selector}`);
