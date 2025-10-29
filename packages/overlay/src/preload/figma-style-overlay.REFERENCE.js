@@ -4,7 +4,7 @@
 // Saved for reference in case we need to check old functionality.
 // 
 // The new approach moved all UI rendering to React components in the main window.
-// The active overlay (figma-style-overlay.js) only handles DOM interaction now.
+// The active overlay (browser-interaction.js) only handles DOM interaction now.
 // 
 // Created: October 23, 2025
 // Replaced by: Simplified DOM interaction overlay + React UI components

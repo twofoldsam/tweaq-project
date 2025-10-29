@@ -49,7 +49,7 @@ This document describes the improvements made to the commenting feature's UI and
    - Removed cancel button styles
    - Made submit button icon-only with proper sizing
 
-3. **`/packages/overlay/src/preload/figma-style-overlay.js`**
+3. **`/packages/overlay/src/preload/browser-interaction.js`**
    - Updated `createCommentPill()` to create expanded state by default
    - Removed `expandCommentPill()` and `collapseCommentPill()` methods
    - Added `setupCommentPillListeners()` to handle all event listeners

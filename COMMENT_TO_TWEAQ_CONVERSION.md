@@ -18,7 +18,7 @@ This feature allows users to automatically convert comments on a webpage into ac
 ### 2. Technical Implementation
 
 #### Frontend (Overlay)
-**File**: `/packages/overlay/src/preload/figma-style-overlay.js`
+**File**: `/packages/overlay/src/preload/browser-interaction.js`
 
 **New UI Components**:
 - Conversion card that displays when comments exist
@@ -222,7 +222,7 @@ Potential improvements:
 
 ## Files Modified
 
-1. `/packages/overlay/src/preload/figma-style-overlay.js`
+1. `/packages/overlay/src/preload/browser-interaction.js`
    - Added conversion card UI
    - Added conversion methods
    - Added CSS styles

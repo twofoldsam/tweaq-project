@@ -587,11 +587,11 @@ function setupBrowserViewEvents(view: BrowserView) {
       loading: false
     });
 
-    // Then inject overlay
+    // Then inject browser interaction script
     try {
       const fs = require('fs');
       const overlayScript = fs.readFileSync(
-        path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
+        path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js'),
         'utf8'
       );
       
@@ -763,12 +763,12 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
       
       // Restore overlay IMMEDIATELY in the new view (before navigation)
       if (overlaySnapshot && overlaySnapshot.isVisible && browserView) {
-        try {
-          const fs = require('fs');
-          const overlayScript = fs.readFileSync(
-            path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
-            'utf8'
-          );
+                try {
+                  const fs = require('fs');
+                  const overlayScript = fs.readFileSync(
+                    path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js'),
+                    'utf8'
+                  );
 
           await browserView.webContents.executeJavaScript(overlayScript);
           
@@ -1833,10 +1833,10 @@ safeIpcHandle('inject-overlay', async (event, options = {}) => {
       return { success: false, error: 'No browser view available' };
     }
 
-    // Read the Figma-style overlay injector script (now with Chat!)
+    // Read the browser interaction script
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
+      path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js'),
       'utf8'
     );
 
@@ -1890,10 +1890,10 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
       return { success: false, error: 'No browser view available' };
     }
 
-    // First ensure the overlay script is injected (Figma-style with Chat)
+    // First ensure the browser interaction script is injected
     const fs = require('fs');
     const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/figma-style-overlay.js'),
+      path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js'),
       'utf8'
     );
 
