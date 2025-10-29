@@ -135,20 +135,39 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
     };
   }, []);
 
-  // Auto-select body element when in design mode with nothing selected
+  // Auto-select page root element when in design mode with nothing selected
   useEffect(() => {
-    const selectBodyElement = async () => {
+    const selectRootElement = async () => {
       if (mode === 'design' && !selectedElement && visible) {
         try {
-          // Request body element selection
-          await window.electronAPI.overlaySelectElement('body');
+          // Try to select common root containers first, fallback to body
+          const selectors = [
+            '#root',           // React apps
+            '#__next',         // Next.js apps
+            '#app',            // Vue apps
+            '[data-reactroot]', // React apps
+            'body > div:first-child', // First child of body
+            'body'            // Fallback
+          ];
+          
+          // Try each selector until one works
+          for (const selector of selectors) {
+            try {
+              await window.electronAPI.overlaySelectElement(selector);
+              console.log(`Selected page root: ${selector}`);
+              break;
+            } catch (error) {
+              // Try next selector
+              continue;
+            }
+          }
         } catch (error) {
-          console.error('Failed to auto-select body element:', error);
+          console.error('Failed to auto-select root element:', error);
         }
       }
     };
 
-    selectBodyElement();
+    selectRootElement();
   }, [mode, visible]);
 
   useEffect(() => {
@@ -348,19 +367,43 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
       // Toggle select mode in the BrowserView overlay
       await window.electronAPI.overlayToggleSelectMode();
       
-      // If disabling select mode, reset to body element
+      // If disabling select mode, reset to page root element
       if (!newState) {
         // Clear pending changes
         setEditedProperties({});
         setHasPendingChanges(false);
         
-        // Auto-select body element to show background properties
-        // Don't clear selectedElement first to avoid flash - let body selection replace it
+        // Auto-select page root to show background properties
+        // Don't clear selectedElement first to avoid flash - let root selection replace it
         try {
-          await window.electronAPI.overlaySelectElement('body');
+          // Try to select common root containers first, fallback to body
+          const selectors = [
+            '#root',           // React apps
+            '#__next',         // Next.js apps
+            '#app',            // Vue apps
+            '[data-reactroot]', // React apps
+            'body > div:first-child', // First child of body
+            'body'            // Fallback
+          ];
+          
+          // Try each selector until one works
+          let selected = false;
+          for (const selector of selectors) {
+            try {
+              await window.electronAPI.overlaySelectElement(selector);
+              console.log(`Selected page root on deselect: ${selector}`);
+              selected = true;
+              break;
+            } catch (error) {
+              continue;
+            }
+          }
+          
+          if (!selected) {
+            setSelectedElement(null);
+          }
         } catch (error) {
-          console.error('Failed to select body element:', error);
-          // Only clear on error
+          console.error('Failed to select root element:', error);
           setSelectedElement(null);
         }
       }
