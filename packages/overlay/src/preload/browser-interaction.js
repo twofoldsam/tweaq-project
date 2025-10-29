@@ -513,7 +513,10 @@
           if (property === 'textContent') {
             element.textContent = value;
           } else {
-            element.style[property] = value;
+            // Convert kebab-case to camelCase for JavaScript style properties
+            // e.g., 'background-color' -> 'backgroundColor'
+            const camelCaseProperty = property.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+            element.style[camelCaseProperty] = value;
           }
           
           // Update selection highlight if this is the currently selected element
@@ -526,7 +529,7 @@
         });
         console.log(`✅ Applied ${property}: ${value} to ${selector}`);
       } catch (error) {
-        console.error('Failed to apply style:', error);
+        console.error(`Failed to apply style [${property}: ${value}] to [${selector}]:`, error.message || error);
       }
     }
 

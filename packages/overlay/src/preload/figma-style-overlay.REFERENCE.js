@@ -4732,9 +4732,8 @@
       
       // Cursor/Select icon SVG
       const selectIcon = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
-          <path d="M13 13l6 6"/>
+        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d='M3.348 5.706c-.486-1.457.9-2.844 2.358-2.358L18.645 7.66c1.627.543 1.72 2.808.145 3.483l-4.61 1.976 6.35 6.35a.75.75 0 1 1-1.06 1.061l-6.35-6.35-1.977 4.61c-.675 1.576-2.94 1.481-3.482-.145z'/>
         </svg>
       `;
 

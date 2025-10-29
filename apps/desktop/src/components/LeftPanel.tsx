@@ -1229,8 +1229,8 @@ export function LeftPanel({ mode, width, onWidthChange, visible, onTweaqCountCha
               onClick={handleToggleSelectMode}
               title={isSelectModeActive ? 'Exit select mode' : 'Enter select mode'}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M1 1l4.5 11L8 8l4-2.5L1 1z"/>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3.348 5.706c-.486-1.457.9-2.844 2.358-2.358L18.645 7.66c1.627.543 1.72 2.808.145 3.483l-4.61 1.976 6.35 6.35a.75.75 0 1 1-1.06 1.061l-6.35-6.35-1.977 4.61c-.675 1.576-2.94 1.481-3.482-.145z"/>
               </svg>
             </button>
             <button 
