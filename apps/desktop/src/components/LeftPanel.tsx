@@ -523,7 +523,18 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
   };
 
   const getCurrentValue = (property: string) => {
-    return editedProperties[property] || selectedElement?.properties[property] || '';
+    // Check edited properties first
+    if (editedProperties[property] !== undefined) {
+      return editedProperties[property];
+    }
+    
+    // Handle textContent specially (it's top-level, not in properties)
+    if (property === 'textContent') {
+      return selectedElement?.textContent || '';
+    }
+    
+    // Default to properties record
+    return selectedElement?.properties[property] || '';
   };
 
   const getRect = () => {
@@ -696,7 +707,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                   <h3 className="section-header">Text</h3>
                   <TextContentInput
                     label="Content"
-                    value={selectedElement.textContent}
+                    value={getCurrentValue('textContent')}
                     property="textContent"
                     onChange={handlePropertyChange}
                   />
