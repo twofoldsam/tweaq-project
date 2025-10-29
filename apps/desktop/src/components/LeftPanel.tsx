@@ -512,19 +512,8 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                   )}
                 </div>
                 
-                <div className="header-actions">
-                  <button 
-                    className={`select-mode-toggle ${isSelectModeActive ? 'active' : ''}`}
-                    onClick={handleToggleSelectMode}
-                    title={isSelectModeActive ? 'Exit select mode' : 'Enter select mode'}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M1 1l4.5 11L8 8l4-2.5L1 1z"/>
-                    </svg>
-                    <span>Select</span>
-                  </button>
-                  
-                  {hasPendingChanges && (
+                {hasPendingChanges && (
+                  <div className="header-actions">
                     <button 
                       className="record-button"
                       onClick={handleRecordEdit}
@@ -532,8 +521,8 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                     >
                       ✓ Record
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
               
               {/* Design Section */}
@@ -733,23 +722,10 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
         return (
           <div className="panel-content">
             <div className="design-empty-state">
-              <div className="empty-state-header">
-                <h2>Design Mode</h2>
-                <button 
-                  className={`select-mode-toggle ${isSelectModeActive ? 'active' : ''}`}
-                  onClick={handleToggleSelectMode}
-                  title={isSelectModeActive ? 'Exit select mode' : 'Enter select mode'}
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M1 1l4.5 11L8 8l4-2.5L1 1z"/>
-                  </svg>
-                  <span>Select</span>
-                </button>
-              </div>
               <p>
                 {isSelectModeActive 
                   ? 'Click on any element on the page to view and edit its properties.'
-                  : 'Enable select mode to choose an element.'}
+                  : 'Click "Select" below to start selecting elements.'}
               </p>
             </div>
           </div>
@@ -1135,6 +1111,22 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
           </div>
         )}
         {renderPanelContent()}
+        
+        {/* Command Bar - Design Mode */}
+        {mode === 'design' && (
+          <div className="panel-command-bar">
+            <button 
+              className={`command-bar-button ${isSelectModeActive ? 'active' : ''}`}
+              onClick={handleToggleSelectMode}
+              title={isSelectModeActive ? 'Exit select mode' : 'Enter select mode'}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1 1l4.5 11L8 8l4-2.5L1 1z"/>
+              </svg>
+              <span>Select</span>
+            </button>
+          </div>
+        )}
       </div>
       
       <div

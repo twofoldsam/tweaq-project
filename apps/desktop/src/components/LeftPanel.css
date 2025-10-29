@@ -39,6 +39,7 @@
   overflow-y: auto;
   overflow-x: hidden; /* Prevent horizontal scroll */
   padding: 20px;
+  padding-bottom: 80px; /* Space for command bar */
   min-height: 0; /* Important for flex scrolling */
   width: 100%;
   box-sizing: border-box;
@@ -47,6 +48,67 @@
 /* Add top padding when no header (design mode) */
 .left-panel.no-header .panel-content {
   padding-top: 60px; /* Space for traffic lights */
+}
+
+/* Panel Command Bar */
+.panel-command-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, #000000, #0a0a0a);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 12px 20px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 10;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
+  -webkit-app-region: no-drag;
+}
+
+.command-bar-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.command-bar-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.command-bar-button:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.command-bar-button.active {
+  border-color: #0A84FF;
+  background: rgba(10, 132, 255, 0.15);
+  color: #0A84FF;
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.1);
+}
+
+.command-bar-button.active:hover {
+  background: rgba(10, 132, 255, 0.2);
+}
+
+.command-bar-button:active {
+  transform: scale(0.97);
 }
 
 .panel-content h2 {
@@ -354,21 +416,12 @@
 
 /* Design empty state */
 .design-empty-state {
-  padding: 20px 0;
-}
-
-.empty-state-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-}
-
-.empty-state-header h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  justify-content: center;
+  min-height: 200px;
+  text-align: center;
+  padding: 40px 20px;
 }
 
 .design-empty-state p {
@@ -376,6 +429,7 @@
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
   line-height: 1.5;
+  max-width: 300px;
 }
 
 /* Tickets view */
