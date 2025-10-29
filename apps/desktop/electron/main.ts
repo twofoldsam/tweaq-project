@@ -2156,9 +2156,9 @@ safeIpcHandle('overlay-apply-style', async (event, selector: string, property: s
     // Pass parameters as JSON to avoid escaping issues
     await currentView.webContents.executeJavaScript(`
       (function() {
-        if (window.tweaqOverlay) {
+        if (window.TweaqOverlay) {
           const params = ${JSON.stringify({ selector, property, value })};
-          window.tweaqOverlay.applyStyleChange(params.selector, params.property, params.value);
+          window.TweaqOverlay.applyStyleChange(params.selector, params.property, params.value);
           return true;
         }
         return false;

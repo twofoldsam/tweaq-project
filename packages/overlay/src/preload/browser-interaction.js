@@ -648,6 +648,14 @@
       } else {
         console.warn('⚠️ TweaqOverlay not initialized');
       }
+    },
+    
+    applyStyleChange: function(selector, property, value) {
+      if (this._instance) {
+        this._instance.applyStyleChange(selector, property, value);
+      } else {
+        console.warn('⚠️ TweaqOverlay not initialized');
+      }
     }
   };
 
