@@ -2152,11 +2152,13 @@ safeIpcHandle('overlay-apply-style', async (event, selector: string, property: s
       return { success: false, error: 'No browser view available' };
     }
 
+    // Use the browser interaction overlay's applyStyleChange method
+    // Pass parameters as JSON to avoid escaping issues
     await currentView.webContents.executeJavaScript(`
       (function() {
-        const element = document.querySelector('${selector}');
-        if (element) {
-          element.style['${property}'] = '${value}';
+        if (window.tweaqOverlay) {
+          const params = ${JSON.stringify({ selector, property, value })};
+          window.tweaqOverlay.applyStyleChange(params.selector, params.property, params.value);
           return true;
         }
         return false;
