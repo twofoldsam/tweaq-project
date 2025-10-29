@@ -4,6 +4,8 @@
   align-items: center;
   gap: 8px;
   flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .color-swatch {
@@ -17,6 +19,7 @@
 
 .color-text-input {
   flex: 1;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
@@ -26,6 +29,7 @@
   padding: 6px 8px;
   outline: none;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .color-text-input:focus {
@@ -39,10 +43,13 @@
   align-items: center;
   gap: 4px;
   flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .number-input {
   flex: 1;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
@@ -52,6 +59,7 @@
   padding: 6px 8px;
   outline: none;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .number-input:focus {
@@ -74,6 +82,7 @@
 /* Select Input */
 .select-input {
   flex: 1;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
@@ -83,6 +92,7 @@
   outline: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .select-input:focus {
@@ -100,6 +110,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .spacing-inputs-container {
@@ -107,6 +120,8 @@
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .spacing-link-toggle {
@@ -140,12 +155,16 @@
   display: flex;
   gap: 8px;
   flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .spacing-inputs-individual {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .spacing-input-group {
@@ -156,6 +175,8 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   padding: 4px 6px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .spacing-icon {
@@ -187,10 +208,14 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .content-textarea {
   width: 100%;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
@@ -201,6 +226,7 @@
   outline: none;
   resize: vertical;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .content-textarea:focus {

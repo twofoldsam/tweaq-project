@@ -37,8 +37,11 @@
 .panel-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal scroll */
   padding: 20px;
   min-height: 0; /* Important for flex scrolling */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Add top padding when no header (design mode) */
@@ -74,6 +77,8 @@
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 16px;
+  width: 100%;
+  min-width: 0; /* Allow flex items to shrink below content size */
 }
 
 .header-actions {
@@ -85,9 +90,11 @@
 /* Element info */
 .element-info {
   flex: 1;
+  min-width: 0; /* Allow shrinking */
   padding: 12px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
+  overflow: hidden; /* Prevent overflow */
 }
 
 .element-tag {
@@ -95,6 +102,8 @@
   font-size: 14px;
   color: #0A84FF;
   margin-bottom: 8px;
+  word-break: break-word; /* Break long words */
+  overflow-wrap: break-word; /* Wrap long text */
 }
 
 .element-id {
@@ -186,6 +195,9 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .properties-section:first-of-type {
@@ -200,6 +212,9 @@
   padding: 8px 0;
   font-size: 12px;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .property-row.editable {
