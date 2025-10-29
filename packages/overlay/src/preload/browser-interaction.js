@@ -1,6 +1,13 @@
-// Tweaq DOM Interaction Overlay - Simplified
-// Handles element selection, highlighting, and communication with React UI
-// UI rendering is now handled by React components in the main window
+// Tweaq Browser Interaction Script
+// 
+// This script is injected into web pages to enable DOM interaction:
+// - Element selection and highlighting (blue hover, red selection borders)
+// - Extracting element data (tag, classes, computed styles, unique selectors)
+// - Applying style changes from the design panel
+// - Communicating with Electron app via window.electronAPI
+//
+// The actual UI (LeftPanel, design panel, etc.) lives in the Electron app,
+// not overlayed on the page. This script just handles browser-side interactions.
 
 (function() {
   'use strict';
