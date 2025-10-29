@@ -1126,7 +1126,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
   return (
     <>
       <div 
-        className={`left-panel ${visible ? 'visible' : ''} ${isResizing ? 'resizing' : ''}`}
+        className={`left-panel ${visible ? 'visible' : ''} ${isResizing ? 'resizing' : ''} ${mode === 'design' ? 'no-header' : ''}`}
         style={{ width: `${width}px`, left: '56px' }}
       >
         {mode !== 'design' && (

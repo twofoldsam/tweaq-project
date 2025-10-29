@@ -38,6 +38,12 @@
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  min-height: 0; /* Important for flex scrolling */
+}
+
+/* Add top padding when no header (design mode) */
+.left-panel.no-header .panel-content {
+  padding-top: 60px; /* Space for traffic lights */
 }
 
 .panel-content h2 {
