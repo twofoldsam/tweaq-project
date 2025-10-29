@@ -58,7 +58,7 @@
   right: 0;
   background: linear-gradient(to top, #000000, #0a0a0a);
   border-top: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 16px 20px;
+  padding: 15px 20px;
   display: flex;
   gap: 8px;
   align-items: center;

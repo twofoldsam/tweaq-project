@@ -350,15 +350,18 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
       
       // If disabling select mode, reset to body element
       if (!newState) {
-        setSelectedElement(null);
+        // Clear pending changes
         setEditedProperties({});
         setHasPendingChanges(false);
         
         // Auto-select body element to show background properties
+        // Don't clear selectedElement first to avoid flash - let body selection replace it
         try {
           await window.electronAPI.overlaySelectElement('body');
         } catch (error) {
           console.error('Failed to select body element:', error);
+          // Only clear on error
+          setSelectedElement(null);
         }
       }
     } catch (error) {
