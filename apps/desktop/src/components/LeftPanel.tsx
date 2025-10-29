@@ -348,11 +348,18 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
       // Toggle select mode in the BrowserView overlay
       await window.electronAPI.overlayToggleSelectMode();
       
-      // If disabling select mode, clear the selected element
+      // If disabling select mode, reset to body element
       if (!newState) {
         setSelectedElement(null);
         setEditedProperties({});
         setHasPendingChanges(false);
+        
+        // Auto-select body element to show background properties
+        try {
+          await window.electronAPI.overlaySelectElement('body');
+        } catch (error) {
+          console.error('Failed to select body element:', error);
+        }
       }
     } catch (error) {
       console.error('Failed to toggle select mode:', error);
