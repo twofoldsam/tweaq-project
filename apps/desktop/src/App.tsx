@@ -29,6 +29,7 @@ function App() {
   const [panelWidth, setPanelWidth] = useState(320); // Track QA panel width (default)
   const [toolbarMode, setToolbarMode] = useState<ToolbarMode>('chat'); // Current toolbar mode
   const [isPanelVisible, setIsPanelVisible] = useState(true); // Panel visibility
+  const [tweaqCount, setTweaqCount] = useState(0); // Track number of recorded tweaqs
   const [githubAuthState, setGithubAuthState] = useState<{
     isAuthenticated: boolean;
     user: GitHubUser | null;
@@ -96,6 +97,22 @@ function App() {
     };
 
     checkGithubAuth();
+
+    // Fetch initial tweaq count once
+    const fetchInitialTweaqCount = async () => {
+      try {
+        const result = await window.electronAPI.overlayGetRecordedEdits();
+        if (result.success && result.edits) {
+          const count = result.edits.length;
+          console.log('📊 Initial tweaq count:', count);
+          setTweaqCount(count);
+        }
+      } catch (error) {
+        console.error('Failed to fetch initial tweaq count:', error);
+      }
+    };
+
+    fetchInitialTweaqCount();
 
     // Listen for panel width changes
     const cleanupPanelWidth = window.electronAPI.onPanelWidthChanged?.((width) => {
@@ -240,12 +257,14 @@ function App() {
         currentMode={toolbarMode}
         onModeChange={handleModeChange}
         onSettingsClick={handleSettingsClick}
+        tweaqCount={tweaqCount}
       />
       <LeftPanel
         mode={toolbarMode}
         width={panelWidth}
         onWidthChange={handlePanelWidthChange}
         visible={isPanelVisible && !showSettings}
+        onTweaqCountChange={setTweaqCount}
       />
       
       {hasNavigated && (

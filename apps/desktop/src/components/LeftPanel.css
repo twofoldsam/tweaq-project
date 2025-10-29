@@ -67,6 +67,48 @@
   -webkit-app-region: no-drag;
 }
 
+/* Icon-only button for select */
+.command-bar-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.command-bar-icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.command-bar-icon-button:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.command-bar-icon-button.active {
+  border-color: #0A84FF;
+  background: rgba(10, 132, 255, 0.15);
+  color: #0A84FF;
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.1);
+}
+
+.command-bar-icon-button.active:hover {
+  background: rgba(10, 132, 255, 0.2);
+}
+
+.command-bar-icon-button:active {
+  transform: scale(0.97);
+}
+
+/* Full button for record */
 .command-bar-button {
   flex: 1;
   display: flex;
@@ -90,24 +132,32 @@
   height: 16px;
 }
 
-.command-bar-button:hover {
+.command-bar-button:hover:not(.disabled) {
   border-color: rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.9);
 }
 
-.command-bar-button.active {
+.command-bar-button.record.active {
   border-color: #0A84FF;
-  background: rgba(10, 132, 255, 0.15);
-  color: #0A84FF;
-  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.1);
+  background: #0A84FF;
+  color: white;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3);
 }
 
-.command-bar-button.active:hover {
-  background: rgba(10, 132, 255, 0.2);
+.command-bar-button.record.active:hover {
+  background: #0066CC;
+  border-color: #0066CC;
 }
 
-.command-bar-button:active {
+.command-bar-button.record.disabled {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.3);
+  cursor: not-allowed;
+}
+
+.command-bar-button:active:not(.disabled) {
   transform: scale(0.97);
 }
 

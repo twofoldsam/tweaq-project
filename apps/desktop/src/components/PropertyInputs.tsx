@@ -29,9 +29,10 @@ interface ColorInputProps {
   value: string;
   property: string;
   onChange: (property: string, value: string) => void;
+  hasRecordedChange?: boolean;
 }
 
-export function ColorInput({ label, value, property, onChange }: ColorInputProps) {
+export function ColorInput({ label, value, property, onChange, hasRecordedChange }: ColorInputProps) {
   const hexValue = rgbToHex(value);
   
   const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +41,10 @@ export function ColorInput({ label, value, property, onChange }: ColorInputProps
 
   return (
     <div className="property-row">
-      <label className="property-name">{label}:</label>
+      <label className="property-name">
+        {hasRecordedChange && <span className="recorded-indicator" title="This property has a recorded tweaq">⚡</span>}
+        {label}:
+      </label>
       <div className="color-group">
         <input
           type="color"
@@ -69,9 +73,10 @@ interface NumberInputProps {
   max?: number;
   readonly?: boolean;
   onChange: (property: string, value: string) => void;
+  hasRecordedChange?: boolean;
 }
 
-export function NumberInput({ label, value, property, unit = 'px', min, max, readonly, onChange }: NumberInputProps) {
+export function NumberInput({ label, value, property, unit = 'px', min, max, readonly, onChange, hasRecordedChange }: NumberInputProps) {
   const numValue = typeof value === 'string' ? parseNumberValue(value) : value;
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +89,10 @@ export function NumberInput({ label, value, property, unit = 'px', min, max, rea
 
   return (
     <div className="property-row">
-      <label className="property-name">{label}:</label>
+      <label className="property-name">
+        {hasRecordedChange && <span className="recorded-indicator" title="This property has a recorded tweaq">⚡</span>}
+        {label}:
+      </label>
       <div className="number-group">
         <input
           type="number"
@@ -108,12 +116,16 @@ interface SelectInputProps {
   property: string;
   options: Array<{ value: string; label: string }>;
   onChange: (property: string, value: string) => void;
+  hasRecordedChange?: boolean;
 }
 
-export function SelectInput({ label, value, property, options, onChange }: SelectInputProps) {
+export function SelectInput({ label, value, property, options, onChange, hasRecordedChange }: SelectInputProps) {
   return (
     <div className="property-row">
-      <label className="property-name">{label}:</label>
+      <label className="property-name">
+        {hasRecordedChange && <span className="recorded-indicator" title="This property has a recorded tweaq">⚡</span>}
+        {label}:
+      </label>
       <select
         value={value}
         onChange={(e) => onChange(property, e.target.value)}
@@ -251,12 +263,16 @@ interface TextContentInputProps {
   value: string;
   property: string;
   onChange: (property: string, value: string) => void;
+  hasRecordedChange?: boolean;
 }
 
-export function TextContentInput({ label, value, property, onChange }: TextContentInputProps) {
+export function TextContentInput({ label, value, property, onChange, hasRecordedChange }: TextContentInputProps) {
   return (
     <div className="property-row content-input">
-      <label className="property-name">{label}:</label>
+      <label className="property-name">
+        {hasRecordedChange && <span className="recorded-indicator" title="This property has a recorded tweaq">⚡</span>}
+        {label}:
+      </label>
       <textarea
         value={value}
         onChange={(e) => onChange(property, e.target.value)}

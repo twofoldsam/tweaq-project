@@ -99,6 +99,37 @@
         transform: scale(1.1);
       }
       
+      /* Tweaq indicator badges */
+      .tweaq-edit-indicator {
+        position: absolute;
+        width: 28px;
+        height: 28px;
+        background: #0A84FF;
+        border: 2px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        cursor: pointer;
+        z-index: 999998;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+      }
+      
+      .tweaq-edit-indicator:hover {
+        transform: scale(1.1);
+        background: #0066CC;
+      }
+      
+      .tweaq-edit-indicator.hidden {
+        opacity: 0.4;
+        background: #666;
+      }
+      
       /* Hide default cursor when in select mode */
       body.tweaq-select-mode * {
         cursor: crosshair !important;
@@ -501,19 +532,50 @@
 
     // Record edit
     recordEdit(editData) {
-      this.recordedEdits.push({
+      const edit = {
         ...editData,
         id: Date.now(),
         timestamp: new Date().toISOString(),
-      });
-      console.log('✅ Edit recorded:', editData);
+        visible: true, // Track if changes are currently applied
+        elementSelector: editData.element?.selector || editData.elementSelector,
+      };
+      this.recordedEdits.push(edit);
+      
+      // Render indicator on the page
+      this.renderTweaqIndicator(edit, this.recordedEdits.length - 1);
+      
+      console.log('✅ Edit recorded:', edit);
     }
 
     // Delete edit by index
     deleteEdit(index) {
       if (index >= 0 && index < this.recordedEdits.length) {
+        const edit = this.recordedEdits[index];
+        console.log(`🗑️ Deleting edit ${index}:`, {
+          selector: edit.elementSelector,
+          changesCount: edit.changes?.length,
+          visible: edit.visible
+        });
+        
+        // Remove indicator from page
+        if (edit.indicatorElement) {
+          edit.indicatorElement.remove();
+        }
+        
+        // Always revert changes when deleting (changes are applied when recorded)
+        if (edit.elementSelector && edit.changes) {
+          console.log(`🔄 Reverting ${edit.changes.length} changes...`);
+          this.revertEditChanges(edit);
+        }
+        
         this.recordedEdits.splice(index, 1);
+        
+        // Update indicator numbers for remaining edits
+        this.updateAllIndicatorNumbers();
+        
         console.log(`✅ Deleted edit at index ${index}`);
+      } else {
+        console.warn(`⚠️ Cannot delete edit: invalid index ${index}`);
       }
     }
 
@@ -525,9 +587,137 @@
       }
     }
 
-    // Get recorded edits
+    // Get recorded edits (serialize for IPC - remove DOM references)
     getRecordedEdits() {
-      return this.recordedEdits;
+      console.log('🔍 getRecordedEdits called, returning:', this.recordedEdits.length, 'edits');
+      
+      // Return serializable version without DOM element references
+      return this.recordedEdits.map(edit => {
+        const { indicatorElement, element, ...serializableEdit } = edit;
+        return serializableEdit;
+      });
+    }
+    
+    // Render tweaq indicator on page
+    renderTweaqIndicator(edit, index) {
+      try {
+        const element = document.querySelector(edit.elementSelector);
+        if (!element) return;
+        
+        const rect = element.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        
+        const indicator = document.createElement('div');
+        indicator.className = 'tweaq-edit-indicator';
+        indicator.innerHTML = '⚡';
+        indicator.style.left = `${rect.left + scrollLeft - 10}px`;
+        indicator.style.top = `${rect.top + scrollTop - 10}px`;
+        indicator.setAttribute('data-edit-index', index);
+        indicator.title = 'Click to toggle changes';
+        
+        indicator.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleEditVisibility(index);
+        });
+        
+        document.body.appendChild(indicator);
+        edit.indicatorElement = indicator;
+        
+        console.log(`✅ Rendered tweaq indicator for edit ${index}`);
+      } catch (error) {
+        console.error('Failed to render tweaq indicator:', error);
+      }
+    }
+    
+    // Toggle edit visibility (show/hide changes)
+    toggleEditVisibility(index) {
+      const edit = this.recordedEdits[index];
+      if (!edit) return;
+      
+      if (edit.visible) {
+        this.revertEditChanges(edit);
+        edit.visible = false;
+        if (edit.indicatorElement) {
+          edit.indicatorElement.classList.add('hidden');
+        }
+        console.log(`🔄 Hidden changes for edit ${index}`);
+      } else {
+        this.applyEditChanges(edit);
+        edit.visible = true;
+        if (edit.indicatorElement) {
+          edit.indicatorElement.classList.remove('hidden');
+        }
+        console.log(`🔄 Showed changes for edit ${index}`);
+      }
+    }
+    
+    // Apply edit changes to element
+    applyEditChanges(edit) {
+      if (!edit.elementSelector || !edit.changes) return;
+      
+      try {
+        const element = document.querySelector(edit.elementSelector);
+        if (!element) return;
+        
+        edit.changes.forEach(change => {
+          if (change.property === 'textContent') {
+            element.textContent = change.after;
+          } else {
+            element.style[change.property] = change.after;
+          }
+        });
+      } catch (error) {
+        console.error('Failed to apply edit changes:', error);
+      }
+    }
+    
+    // Revert edit changes from element
+    revertEditChanges(edit) {
+      if (!edit.elementSelector || !edit.changes) {
+        console.warn('⚠️ Cannot revert: missing selector or changes');
+        return;
+      }
+      
+      try {
+        const element = document.querySelector(edit.elementSelector);
+        if (!element) {
+          console.warn(`⚠️ Cannot revert: element not found for selector "${edit.elementSelector}"`);
+          return;
+        }
+        
+        console.log(`🔄 Reverting changes for element:`, edit.elementSelector);
+        edit.changes.forEach(change => {
+          if (change.property === 'textContent') {
+            console.log(`  ↩️ ${change.property}: "${change.after}" → "${change.before}"`);
+            element.textContent = change.before;
+          } else {
+            console.log(`  ↩️ ${change.property}: ${change.after} → ${change.before}`);
+            element.style[change.property] = change.before;
+          }
+        });
+        console.log('✅ Revert complete');
+      } catch (error) {
+        console.error('❌ Failed to revert edit changes:', error);
+      }
+    }
+    
+    // Update indicator numbers after deletion
+    updateAllIndicatorNumbers() {
+      this.recordedEdits.forEach((edit, index) => {
+        if (edit.indicatorElement) {
+          edit.indicatorElement.setAttribute('data-edit-index', index);
+        }
+      });
+    }
+    
+    // Remove all tweaq indicators
+    removeAllIndicators() {
+      this.recordedEdits.forEach(edit => {
+        if (edit.indicatorElement) {
+          edit.indicatorElement.remove();
+        }
+      });
     }
 
     // Comment functionality
@@ -632,10 +822,11 @@
     remove: function() {
       if (this._instance) {
         this._instance.clearHighlights();
+        this._instance.removeAllIndicators();
         this._instance = null;
       }
       
-      document.querySelectorAll('.tweaq-highlight-box, .tweaq-comment-bubble').forEach(el => el.remove());
+      document.querySelectorAll('.tweaq-highlight-box, .tweaq-comment-bubble, .tweaq-edit-indicator').forEach(el => el.remove());
       document.getElementById('tweaq-overlay-styles')?.remove();
       document.body.classList.remove('tweaq-select-mode');
       
@@ -656,6 +847,29 @@
       } else {
         console.warn('⚠️ TweaqOverlay not initialized');
       }
+    },
+    
+    restoreIndicators: function() {
+      if (this._instance && this._instance.recordedEdits) {
+        this._instance.recordedEdits.forEach((edit, index) => {
+          // Remove old indicator if it exists
+          if (edit.indicatorElement) {
+            edit.indicatorElement.remove();
+          }
+          // Re-render indicator
+          this._instance.renderTweaqIndicator(edit, index);
+        });
+        console.log('✅ Restored tweaq indicators');
+      }
+    },
+    
+    getRecordedEdits: function() {
+      if (this._instance) {
+        console.log('📦 Getting recorded edits via global method');
+        return this._instance.getRecordedEdits();
+      }
+      console.log('❌ No instance available for getRecordedEdits');
+      return [];
     }
   };
 

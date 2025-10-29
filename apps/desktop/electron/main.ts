@@ -2202,20 +2202,29 @@ safeIpcHandle('overlay-get-recorded-edits', async () => {
   try {
     const currentView = browserEngineManager?.getCurrentBrowserView();
     if (!currentView) {
+      console.log('❌ overlay-get-recorded-edits: No browser view available');
       return { success: false, error: 'No browser view available' };
     }
 
     const edits = await currentView.webContents.executeJavaScript(`
       (function() {
-        if (window.TweaqOverlay && window.TweaqOverlay._instance) {
-          return window.TweaqOverlay._instance.recordedEdits || [];
+        console.log('🔍 Fetching edits from overlay...');
+        console.log('TweaqOverlay exists:', !!window.TweaqOverlay);
+        console.log('TweaqOverlay.getRecordedEdits exists:', !!(window.TweaqOverlay && typeof window.TweaqOverlay.getRecordedEdits === 'function'));
+        if (window.TweaqOverlay && typeof window.TweaqOverlay.getRecordedEdits === 'function') {
+          const edits = window.TweaqOverlay.getRecordedEdits();
+          console.log('📦 Found edits:', edits.length, edits);
+          return edits;
         }
+        console.log('❌ No overlay or getRecordedEdits method found');
         return [];
       })()
     `);
 
+    console.log('✅ overlay-get-recorded-edits returning:', { success: true, editsCount: edits.length });
     return { success: true, edits };
   } catch (error) {
+    console.error('❌ overlay-get-recorded-edits error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to get recorded edits' 

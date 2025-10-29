@@ -25,6 +25,7 @@ interface LeftPanelProps {
   width: number;
   onWidthChange: (width: number) => void;
   visible: boolean;
+  onTweaqCountChange?: (count: number) => void;
 }
 
 interface RecordedEdit {
@@ -54,7 +55,7 @@ interface RecordedEdit {
   };
 }
 
-export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProps) {
+export function LeftPanel({ mode, width, onWidthChange, visible, onTweaqCountChange }: LeftPanelProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [selectedElement, setSelectedElement] = useState<ElementData | null>(null);
   const [editedProperties, setEditedProperties] = useState<Record<string, string>>({});
@@ -206,6 +207,14 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
       if (result.success) {
         // Refresh the list
         await fetchRecordedEdits();
+        
+        // Update tweaq count immediately
+        if (onTweaqCountChange) {
+          const countResult = await window.electronAPI.overlayGetRecordedEdits();
+          if (countResult.success && countResult.edits) {
+            onTweaqCountChange(countResult.edits.length);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to delete ticket:', error);
@@ -500,11 +509,23 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
   const handleRecordEdit = async () => {
     if (!selectedElement || !hasPendingChanges) return;
 
-    const changes = Object.entries(editedProperties).map(([property, after]) => ({
-      property,
-      before: selectedElement.properties[property] || '',
-      after
-    }));
+    const changes = Object.entries(editedProperties).map(([property, after]) => {
+      // Get the before value correctly (handle textContent specially)
+      let before = '';
+      if (property === 'textContent') {
+        before = selectedElement.textContent || '';
+      } else {
+        before = selectedElement.properties[property] || '';
+      }
+      
+      return {
+        property,
+        before,
+        after
+      };
+    });
+
+    console.log('Recording edit with changes:', changes);
 
     try {
       await window.electronAPI.overlayRecordEdit({
@@ -515,6 +536,14 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
       // Reset state after recording
       setEditedProperties({});
       setHasPendingChanges(false);
+      
+      // Update tweaq count immediately
+      if (onTweaqCountChange) {
+        const result = await window.electronAPI.overlayGetRecordedEdits();
+        if (result.success && result.edits) {
+          onTweaqCountChange(result.edits.length);
+        }
+      }
 
       console.log('Edit recorded successfully');
     } catch (error) {
@@ -535,6 +564,24 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
     
     // Default to properties record
     return selectedElement?.properties[property] || '';
+  };
+
+  // Check if a property has been recorded in a tweaq for the current element
+  const hasRecordedChange = (property: string): boolean => {
+    if (!selectedElement) return false;
+    
+    return recordedEdits.some(edit => {
+      // Check if the edit is for the current element
+      const matchesElement = edit.elementSelector === selectedElement.selector ||
+                            edit.elementName === selectedElement.tagName.toLowerCase();
+      
+      // Check if this property was changed
+      const hasPropertyChange = edit.changes?.some((change: any) => 
+        change.property === property
+      );
+      
+      return matchesElement && hasPropertyChange;
+    });
   };
 
   const getRect = () => {
@@ -575,18 +622,6 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                     <div className="element-text">{selectedElement.textContent}</div>
                   )}
                 </div>
-                
-                {hasPendingChanges && (
-                  <div className="header-actions">
-                    <button 
-                      className="record-button"
-                      onClick={handleRecordEdit}
-                      title="Record this edit"
-                    >
-                      ✓ Record
-                    </button>
-                  </div>
-                )}
               </div>
               
               {/* Design Section */}
@@ -597,6 +632,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                   value={getCurrentValue('backgroundColor')}
                   property="backgroundColor"
                   onChange={handlePropertyChange}
+                  hasRecordedChange={hasRecordedChange('backgroundColor')}
                 />
                 <NumberInput
                   label="Corner Radius"
@@ -604,6 +640,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                   property="borderRadius"
                   unit="px"
                   onChange={handlePropertyChange}
+                  hasRecordedChange={hasRecordedChange('borderRadius')}
                 />
               </div>
 
@@ -622,6 +659,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                     { value: 'sticky', label: 'Sticky' }
                   ]}
                   onChange={handlePropertyChange}
+                  hasRecordedChange={hasRecordedChange('position')}
                 />
                 <SelectInput
                   label="Display"
@@ -636,6 +674,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                     { value: 'none', label: 'None' }
                   ]}
                   onChange={handlePropertyChange}
+                  hasRecordedChange={hasRecordedChange('display')}
                 />
                 {isFlexOrGrid() && (
                   <NumberInput
@@ -710,6 +749,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                     value={getCurrentValue('textContent')}
                     property="textContent"
                     onChange={handlePropertyChange}
+                    hasRecordedChange={hasRecordedChange('textContent')}
                   />
                   <NumberInput
                     label="Size"
@@ -717,6 +757,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                     property="fontSize"
                     unit="px"
                     onChange={handlePropertyChange}
+                    hasRecordedChange={hasRecordedChange('fontSize')}
                   />
                   <SelectInput
                     label="Weight"
@@ -734,12 +775,14 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                       { value: '900', label: 'Black' }
                     ]}
                     onChange={handlePropertyChange}
+                    hasRecordedChange={hasRecordedChange('fontWeight')}
                   />
                   <ColorInput
                     label="Color"
                     value={getCurrentValue('color')}
                     property="color"
                     onChange={handlePropertyChange}
+                    hasRecordedChange={hasRecordedChange('color')}
                   />
                   <SelectInput
                     label="Align"
@@ -752,6 +795,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                       { value: 'justify', label: 'Justify' }
                     ]}
                     onChange={handlePropertyChange}
+                    hasRecordedChange={hasRecordedChange('textAlign')}
                   />
                 </div>
               )}
@@ -767,6 +811,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
                   min={0}
                   max={100}
                   onChange={handlePropertyChange}
+                  hasRecordedChange={hasRecordedChange('opacity')}
                 />
                 {getCurrentValue('boxShadow') && getCurrentValue('boxShadow') !== 'none' && (
                   <div className="property-row">
@@ -1180,14 +1225,24 @@ export function LeftPanel({ mode, width, onWidthChange, visible }: LeftPanelProp
         {mode === 'design' && (
           <div className="panel-command-bar">
             <button 
-              className={`command-bar-button ${isSelectModeActive ? 'active' : ''}`}
+              className={`command-bar-icon-button ${isSelectModeActive ? 'active' : ''}`}
               onClick={handleToggleSelectMode}
               title={isSelectModeActive ? 'Exit select mode' : 'Enter select mode'}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M1 1l4.5 11L8 8l4-2.5L1 1z"/>
               </svg>
-              <span>Select</span>
+            </button>
+            <button 
+              className={`command-bar-button record ${hasPendingChanges ? 'active' : 'disabled'}`}
+              onClick={handleRecordEdit}
+              disabled={!hasPendingChanges}
+              title={hasPendingChanges ? 'Record this edit' : 'Make changes to record'}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
+              </svg>
+              <span>Record</span>
             </button>
           </div>
         )}

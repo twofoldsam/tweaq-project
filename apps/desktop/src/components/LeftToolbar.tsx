@@ -16,9 +16,12 @@ interface LeftToolbarProps {
   currentMode: ToolbarMode;
   onModeChange: (mode: ToolbarMode) => void;
   onSettingsClick: () => void;
+  tweaqCount?: number;
 }
 
-export function LeftToolbar({ currentMode, onModeChange, onSettingsClick }: LeftToolbarProps) {
+export function LeftToolbar({ currentMode, onModeChange, onSettingsClick, tweaqCount = 0 }: LeftToolbarProps) {
+  console.log('🎯 LeftToolbar rendered with tweaqCount:', tweaqCount);
+  
   const toolbarButtons = [
     { id: 'design' as ToolbarMode, label: 'Design', svgPath: designIcon, svgPathFilled: designIconFilled },
     { id: 'chat' as ToolbarMode, label: 'Chat', svgPath: chatIcon, svgPathFilled: chatIconFilled },
@@ -32,6 +35,11 @@ export function LeftToolbar({ currentMode, onModeChange, onSettingsClick }: Left
         {toolbarButtons.map(button => {
           const isActive = currentMode === button.id;
           const iconSrc = isActive ? button.svgPathFilled : button.svgPath;
+          const showBadge = button.id === 'tickets' && tweaqCount > 0;
+          
+          if (button.id === 'tickets') {
+            console.log('🎫 Tweaqs button: showBadge =', showBadge, ', tweaqCount =', tweaqCount);
+          }
           
           return (
             <button
@@ -42,6 +50,7 @@ export function LeftToolbar({ currentMode, onModeChange, onSettingsClick }: Left
             >
               <img src={iconSrc} alt={button.label} className="toolbar-button-svg" />
               <span className="toolbar-button-label">{button.label}</span>
+              {showBadge && <span className="toolbar-badge">{tweaqCount}</span>}
             </button>
           );
         })}
