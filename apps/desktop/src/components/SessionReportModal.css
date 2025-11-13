@@ -1,0 +1,315 @@
+.session-report-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.session-report-modal-content {
+  background: #1e1e1e;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.session-report-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.session-report-modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.session-report-modal-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 32px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.session-report-modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.session-report-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.session-report-section {
+  margin-bottom: 32px;
+}
+
+.session-report-section:last-child {
+  margin-bottom: 0;
+}
+
+.session-report-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  border-bottom: 2px solid rgba(255, 59, 48, 0.3);
+  padding-bottom: 8px;
+}
+
+.session-report-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.session-report-text {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.session-report-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.session-report-list li {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  padding-left: 24px;
+  position: relative;
+}
+
+.session-report-list li:before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #FF3B30;
+  font-weight: bold;
+}
+
+.session-report-list li:last-child {
+  border-bottom: none;
+}
+
+.session-report-recommendations li:before {
+  content: "→";
+}
+
+.session-report-overview {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.overview-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.overview-value {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.session-report-themes {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.session-report-theme {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.session-report-theme h4 {
+  margin-top: 0;
+  color: #FF3B30;
+}
+
+.session-report-theme p {
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.theme-comments {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.theme-comments strong {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.theme-comments ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.theme-comments li {
+  padding: 6px 0;
+  padding-left: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  position: relative;
+}
+
+.theme-comments li:before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.session-report-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.comment-group {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.comment-group h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.element-selector {
+  display: block;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 12px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.comment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.comment-item {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+.comment-author {
+  font-weight: 600;
+  color: #ffffff;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.comment-text {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.comment-edited {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.session-report-no-llm {
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.session-report-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.session-report-modal-button {
+  background: #FF3B30;
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.session-report-modal-button:hover {
+  background: #ff4d40;
+}
+
+.session-report-modal-button:active {
+  transform: scale(0.98);
+}
+

@@ -527,8 +527,8 @@ function createWindow(): void {
     if (rightPaneView && mainWindow?.getBrowserViews().includes(rightPaneView)) {
       updateLayoutWithRightPane();
     } else if (browserEngineManager) {
-      // Update BrowserView bounds with current panel width
-      browserEngineManager.updateLayoutWithLeftPane(currentPanelWidth);
+      // Update BrowserView bounds with current panel width (no animation on resize)
+      browserEngineManager.updateLayoutWithLeftPane(currentPanelWidth, false);
     }
   });
 
@@ -548,12 +548,36 @@ function createWindow(): void {
     return { success: true };
   });
 
+  // Handle modal visibility (hide/show browser view for modals)
+  safeIpcHandle('toggle-modal', (event, showModal: boolean) => {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (currentView && mainWindow) {
+      if (showModal) {
+        // Hide browser view when showing modal
+        mainWindow.removeBrowserView(currentView);
+      } else {
+        // Show browser view when hiding modal
+        mainWindow.setBrowserView(currentView);
+        updateBrowserViewBounds();
+      }
+    }
+    return { success: true };
+  });
+
   // Load the React app (toolbar)
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, './index.html'));
+  }
+
+  // Handle pending session ID if window was created after protocol URL was received
+  if (pendingSessionId) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.send('session-link-received', pendingSessionId);
+      pendingSessionId = null;
+    });
   }
 
   // Load the last URL in the browser view
@@ -567,6 +591,8 @@ function createWindow(): void {
 
 // Track current panel width
 let currentPanelWidth = 320; // Match React default panel width
+// Track current overlay mode
+let currentOverlayMode: string = 'chat';
 
 // Helper function to setup navigation events for a browser view
 function setupBrowserViewEvents(view: BrowserView) {
@@ -597,18 +623,26 @@ function setupBrowserViewEvents(view: BrowserView) {
       
       await view.webContents.executeJavaScript(overlayScript);
       
-      // Show overlay immediately (not toggle)
+      // Show overlay immediately with the current mode (preserve mode across navigation)
       const showScript = `
         if (window.TweaqOverlay) {
-          window.TweaqOverlay.inject({ initialMode: 'chat' });
+          window.TweaqOverlay.inject({ initialMode: '${currentOverlayMode}' });
         }
       `;
       await view.webContents.executeJavaScript(showScript);
       
+      // After injection, ensure mode is set correctly (in case instance was reused)
+      const setModeScript = `
+        if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+          window.TweaqOverlay._instance.setMode('${currentOverlayMode}');
+        }
+      `;
+      await view.webContents.executeJavaScript(setModeScript);
+      
       // Mark overlay as visible and adjust browser view bounds
       overlayState.isVisible = true;
       if (browserEngineManager) {
-        browserEngineManager.updateLayoutWithLeftPane(currentPanelWidth);
+        browserEngineManager.updateLayoutWithLeftPane(currentPanelWidth, false);
       }
       
       console.log('✅ Overlay auto-injected on page load');
@@ -637,17 +671,29 @@ function setupBrowserViewEvents(view: BrowserView) {
 }
 
 // Handle panel width updates from BrowserView
-ipcMain.on('update-panel-width', (event, width: number) => {
+ipcMain.on('update-panel-width', (event, width: number, animated: boolean = true) => {
   currentPanelWidth = width;
   
-  // Update BrowserView position immediately
+  console.log(`📏 IPC update-panel-width: width=${width}, animated=${animated}`);
+  
+  // Update BrowserView position (with or without animation)
   if (browserEngineManager) {
-    browserEngineManager.updateLayoutWithLeftPane(width);
+    browserEngineManager.updateLayoutWithLeftPane(width, animated);
   }
   
   // Forward to main window
   if (mainWindow) {
     mainWindow.webContents.send('panel-width-changed', width);
+  }
+});
+
+// Handle overlay messages from BrowserView (comments, etc.)
+ipcMain.on('overlay-comment-added', (event, comment) => {
+  console.log('📥 Overlay comment received in main process:', comment);
+  
+  // Forward to renderer window
+  if (mainWindow) {
+    mainWindow.webContents.send('overlay-comment-added', comment);
   }
 });
 
@@ -1467,13 +1513,30 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
     if (!conversationalIntelligence) {
       console.log('🤖 Initializing Conversational Intelligence...');
       
-      // Force Claude for conversational intelligence (same as Agent V4)
-      const providerType = 'claude';
-      const apiKey = process.env.ANTHROPIC_API_KEY;
+      // Load LLM configuration from file
+      const llmConfigPath = path.join(__dirname, '../../..', 'llm-config.js');
+      let llmConfig: any = { claude: { enabled: false } };
+      
+      try {
+        delete require.cache[require.resolve(llmConfigPath)];
+        llmConfig = require(llmConfigPath);
+      } catch (error) {
+        console.log('📝 No llm-config.js found, using environment variables');
+      }
+      
+      // Get Claude API key from config file first, then environment variables
+      const apiKey = (llmConfig.claude?.enabled ? llmConfig.claude.apiKey : null) ||
+                     process.env.ANTHROPIC_API_KEY ||
+                     process.env.CLAUDE_API_KEY;
       
       if (!apiKey) {
-        return { success: false, error: 'No Anthropic API key found. Please set ANTHROPIC_API_KEY environment variable.' };
+        return { 
+          success: false, 
+          error: 'No Anthropic API key found. Please add your Claude API key to llm-config.js or set ANTHROPIC_API_KEY environment variable.' 
+        };
       }
+      
+      console.log('✅ Found Claude API key from', llmConfig.claude?.enabled ? 'llm-config.js' : 'environment variables');
       
       // Dynamic import of ConversationalIntelligence
       const { ConversationalIntelligence } = await import('../../../packages/agent-v4/dist/conversation/index.js');
@@ -1931,14 +1994,65 @@ safeIpcHandle('overlay-set-mode', async (event, mode: string) => {
       return { success: false, error: 'No browser view available' };
     }
 
-    await currentView.webContents.executeJavaScript(`
-      if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+    // Ensure overlay is injected first
+    const ensureOverlayScript = `
+      (function() {
+        if (!window.TweaqOverlay) {
+          console.error('❌ TweaqOverlay not found, cannot set mode');
+          return { success: false, error: 'TweaqOverlay not initialized' };
+        }
+        if (!window.TweaqOverlay._instance) {
+          console.log('⚠️ TweaqOverlay instance not found, injecting...');
+          window.TweaqOverlay.inject({ initialMode: '${mode}' });
+          return { 
+            success: true, 
+            injected: true,
+            mode: '${mode}',
+            isSelectModeActive: window.TweaqOverlay._instance.isSelectModeActive,
+            isCommentModeActive: window.TweaqOverlay._instance.isCommentModeActive
+          };
+        }
+        return null; // Continue to setMode
+      })();
+    `;
+    
+    const injectResult = await currentView.webContents.executeJavaScript(ensureOverlayScript);
+    if (injectResult && !injectResult.success) {
+      return injectResult;
+    }
+    if (injectResult && injectResult.injected) {
+      console.log('📊 Overlay injected with mode:', injectResult);
+      return injectResult;
+    }
+
+    // Now set the mode
+    const result = await currentView.webContents.executeJavaScript(`
+      (function() {
+        if (!window.TweaqOverlay || !window.TweaqOverlay._instance) {
+          console.error('❌ TweaqOverlay._instance is null after injection check');
+          return { success: false, error: 'TweaqOverlay instance not created' };
+        }
+        console.log('✅ Calling setMode with:', '${mode}');
         window.TweaqOverlay._instance.setMode('${mode}');
-      }
+        return { 
+          success: true, 
+          mode: '${mode}',
+          isSelectModeActive: window.TweaqOverlay._instance.isSelectModeActive,
+          isCommentModeActive: window.TweaqOverlay._instance.isCommentModeActive
+        };
+      })();
     `);
 
-    return { success: true };
+    // Store the current mode so it can be restored after navigation
+    if (result && result.success) {
+      currentOverlayMode = mode;
+      console.log('💾 Stored current overlay mode:', currentOverlayMode);
+    }
+
+    console.log('📊 overlay-set-mode result:', result);
+    return result || { success: true };
   } catch (error) {
+    console.error('❌ Error in overlay-set-mode:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to set mode' 
@@ -1986,6 +2100,56 @@ safeIpcHandle('overlay-toggle-select-mode', async (event) => {
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to toggle select mode' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-toggle-comment-mode', async (event) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    const result = await currentView.webContents.executeJavaScript(`
+      (function() {
+        if (window.TweaqOverlay && window.TweaqOverlay.toggleCommentMode) {
+          return window.TweaqOverlay.toggleCommentMode();
+        }
+        return { success: false, error: 'Not initialized' };
+      })()
+    `);
+
+    return result;
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to toggle comment mode' 
+    };
+  }
+});
+
+safeIpcHandle('overlay-get-comment-mode-state', async (event) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    const result = await currentView.webContents.executeJavaScript(`
+      (function() {
+        if (window.TweaqOverlay && window.TweaqOverlay.getCommentModeState) {
+          return window.TweaqOverlay.getCommentModeState();
+        }
+        return { success: false, error: 'Not initialized' };
+      })()
+    `);
+
+    return result;
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to get comment mode state' 
     };
   }
 });
@@ -2081,7 +2245,53 @@ safeIpcHandle('overlay-get-comments', async (event) => {
   }
 });
 
-safeIpcHandle('overlay-remove-all-comments', async (event) => {
+  safeIpcHandle('overlay-remove-all-comments', async (event) => {
+    try {
+      const currentView = browserEngineManager?.getCurrentBrowserView();
+      if (!currentView) {
+        return { success: false, error: 'No browser view available' };
+      }
+
+      await currentView.webContents.executeJavaScript(`
+        if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+          window.TweaqOverlay._instance.removeAllComments();
+        }
+      `);
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to remove comments' 
+      };
+    }
+  });
+
+  safeIpcHandle('overlay-scroll-to-comment', async (event, commentId: string) => {
+    try {
+      const currentView = browserEngineManager?.getCurrentBrowserView();
+      if (!currentView) {
+        return { success: false, error: 'No browser view available' };
+      }
+
+      const result = await currentView.webContents.executeJavaScript(`
+        if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+          window.TweaqOverlay._instance.scrollToComment(${JSON.stringify(commentId)});
+        } else {
+          false;
+        }
+      `);
+
+      return { success: result };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to scroll to comment' 
+      };
+    }
+  });
+
+safeIpcHandle('overlay-load-comments', async (event, commentsData: any[]) => {
   try {
     const currentView = browserEngineManager?.getCurrentBrowserView();
     if (!currentView) {
@@ -2090,7 +2300,7 @@ safeIpcHandle('overlay-remove-all-comments', async (event) => {
 
     await currentView.webContents.executeJavaScript(`
       if (window.TweaqOverlay && window.TweaqOverlay._instance) {
-        window.TweaqOverlay._instance.removeAllComments();
+        window.TweaqOverlay._instance.loadComments(${JSON.stringify(commentsData)});
       }
     `);
 
@@ -2098,7 +2308,7 @@ safeIpcHandle('overlay-remove-all-comments', async (event) => {
   } catch (error) {
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Failed to remove comments' 
+      error: error instanceof Error ? error.message : 'Failed to load comments' 
     };
   }
 });
@@ -2133,6 +2343,51 @@ ipcMain.on('overlay-element-selected', (event, data) => {
   // Forward to main window
   if (mainWindow) {
     mainWindow.webContents.send('element-selected', data);
+  }
+});
+
+// Execute script in BrowserView
+safeIpcHandle('execute-script', async (event, script: string) => {
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      return { success: false, error: 'No browser view available' };
+    }
+
+    const result = await currentView.webContents.executeJavaScript(script);
+    return result;
+  } catch (error) {
+    console.error('❌ Error executing script:', error);
+    return null;
+  }
+});
+
+// Listen for tweaq application from chat
+ipcMain.on('apply-tweaq-from-chat', async (event, tweaqData) => {
+  console.log('⚡ Applying tweaq from chat to BrowserView:', tweaqData);
+  
+  try {
+    const currentView = browserEngineManager?.getCurrentBrowserView();
+    if (!currentView) {
+      console.error('❌ No browser view available');
+      return;
+    }
+
+    // Execute the tweaq application in the BrowserView
+    await currentView.webContents.executeJavaScript(`
+      (function() {
+        if (window.TweaqOverlay) {
+          const tweaqData = ${JSON.stringify(tweaqData)};
+          window.TweaqOverlay.applyTweaqFromChat(tweaqData);
+          return true;
+        }
+        return false;
+      })()
+    `);
+
+    console.log('✅ Tweaq applied successfully');
+  } catch (error) {
+    console.error('❌ Error applying tweaq:', error);
   }
 });
 
@@ -2229,6 +2484,117 @@ safeIpcHandle('overlay-get-recorded-edits', async () => {
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to get recorded edits' 
     };
+  }
+});
+
+// ===== SESSION MANAGEMENT IPC HANDLERS =====
+const SESSION_SERVER_URL = process.env.SESSION_SERVER_URL || 'http://localhost:3001';
+
+// Create session (HTTP request only - WebSocket handled in renderer)
+safeIpcHandle('session-create', async (event, data: { homeUrl: string; ownerName?: string }) => {
+  try {
+    const response = await fetch(`${SESSION_SERVER_URL}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        homeUrl: data.homeUrl,
+        ownerId: data.ownerName || 'Owner'
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || `Failed to create session: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return { success: true, session: result.session };
+  } catch (error) {
+    console.error('❌ Failed to create session:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to create session' 
+    };
+  }
+});
+
+// Join session (HTTP request only - WebSocket handled in renderer)
+safeIpcHandle('session-join', async (event, data: { sessionId: string; name: string }) => {
+  try {
+    // Verify session exists
+    const response = await fetch(`${SESSION_SERVER_URL}/api/sessions/${data.sessionId}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || 'Session not found');
+    }
+    
+    // WebSocket connection will be handled in renderer process
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Failed to join session:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to join session' 
+    };
+  }
+});
+
+// Leave session (WebSocket handled in renderer)
+safeIpcHandle('session-leave', async () => {
+  // WebSocket disconnection handled in renderer
+  return { success: true };
+});
+
+// End session (owner only - WebSocket handled in renderer)
+safeIpcHandle('session-end', async () => {
+  console.log('📤 Session end IPC handler called');
+  // WebSocket end session handled in renderer
+  return { success: true };
+});
+
+// Get session info
+safeIpcHandle('session-get-info', async (event, sessionId: string) => {
+  try {
+    const response = await fetch(`${SESSION_SERVER_URL}/api/sessions/${sessionId}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || 'Session not found');
+    }
+    const result = await response.json();
+    return { success: true, session: result.session };
+  } catch (error) {
+    console.error('❌ Failed to get session info:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to get session info' 
+    };
+  }
+});
+
+// Get session report
+safeIpcHandle('session-get-report', async (event, sessionId: string) => {
+  try {
+    const response = await fetch(`${SESSION_SERVER_URL}/api/sessions/${sessionId}/report`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || 'Failed to get report');
+    }
+    const result = await response.json();
+    return { success: true, report: result.report };
+  } catch (error) {
+    console.error('❌ Failed to get session report:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to get session report' 
+    };
+  }
+});
+
+// Handle URL change from session (owner navigates all)
+ipcMain.on('session-url-changed', (event, url: string) => {
+  // Navigate browser view to new URL
+  if (browserEngineManager) {
+    browserEngineManager.navigate(url);
   }
 });
 
@@ -5068,7 +5434,31 @@ safeIpcHandle('process-visual-edits', async (event, visualEdits: VisualEdit[], c
 });
 
 if (app && app.whenReady) {
+  // Register protocol handler before app is ready (required for some platforms)
+  if (!app.isReady()) {
+    app.setAsDefaultProtocolClient('tweaq');
+    console.log('✅ Registered tweaq:// protocol handler');
+  }
+
   app.whenReady().then(async () => {
+  // Ensure protocol is registered (in case it wasn't set earlier)
+  if (!app.isDefaultProtocolClient('tweaq')) {
+    app.setAsDefaultProtocolClient('tweaq');
+    console.log('✅ Registered tweaq:// protocol handler (on ready)');
+  }
+
+  // Handle protocol URL when app is already running (macOS)
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    handleProtocolUrl(url);
+  });
+
+  // Handle protocol URL from command line (Windows/Linux)
+  const protocolUrl = process.argv.find(arg => arg.startsWith('tweaq://'));
+  if (protocolUrl) {
+    handleProtocolUrl(protocolUrl);
+  }
+
   createWindow();
   
   // Initialize GitHub authentication
@@ -5083,6 +5473,31 @@ if (app && app.whenReady) {
 } else {
   console.log('⚠️ Electron app not available, skipping app.whenReady setup');
 }
+
+// Handle protocol URLs (tweaq://session/{sessionId})
+function handleProtocolUrl(url: string) {
+  console.log('🔗 Received protocol URL:', url);
+  
+  // Parse session ID from URL
+  const match = url.match(/tweaq:\/\/session\/([a-zA-Z0-9-]+)/);
+  if (match && match[1]) {
+    const sessionId = match[1];
+    console.log('📋 Extracted session ID:', sessionId);
+    
+    // Send to renderer process
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('session-link-received', sessionId);
+    } else {
+      // Window not ready yet, store for later
+      pendingSessionId = sessionId;
+    }
+  } else {
+    console.warn('⚠️ Invalid protocol URL format:', url);
+  }
+}
+
+// Store pending session ID if window isn't ready
+let pendingSessionId: string | null = null;
 
 if (app && app.on) {
   app.on('window-all-closed', () => {

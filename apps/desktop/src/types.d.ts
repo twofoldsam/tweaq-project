@@ -66,12 +66,17 @@ interface ElectronAPI {
   githubTestPR: () => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
   toggleSettings: (showSettings: boolean) => Promise<{ success: boolean }>;
   
+  // Modal visibility toggle
+  toggleModal: (showModal: boolean) => Promise<{ success: boolean }>;
+  
   // Overlay API
   toggleOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => Promise<{ success: boolean; error?: string }>;
-  updatePanelWidth: (width: number) => void;
+  updatePanelWidth: (width: number, animated?: boolean) => void;
   onPanelWidthChanged?: (callback: (width: number) => void) => () => void;
   overlaySetMode: (mode: string) => Promise<{ success: boolean; error?: string }>;
   overlayToggleSelectMode: () => Promise<{ success: boolean; error?: string }>;
+  overlayToggleCommentMode: () => Promise<{ success: boolean; isCommentModeActive?: boolean; error?: string }>;
+  overlayGetCommentModeState: () => Promise<{ success: boolean; isCommentModeActive?: boolean; mode?: string; error?: string }>;
   overlayHighlightElement: (selector: string) => Promise<{ success: boolean; error?: string }>;
   overlayApplyStyle: (selector: string, property: string, value: string) => Promise<{ success: boolean; error?: string }>;
   overlayRecordEdit: (editData: any) => Promise<{ success: boolean; error?: string }>;
@@ -82,9 +87,12 @@ interface ElectronAPI {
   convertCommentsToTweaqs: (commentsData: any[]) => Promise<{ success: boolean; tweaqs?: any[]; error?: string }>;
   overlayGetComments: () => Promise<{ success: boolean; comments?: any[]; error?: string }>;
   overlayRemoveAllComments: () => Promise<{ success: boolean; error?: string }>;
+  overlayScrollToComment: (commentId: string) => Promise<{ success: boolean; error?: string }>;
+  overlayLoadComments: (commentsData: any[]) => Promise<{ success: boolean; error?: string }>;
   onElementSelected?: (callback: (data: any) => void) => () => void;
   onElementHovered?: (callback: (data: any) => void) => () => void;
   sendOverlayMessage?: (channel: string, data: any) => void;
+  onOverlayMessage?: (channel: string, callback: (data: any) => void) => () => void;
   
   // PR Watcher API
   prWatcherStart: (options: { owner: string; repo: string; prNumber: number }) => Promise<{ success: boolean; watcherKey?: string; error?: string }>;
@@ -131,6 +139,29 @@ interface ElectronAPI {
   playwrightLaunchTrueBrowser: (data: { engine: 'firefox' | 'webkit'; url?: string }) => Promise<{ success: boolean; error?: string }>;
   playwrightNavigate: (data: { engine: 'firefox' | 'webkit'; url: string }) => Promise<{ success: boolean; error?: string }>;
   playwrightCloseBrowser: (engine: 'firefox' | 'webkit') => Promise<{ success: boolean; error?: string }>;
+  
+  // Session Management API
+  sessionCreate: (data: { homeUrl: string; ownerName?: string }) => Promise<{ success: boolean; session?: any; error?: string }>;
+  sessionJoin: (data: { sessionId: string; name: string }) => Promise<{ success: boolean; error?: string }>;
+  sessionLeave: () => Promise<{ success: boolean; error?: string }>;
+  sessionEnd: () => Promise<{ success: boolean; error?: string }>;
+  sessionGetInfo: (sessionId: string) => Promise<{ success: boolean; session?: any; error?: string }>;
+  sessionGetReport: (sessionId: string) => Promise<{ success: boolean; report?: any; error?: string }>;
+  sessionGetState: () => Promise<{ success: boolean; sessionId?: string; participantId?: string; isOwner?: boolean; isConnected?: boolean; error?: string }>;
+  sessionUpdateCursor: (cursor: { x: number; y: number; elementSelector?: string }) => Promise<{ success: boolean; error?: string }>;
+  sessionAddComment: (comment: { elementSelector: string; elementName: string; text: string; position: { x: number; y: number } }) => Promise<{ success: boolean; error?: string }>;
+  sessionEditComment: (data: { commentId: string; text: string }) => Promise<{ success: boolean; error?: string }>;
+  sessionDeleteComment: (commentId: string) => Promise<{ success: boolean; error?: string }>;
+  sessionChangeUrl: (url: string) => Promise<{ success: boolean; error?: string }>;
+  onSessionParticipantJoined: (callback: (participant: any) => void) => () => void;
+  onSessionParticipantLeft: (callback: (participantId: string) => void) => () => void;
+  onSessionCommentAdded: (callback: (comment: any) => void) => () => void;
+  onSessionCommentEdited: (callback: (comment: any) => void) => () => void;
+  onSessionCommentDeleted: (callback: (commentId: string) => void) => () => void;
+  onSessionCursorUpdate: (callback: (data: any) => void) => () => void;
+  onSessionUrlChanged: (callback: (url: string) => void) => () => void;
+  onSessionEnded: (callback: (report: any) => void) => () => void;
+  onSessionLinkReceived: (callback: (sessionId: string) => void) => () => void;
 }
 
 declare global {

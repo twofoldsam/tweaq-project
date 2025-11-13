@@ -56,6 +56,9 @@ export interface ElectronAPI {
   githubTestPR: () => Promise<{ success: boolean; pr?: { url: string; number: number }; error?: string }>;
   toggleSettings: (showSettings: boolean) => Promise<{ success: boolean }>;
   
+  // Modal visibility toggle
+  toggleModal: (showModal: boolean) => Promise<{ success: boolean }>;
+  
   // Overlay API
   injectOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => Promise<{ success: boolean; error?: string }>;
   removeOverlay: () => Promise<{ success: boolean; error?: string }>;
@@ -109,6 +112,29 @@ export interface ElectronAPI {
   playwrightLaunchTrueBrowser: (data: { engine: 'firefox' | 'webkit'; url?: string }) => Promise<{ success: boolean; error?: string }>;
   playwrightNavigate: (data: { engine: 'firefox' | 'webkit'; url: string }) => Promise<{ success: boolean; error?: string }>;
   playwrightCloseBrowser: (engine: 'firefox' | 'webkit') => Promise<{ success: boolean; error?: string }>;
+  
+  // Session Management API
+  sessionCreate: (data: { homeUrl: string; ownerName?: string }) => Promise<{ success: boolean; session?: any; error?: string }>;
+  sessionJoin: (data: { sessionId: string; name: string }) => Promise<{ success: boolean; error?: string }>;
+  sessionLeave: () => Promise<{ success: boolean; error?: string }>;
+  sessionEnd: () => Promise<{ success: boolean; error?: string }>;
+  sessionGetInfo: (sessionId: string) => Promise<{ success: boolean; session?: any; error?: string }>;
+  sessionGetReport: (sessionId: string) => Promise<{ success: boolean; report?: any; error?: string }>;
+  sessionGetState: () => Promise<{ success: boolean; sessionId?: string; participantId?: string; isOwner?: boolean; isConnected?: boolean; error?: string }>;
+  sessionUpdateCursor: (cursor: { x: number; y: number; elementSelector?: string }) => Promise<{ success: boolean; error?: string }>;
+  sessionAddComment: (comment: { elementSelector: string; elementName: string; text: string; position: { x: number; y: number } }) => Promise<{ success: boolean; error?: string }>;
+  sessionEditComment: (data: { commentId: string; text: string }) => Promise<{ success: boolean; error?: string }>;
+  sessionDeleteComment: (commentId: string) => Promise<{ success: boolean; error?: string }>;
+  sessionChangeUrl: (url: string) => Promise<{ success: boolean; error?: string }>;
+  onSessionParticipantJoined: (callback: (participant: any) => void) => () => void;
+  onSessionParticipantLeft: (callback: (participantId: string) => void) => () => void;
+  onSessionCommentAdded: (callback: (comment: any) => void) => () => void;
+  onSessionCommentEdited: (callback: (comment: any) => void) => () => void;
+  onSessionCommentDeleted: (callback: (commentId: string) => void) => () => void;
+  onSessionCursorUpdate: (callback: (data: any) => void) => () => void;
+  onSessionUrlChanged: (callback: (url: string) => void) => () => void;
+  onSessionEnded: (callback: (report: any) => void) => () => void;
+  onSessionLinkReceived: (callback: (sessionId: string) => void) => () => void;
 }
 
 export interface VisualEdit {
@@ -195,12 +221,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   githubTestPR: () => ipcRenderer.invoke('github-test-pr'),
   toggleSettings: (showSettings: boolean) => ipcRenderer.invoke('toggle-settings', showSettings),
   
+  // Modal visibility toggle
+  toggleModal: (showModal: boolean) => ipcRenderer.invoke('toggle-modal', showModal),
+  
   // Overlay API implementations
   injectOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => ipcRenderer.invoke('inject-overlay', options),
   removeOverlay: () => ipcRenderer.invoke('remove-overlay'),
   toggleOverlay: (options?: { initialMode?: 'measure' | 'edit' }) => ipcRenderer.invoke('toggle-overlay', options),
   overlaySetMode: (mode: string) => ipcRenderer.invoke('overlay-set-mode', mode),
   overlayToggleSelectMode: () => ipcRenderer.invoke('overlay-toggle-select-mode'),
+  overlayToggleCommentMode: () => ipcRenderer.invoke('overlay-toggle-comment-mode'),
+  overlayGetCommentModeState: () => ipcRenderer.invoke('overlay-get-comment-mode-state'),
   overlaySelectElement: (selector: string) => ipcRenderer.invoke('overlay-select-element', selector),
   overlayHighlightElement: (selector: string) => ipcRenderer.invoke('overlay-highlight-element', selector),
   onElementSelected: (callback: (data: any) => void) => {
@@ -271,7 +302,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   processVisualRequest: (request: any) => ipcRenderer.invoke('process-visual-request', request),
   
   // Panel width updates
-  updatePanelWidth: (width: number) => ipcRenderer.send('update-panel-width', width),
+  updatePanelWidth: (width: number, animated?: boolean) => ipcRenderer.send('update-panel-width', width, animated !== false),
   onPanelWidthChanged: (callback: (width: number) => void) => {
     const listener = (_: any, width: number) => callback(width);
     ipcRenderer.on('panel-width-changed', listener);
@@ -280,6 +311,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Overlay element selection and editing
   sendOverlayMessage: (channel: string, data: any) => ipcRenderer.send(channel, data),
+  onOverlayMessage: (channel: string, callback: (data: any) => void) => {
+    const listener = (_: any, data: any) => callback(data);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  executeScript: (script: string) => ipcRenderer.invoke('execute-script', script),
   overlayApplyStyle: (selector: string, property: string, value: string) => ipcRenderer.invoke('overlay-apply-style', selector, property, value),
   overlayRecordEdit: (editData: any) => ipcRenderer.invoke('overlay-record-edit', editData),
   overlayGetRecordedEdits: () => ipcRenderer.invoke('overlay-get-recorded-edits'),
@@ -287,7 +324,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   overlayHighlightEdit: (index: number) => ipcRenderer.invoke('overlay-highlight-edit', index),
   overlayClearHighlight: () => ipcRenderer.invoke('overlay-clear-highlight'),
   overlayGetComments: () => ipcRenderer.invoke('overlay-get-comments'),
-  overlayRemoveAllComments: () => ipcRenderer.invoke('overlay-remove-all-comments'),
+    overlayRemoveAllComments: () => ipcRenderer.invoke('overlay-remove-all-comments'),
+    overlayScrollToComment: (commentId: string) => ipcRenderer.invoke('overlay-scroll-to-comment', commentId),
+  overlayLoadComments: (commentsData: any[]) => ipcRenderer.invoke('overlay-load-comments', commentsData),
   
   // Agent V4 - Visual Edits to PR
   triggerAgentV4: (data: { edits: any[]; url: string }) => ipcRenderer.invoke('trigger-agent-v4', data),
@@ -319,7 +358,66 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Playwright True Browser API implementations
   playwrightLaunchTrueBrowser: (data: { engine: 'firefox' | 'webkit'; url?: string }) => ipcRenderer.invoke('playwright-launch-true-browser', data),
   playwrightNavigate: (data: { engine: 'firefox' | 'webkit'; url: string }) => ipcRenderer.invoke('playwright-navigate', data),
-  playwrightCloseBrowser: (engine: 'firefox' | 'webkit') => ipcRenderer.invoke('playwright-close-browser', engine)
+  playwrightCloseBrowser: (engine: 'firefox' | 'webkit') => ipcRenderer.invoke('playwright-close-browser', engine),
+  
+  // Session Management API
+  sessionCreate: (data: { homeUrl: string; ownerName?: string }) => ipcRenderer.invoke('session-create', data),
+  sessionJoin: (data: { sessionId: string; name: string }) => ipcRenderer.invoke('session-join', data),
+  sessionLeave: () => ipcRenderer.invoke('session-leave'),
+  sessionEnd: () => ipcRenderer.invoke('session-end'),
+  sessionGetInfo: (sessionId: string) => ipcRenderer.invoke('session-get-info', sessionId),
+  sessionGetReport: (sessionId: string) => ipcRenderer.invoke('session-get-report', sessionId),
+  sessionGetState: () => ipcRenderer.invoke('session-get-state'),
+  sessionUpdateCursor: (cursor: { x: number; y: number; elementSelector?: string }) => ipcRenderer.invoke('session-update-cursor', cursor),
+  sessionAddComment: (comment: { elementSelector: string; elementName: string; text: string; position: { x: number; y: number } }) => ipcRenderer.invoke('session-add-comment', comment),
+  sessionEditComment: (data: { commentId: string; text: string }) => ipcRenderer.invoke('session-edit-comment', data),
+  sessionDeleteComment: (commentId: string) => ipcRenderer.invoke('session-delete-comment', commentId),
+  sessionChangeUrl: (url: string) => ipcRenderer.invoke('session-change-url', url),
+  onSessionParticipantJoined: (callback: (participant: any) => void) => {
+    const listener = (_event: any, participant: any) => callback(participant);
+    ipcRenderer.on('session-participant-joined', listener);
+    return () => ipcRenderer.removeListener('session-participant-joined', listener);
+  },
+  onSessionParticipantLeft: (callback: (participantId: string) => void) => {
+    const listener = (_event: any, participantId: string) => callback(participantId);
+    ipcRenderer.on('session-participant-left', listener);
+    return () => ipcRenderer.removeListener('session-participant-left', listener);
+  },
+  onSessionCommentAdded: (callback: (comment: any) => void) => {
+    const listener = (_event: any, comment: any) => callback(comment);
+    ipcRenderer.on('session-comment-added', listener);
+    return () => ipcRenderer.removeListener('session-comment-added', listener);
+  },
+  onSessionCommentEdited: (callback: (comment: any) => void) => {
+    const listener = (_event: any, comment: any) => callback(comment);
+    ipcRenderer.on('session-comment-edited', listener);
+    return () => ipcRenderer.removeListener('session-comment-edited', listener);
+  },
+  onSessionCommentDeleted: (callback: (commentId: string) => void) => {
+    const listener = (_event: any, commentId: string) => callback(commentId);
+    ipcRenderer.on('session-comment-deleted', listener);
+    return () => ipcRenderer.removeListener('session-comment-deleted', listener);
+  },
+  onSessionCursorUpdate: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('session-cursor-update', listener);
+    return () => ipcRenderer.removeListener('session-cursor-update', listener);
+  },
+  onSessionUrlChanged: (callback: (url: string) => void) => {
+    const listener = (_event: any, url: string) => callback(url);
+    ipcRenderer.on('session-url-changed', listener);
+    return () => ipcRenderer.removeListener('session-url-changed', listener);
+  },
+  onSessionEnded: (callback: (report: any) => void) => {
+    const listener = (_event: any, report: any) => callback(report);
+    ipcRenderer.on('session-ended', listener);
+    return () => ipcRenderer.removeListener('session-ended', listener);
+  },
+  onSessionLinkReceived: (callback: (sessionId: string) => void) => {
+    const listener = (_event: any, sessionId: string) => callback(sessionId);
+    ipcRenderer.on('session-link-received', listener);
+    return () => ipcRenderer.removeListener('session-link-received', listener);
+  }
 } as ElectronAPI);
 
 // TypeScript declaration for the global electronAPI

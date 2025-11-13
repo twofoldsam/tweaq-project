@@ -120,6 +120,7 @@ export function LeftPanel({ mode, width, onWidthChange, visible, onTweaqCountCha
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [readyTickets, setReadyTickets] = useState<any[]>([]);
+  const [conversationState, setConversationState] = useState<any>(null);
   const [isSelectModeActive, setIsSelectModeActive] = useState(true); // Default to true for design mode
 
   useEffect(() => {
@@ -330,6 +331,376 @@ export function LeftPanel({ mode, width, onWidthChange, visible, onTweaqCountCha
     }
   };
 
+  // Helper to find selectors for a target description
+  const findSelectorsForTarget = async (targetDescription: string): Promise<string[]> => {
+    try {
+      const script = `
+        (function() {
+          const target = ${JSON.stringify(targetDescription.toLowerCase())};
+          const selectors = [];
+          
+          console.log('🔍 Searching for:', target);
+          
+          // Helper to check if element is in a section (hero, header, footer, etc.)
+          const isInSection = (el, sectionType) => {
+            let current = el;
+            while (current && current !== document.body) {
+              const tag = current.tagName?.toLowerCase();
+              const classes = current.className?.toLowerCase() || '';
+              const id = current.id?.toLowerCase() || '';
+              
+              // Check for hero section
+              if (sectionType === 'hero') {
+                if (tag === 'header' || tag === 'section' || tag === 'div') {
+                  if (classes.includes('hero') || 
+                      classes.includes('banner') || 
+                      id.includes('hero') ||
+                      classes.includes('jumbotron')) {
+                    return true;
+                  }
+                  // Hero is usually first major section
+                  if (current.parentElement === document.body || 
+                      current.parentElement?.tagName === 'MAIN') {
+                    const siblings = Array.from(current.parentElement.children);
+                    if (siblings.indexOf(current) <= 1) return true;
+                  }
+                }
+              }
+              
+              // Check for header
+              if (sectionType === 'header') {
+                if (tag === 'header' || tag === 'nav' || 
+                    classes.includes('header') || 
+                    classes.includes('navbar') ||
+                    id.includes('header')) {
+                  return true;
+                }
+              }
+              
+              // Check for footer
+              if (sectionType === 'footer') {
+                if (tag === 'footer' || 
+                    classes.includes('footer') || 
+                    id.includes('footer')) {
+                  return true;
+                }
+              }
+              
+              current = current.parentElement;
+            }
+            return false;
+          };
+          
+          // Extract section context from target
+          let sectionContext = null;
+          if (target.includes('hero')) sectionContext = 'hero';
+          else if (target.includes('header')) sectionContext = 'header';
+          else if (target.includes('footer')) sectionContext = 'footer';
+          
+          // Find buttons/CTAs
+          const buttonPatterns = [
+            'button',
+            'a[href]',
+            '[role="button"]',
+            'input[type="submit"]',
+            '.btn',
+            '.button',
+            '.cta'
+          ];
+          
+          const allButtons = [];
+          buttonPatterns.forEach(pattern => {
+            try {
+              document.querySelectorAll(pattern).forEach(el => allButtons.push(el));
+            } catch (e) {}
+          });
+          
+          console.log('Found', allButtons.length, 'total buttons');
+          
+          // Filter by section if specified
+          let candidates = allButtons;
+          if (sectionContext) {
+            candidates = allButtons.filter(el => isInSection(el, sectionContext));
+            console.log('Filtered to', candidates.length, 'buttons in', sectionContext);
+          }
+          
+          // Further filter by CTA characteristics
+          if (target.includes('cta') || target.includes('call to action') || target.includes('primary')) {
+            candidates = candidates.filter(el => {
+              const text = el.textContent?.toLowerCase() || '';
+              const classes = el.className?.toLowerCase() || '';
+              const id = el.id?.toLowerCase() || '';
+              
+              return (
+                text.includes('get started') ||
+                text.includes('sign up') ||
+                text.includes('start') ||
+                text.includes('try') ||
+                text.includes('buy') ||
+                text.includes('subscribe') ||
+                text.includes('learn more') ||
+                text.includes('apply') ||
+                classes.includes('primary') ||
+                classes.includes('cta') ||
+                id.includes('primary') ||
+                id.includes('cta')
+              );
+            });
+            console.log('Filtered to', candidates.length, 'CTA buttons');
+          }
+          
+          // Smart prioritization: score elements by prominence
+          if (candidates.length > 0) {
+            candidates = candidates.map(el => {
+              const rect = el.getBoundingClientRect();
+              const computedStyle = window.getComputedStyle(el);
+              
+              let score = 0;
+              
+              // Prioritize elements higher on the page (in viewport or just below)
+              if (rect.top < window.innerHeight) {
+                score += 100;
+              }
+              score -= Math.min(rect.top / 100, 50); // Penalize elements further down
+              
+              // Prioritize larger elements (more prominent)
+              const area = rect.width * rect.height;
+              score += Math.min(area / 100, 50);
+              
+              // Prioritize visible elements
+              if (rect.width > 0 && rect.height > 0 && computedStyle.visibility !== 'hidden' && computedStyle.display !== 'none') {
+                score += 50;
+              }
+              
+              // Prioritize elements with primary/CTA styling
+              const bgColor = computedStyle.backgroundColor;
+              const text = el.textContent?.toLowerCase() || '';
+              const classes = el.className?.toLowerCase() || '';
+              
+              if (classes.includes('primary') || classes.includes('cta')) {
+                score += 30;
+              }
+              
+              // Prioritize specific CTA text
+              if (text.includes('apply') || text.includes('get started') || text.includes('sign up')) {
+                score += 20;
+              }
+              
+              return { el, score };
+            }).sort((a, b) => b.score - a.score);
+            
+            console.log('Scored candidates:', candidates.map(c => ({ 
+              text: c.el.textContent?.trim().slice(0, 30), 
+              score: c.score.toFixed(1) 
+            })));
+            
+            // CRITICAL: Only take the top 1-2 most relevant elements
+            const maxElements = target.includes('button') && !target.includes('buttons') ? 1 : 2;
+            candidates = candidates.slice(0, maxElements).map(c => c.el);
+            console.log('⚠️ LIMITED to top', candidates.length, 'most relevant element(s)');
+          }
+          
+          // If still nothing, take first button only
+          if (candidates.length === 0 && allButtons.length > 0) {
+            candidates = allButtons.slice(0, 1);
+            console.log('Using first button as fallback');
+          }
+          
+          // Generate selectors using the overlay's method
+          candidates.forEach(el => {
+            // Use nth-of-type for reliability
+            const path = [];
+            let current = el;
+            let depth = 0;
+            
+            while (current && current !== document.body && depth < 4) {
+              let selector = current.tagName.toLowerCase();
+              
+              if (current.id) {
+                selector = '#' + current.id;
+                path.unshift(selector);
+                break;
+              }
+              
+              if (current.parentElement) {
+                const siblings = Array.from(current.parentElement.children);
+                const sameTagSiblings = siblings.filter(s => s.tagName === current.tagName);
+                if (sameTagSiblings.length > 1) {
+                  const index = sameTagSiblings.indexOf(current);
+                  selector += \`:nth-of-type(\${index + 1})\`;
+                }
+              }
+              
+              path.unshift(selector);
+              current = current.parentElement;
+              depth++;
+            }
+            
+            const fullSelector = path.join(' > ');
+            selectors.push(fullSelector);
+          });
+          
+          console.log('Generated selectors:', selectors);
+          return [...new Set(selectors)];
+        })()
+      `;
+      
+      const result = await window.electronAPI.executeScript(script);
+      return result || [];
+    } catch (error) {
+      console.error('Error finding selectors:', error);
+      return [];
+    }
+  };
+
+  // Helper to parse action specifics into CSS changes and text changes
+  const parseActionToChanges = (specifics: string[]): Array<{property: string, value: string}> => {
+    const changes: Array<{property: string, value: string}> = [];
+    
+    console.log('📝 Parsing action specifics:', specifics);
+    
+    specifics.forEach(specific => {
+      const lower = specific.toLowerCase();
+      
+      // Text content changes - look for various patterns
+      // Pattern 1: say 'text' or text 'text'
+      let textMatch = specific.match(/(?:say|text|reads|says|read)\s+['""]([^'""]+)['""]?/i);
+      if (!textMatch) {
+        // Pattern 2: to say 'text'
+        textMatch = specific.match(/to\s+say\s+['""]([^'""]+)['""]?/i);
+      }
+      if (!textMatch) {
+        // Pattern 3: change text to 'text'
+        textMatch = specific.match(/(?:change|set)\s+(?:text|label|content)\s+to\s+['""]([^'""]+)['""]?/i);
+      }
+      if (!textMatch) {
+        // Pattern 4: just quoted text
+        textMatch = specific.match(/['""]([^'""]+)['""]?/);
+      }
+      
+      if (textMatch) {
+        const newText = textMatch[1];
+        if (newText && newText.length > 0) {
+          console.log('📝 Extracted text:', newText);
+          changes.push({ property: 'textContent', value: newText.trim() });
+          return; // Don't process this specific for other changes
+        }
+      }
+      
+      // Color changes
+      if (lower.includes('purple')) {
+        changes.push({ property: 'backgroundColor', value: '#8b5cf6' });
+        changes.push({ property: 'color', value: 'white' });
+      } else if (lower.includes('blue')) {
+        changes.push({ property: 'backgroundColor', value: '#3b82f6' });
+        changes.push({ property: 'color', value: 'white' });
+      } else if (lower.includes('red')) {
+        changes.push({ property: 'backgroundColor', value: '#ef4444' });
+        changes.push({ property: 'color', value: 'white' });
+      } else if (lower.includes('green')) {
+        changes.push({ property: 'backgroundColor', value: '#22c55e' });
+        changes.push({ property: 'color', value: 'white' });
+      } else if (lower.includes('orange')) {
+        changes.push({ property: 'backgroundColor', value: '#f97316' });
+        changes.push({ property: 'color', value: 'white' });
+      } else if (lower.includes('yellow')) {
+        changes.push({ property: 'backgroundColor', value: '#eab308' });
+        changes.push({ property: 'color', value: '#000' });
+      } else if (lower.includes('pink')) {
+        changes.push({ property: 'backgroundColor', value: '#ec4899' });
+        changes.push({ property: 'color', value: 'white' });
+      }
+      
+      // Dark mode  
+      if (lower.includes('dark mode') || lower.includes('dark')) {
+        changes.push({ property: 'backgroundColor', value: '#1f2937' });
+        changes.push({ property: 'color', value: '#f9fafb' });
+      }
+      
+      // Style changes
+      if (lower.includes('vibrant') || lower.includes('bold')) {
+        changes.push({ property: 'fontWeight', value: 'bold' });
+        changes.push({ property: 'filter', value: 'saturate(1.5) brightness(1.1)' });
+      }
+      
+      if (lower.includes('larger') || lower.includes('bigger')) {
+        changes.push({ property: 'fontSize', value: '1.2em' });
+        changes.push({ property: 'padding', value: '14px 28px' });
+      }
+      
+      if (lower.includes('smaller')) {
+        changes.push({ property: 'fontSize', value: '0.9em' });
+        changes.push({ property: 'padding', value: '8px 16px' });
+      }
+      
+      if (lower.includes('rounded')) {
+        changes.push({ property: 'borderRadius', value: '8px' });
+      }
+    });
+    
+    return changes;
+  };
+
+  const createReadyTickets = (state: any) => {
+    const { target, action } = state.extractedInfo;
+    
+    if (!target || !action) {
+      console.error('Cannot create tweaqs: missing target or action');
+      return;
+    }
+
+    // Smart identifier combining: detect compound targets like "hero button"
+    let identifiers = [...target.identifiers];
+    
+    // Section keywords that modify other elements
+    const sectionKeywords = ['hero', 'header', 'footer', 'nav', 'navigation'];
+    const elementKeywords = ['button', 'cta', 'link', 'text', 'heading', 'image', 'icon'];
+    
+    // Check if we have a section + element combination
+    const hasSectionKeyword = identifiers.some(id => 
+      sectionKeywords.some(section => id.toLowerCase().includes(section))
+    );
+    const hasElementKeyword = identifiers.some(id => 
+      elementKeywords.some(element => id.toLowerCase().includes(element))
+    );
+    
+    // If we have both a section and an element, combine them
+    if (hasSectionKeyword && hasElementKeyword && identifiers.length > 1) {
+      const section = identifiers.find(id => 
+        sectionKeywords.some(s => id.toLowerCase().includes(s))
+      );
+      const element = identifiers.find(id => 
+        elementKeywords.some(e => id.toLowerCase().includes(e))
+      );
+      
+      if (section && element) {
+        // Combine into a single compound identifier
+        identifiers = [`${element} in the ${section} section`];
+        console.log(`🔄 Combined identifiers into: "${identifiers[0]}"`);
+      }
+    }
+
+    // Create ready tickets (one per identifier)
+    const tickets = identifiers.map((identifier: string) => {
+      const specificsStr = action.specifics.join(' and ');
+      return {
+        instruction: `Make the ${identifier} ${specificsStr}`,
+        target: {
+          type: target.type,
+          identifier
+        },
+        action: {
+          type: action.type,
+          specifics: action.specifics
+        },
+        confidence: Math.min(target.confidence, action.confidence)
+      };
+    });
+
+    setReadyTickets(tickets);
+    console.log('✅ Created ready tweaqs:', tickets);
+  };
+
   const handleSendChatMessage = async () => {
     if (!chatInput.trim() || isChatLoading) return;
 
@@ -339,33 +710,174 @@ export function LeftPanel({ mode, width, onWidthChange, visible, onTweaqCountCha
     setIsChatLoading(true);
 
     try {
-      // TODO: Call conversational intelligence API
-      console.log('Sending chat message:', userMessage);
-      // Simulate response
-      setTimeout(() => {
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: 'This is a placeholder response. The conversational intelligence API will be integrated here.'
-        }]);
-        setIsChatLoading(false);
-      }, 1000);
+      console.log('🗣️ Sending chat message:', userMessage);
+      
+      // Call the conversational intelligence API
+      const result = await (window as any).electronAPI.analyzeConversationMessage({
+        message: userMessage,
+        conversationState: conversationState
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to analyze message');
+      }
+
+      const analysis = result.analysis;
+
+      // Update conversation state
+      setConversationState(analysis.conversationState);
+
+      // Add AI response
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: analysis.response
+      }]);
+
+      console.log(`✅ Analysis complete - Completeness: ${(analysis.completeness * 100).toFixed(1)}%`);
+      console.log(`   Next Action: ${analysis.nextAction}`);
+
+      // If ready for confirmation, create ready tickets
+      if (analysis.nextAction === 'confirm') {
+        createReadyTickets(analysis.conversationState);
+      }
+
+      setIsChatLoading(false);
     } catch (error) {
-      console.error('Failed to send chat message:', error);
+      console.error('❌ Failed to send chat message:', error);
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `Sorry, something went wrong: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }]);
       setIsChatLoading(false);
     }
   };
 
-  const handleConfirmTweaqs = () => {
-    // Convert ready tickets to recorded edits
+  const handleConfirmTweaqs = async () => {
+    // Apply tweaqs to the BrowserView and record them
     if (readyTickets && readyTickets.length > 0) {
-      console.log('Confirming tweaqs:', readyTickets);
-      // TODO: Convert to recorded edits
+      console.log('✅ Confirming and applying tweaqs:', readyTickets);
+      
+      const newEdits: RecordedEdit[] = [];
+      
+      // Process each tweaq
+      for (const tweaq of readyTickets) {
+        try {
+          // Find actual selectors for the target
+          const selectors = await findSelectorsForTarget(tweaq.target.identifier);
+          
+          if (selectors.length === 0) {
+            console.warn(`⚠️ No elements found for: ${tweaq.target.identifier}`);
+            continue;
+          }
+          
+          console.log(`✅ Found ${selectors.length} elements for "${tweaq.target.identifier}":`, selectors);
+          
+          // CRITICAL: For singular targets, only use the first (most relevant) selector
+          const isSingular = !tweaq.target.identifier.toLowerCase().includes('buttons') && 
+                            !tweaq.target.identifier.toLowerCase().includes('links') &&
+                            !tweaq.target.identifier.toLowerCase().includes('all');
+          
+          const selectorsToApply = isSingular ? [selectors[0]] : selectors;
+          console.log(`⚠️ Applying to ${selectorsToApply.length} element(s) (singular: ${isSingular})`);
+          
+          // Apply changes to each element
+          for (const selector of selectorsToApply) {
+            // Parse the action specifics and apply
+            const changes = parseActionToChanges(tweaq.action.specifics);
+            
+            // Build the edit data structure
+            const editData = {
+              elementSelector: selector,
+              elementName: tweaq.target.identifier,
+              changes: changes.map(c => ({
+                property: c.property,
+                before: 'original',
+                after: c.value
+              })),
+              timestamp: Date.now(),
+              visible: true,
+              source: 'chat'
+            };
+            
+            // Apply each change to the element AND record in the overlay
+            for (const change of changes) {
+              try {
+                // Handle textContent separately from style changes
+                if (change.property === 'textContent') {
+                  const textScript = `
+                    (function() {
+                      try {
+                        const elements = document.querySelectorAll(${JSON.stringify(selector)});
+                        elements.forEach(el => {
+                          el.textContent = ${JSON.stringify(change.value)};
+                        });
+                        return true;
+                      } catch (e) {
+                        console.error('Error setting text:', e);
+                        return false;
+                      }
+                    })()
+                  `;
+                  await window.electronAPI.executeScript(textScript);
+                  console.log(`⚡ Applied textContent: "${change.value}" to ${selector}`);
+                } else {
+                  await window.electronAPI.overlayApplyStyle(selector, change.property, change.value);
+                  console.log(`⚡ Applied ${change.property}: ${change.value} to ${selector}`);
+                }
+              } catch (error) {
+                console.error(`❌ Error applying change to ${selector}:`, error);
+              }
+            }
+            
+            // Record the edit in the BrowserView overlay
+            try {
+              await window.electronAPI.overlayRecordEdit(editData);
+              console.log(`✅ Recorded edit in overlay for ${selector}`);
+            } catch (error) {
+              console.error(`❌ Error recording edit in overlay:`, error);
+            }
+            
+            // Also keep in local state for immediate display
+            const edit: RecordedEdit = {
+              id: `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              elementSelector: selector,
+              elementName: tweaq.target.identifier,
+              changes: changes.map(c => ({
+                property: c.property,
+                before: 'original',
+                after: c.value
+              })),
+              timestamp: Date.now(),
+              visible: true,
+              source: 'chat',
+              status: 'pending',
+              type: 'property-change'
+            };
+            
+            newEdits.push(edit);
+          }
+        } catch (error) {
+          console.error('❌ Error processing tweaq:', error);
+        }
+      }
+      
+      // Refresh edits from the overlay (now that we've recorded them there)
+      await fetchRecordedEdits();
+      
+      // Clear conversation and tickets
       setReadyTickets([]);
+      setChatMessages([]);
+      setConversationState(null);
+      
+      console.log(`✅ Created and applied ${newEdits.length} tweaqs from chat`);
     }
   };
 
   const handleCancelTweaqs = () => {
     setReadyTickets([]);
+    setChatMessages([]);
+    setConversationState(null);
+    console.log('❌ Cancelled tweaqs');
   };
 
   const handleToggleSelectMode = async () => {

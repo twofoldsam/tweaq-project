@@ -9,23 +9,7 @@ import EditPanel from './EditPanel';
 import Ruler from './Ruler';
 import AlignmentGuides from './AlignmentGuides';
 import ChatPanel from './ChatPanel';
-import CommentPill from './CommentPill';
 
-interface NaturalLanguageEdit {
-  id: string;
-  type: 'natural-language';
-  instruction: string;
-  targetElement?: {
-    selector: string;
-    tagName: string;
-    className?: string;
-  };
-  context?: {
-    scope?: 'element' | 'component' | 'section' | 'page';
-    userIntent?: string;
-  };
-  timestamp: number;
-}
 
 interface OverlayUIProps {
   initialMode?: OverlayMode;
@@ -53,7 +37,6 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
   
   // Chat panel state
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [naturalLanguageEdits, setNaturalLanguageEdits] = useState<NaturalLanguageEdit[]>([]);
 
   // Get element information
   const getElementInfo = useCallback((element: HTMLElement): ElementInfo => {
@@ -347,83 +330,25 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
     setIsChatOpen(prev => !prev);
   }, []);
 
-  const handleAddInstruction = useCallback((instruction: string) => {
-    const selectedSelector = state.selectedElement 
-      ? generateElementSelector(state.selectedElement.element)
-      : undefined;
-
-    const newEdit: NaturalLanguageEdit = {
-      id: `nl_${Date.now()}`,
-      type: 'natural-language',
-      instruction,
-      ...(selectedSelector && {
-        targetElement: {
-          selector: selectedSelector,
-          tagName: state.selectedElement!.element.tagName.toLowerCase(),
-          className: state.selectedElement!.element.className
-        }
-      }),
-      context: {
-        scope: selectedSelector ? 'element' : 'page',
-        userIntent: instruction
-      },
-      timestamp: Date.now()
-    };
-
-    setNaturalLanguageEdits(prev => [...prev, newEdit]);
-    console.log('💬 Added natural language instruction:', newEdit);
-  }, [state.selectedElement]);
-
-  const handleRemoveInstruction = useCallback((id: string) => {
-    setNaturalLanguageEdits(prev => prev.filter(edit => edit.id !== id));
+  const handleTweaqsCreated = useCallback((tweaqs: any[]) => {
+    console.log('✅ Tweaqs created from chat:', tweaqs);
+    // Tweaqs are automatically applied via the browser overlay
+    // Just close the chat panel
+    setIsChatOpen(false);
   }, []);
 
-  // Handle comment submission from CommentPill
-  const handleCommentSubmit = useCallback((comment: string) => {
-    if (!state.selectedElement) return;
+  // Comment submission is now handled directly in browser-interaction.js
+  // The comment pill appears on the webpage itself, not in the React overlay
 
-    const elementInfo = state.selectedElement.info;
-    const selector = generateElementSelector(state.selectedElement.element);
-
-    // Create a comprehensive natural language edit with all element context
-    const newEdit: NaturalLanguageEdit = {
-      id: `comment_${Date.now()}`,
-      type: 'natural-language',
-      instruction: comment,
-      targetElement: {
-        selector: selector,
-        tagName: elementInfo.tagName.toLowerCase(),
-        ...(elementInfo.className && { className: elementInfo.className })
-      },
-      context: {
-        scope: 'element',
-        userIntent: comment
-      },
-      timestamp: Date.now()
-    };
-
-    setNaturalLanguageEdits(prev => [...prev, newEdit]);
-    console.log('💬 Added comment as natural language edit:', newEdit);
-    console.log('📊 Element context:', {
-      selector,
-      tagName: elementInfo.tagName,
-      id: elementInfo.id,
-      className: elementInfo.className,
-      dimensions: elementInfo.dimensions,
-      computedStyles: elementInfo.computedStyles
-    });
-  }, [state.selectedElement]);
-
-  // Submit combined edits
+  // Submit visual edits
   const handleSubmit = useCallback(async () => {
-    if (visualEdits.length === 0 && naturalLanguageEdits.length === 0) {
+    if (visualEdits.length === 0) {
       console.warn('No changes to submit');
       return;
     }
 
-    console.log('🚀 Submitting combined edits...');
+    console.log('🚀 Submitting visual edits...');
     console.log('Visual edits:', visualEdits);
-    console.log('Natural language edits:', naturalLanguageEdits);
 
     try {
       // Check if electronAPI is available
@@ -435,34 +360,32 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
 
       const request = {
         visualEdits,
-        naturalLanguageEdits,
+        naturalLanguageEdits: [], // Chat creates tweaqs directly, doesn't go through this flow
         metadata: {
           sessionId: `session_${Date.now()}`,
           submittedAt: Date.now(),
-          context: 'Overlay UI combined edits'
+          context: 'Overlay UI visual edits'
         }
       };
 
       const result = await (window as any).electronAPI.processCombinedEdits(request);
 
       if (result.success) {
-        console.log('✅ Combined edits submitted successfully!');
+        console.log('✅ Visual edits submitted successfully!');
         alert(`✅ Success! PR created:\n${result.pr?.url || 'Check your repository'}\n\n${result.summary || ''}`);
         
         // Clear all edits after successful submission
         setVisualEdits([]);
-        setNaturalLanguageEdits([]);
         setPendingEdits(new Map());
-        setIsChatOpen(false);
       } else {
         console.error('❌ Submission failed:', result.error);
         alert(`❌ Error: ${result.error || 'Failed to submit changes'}`);
       }
     } catch (error) {
-      console.error('❌ Error submitting combined edits:', error);
+      console.error('❌ Error submitting visual edits:', error);
       alert(`❌ Error: ${error instanceof Error ? error.message : 'Failed to submit changes'}`);
     }
-  }, [visualEdits, naturalLanguageEdits]);
+  }, [visualEdits]);
 
   // Handle panel close
   const handlePanelClose = useCallback(() => {
@@ -539,7 +462,7 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
           onSubmit={handleSubmit}
           isChatOpen={isChatOpen}
           visualEditCount={visualEdits.length}
-          instructionCount={naturalLanguageEdits.length}
+          instructionCount={0}
         />
 
         {/* Chat Panel */}
@@ -553,9 +476,7 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
               className: state.selectedElement.element.className
             }
           })}
-          naturalLanguageEdits={naturalLanguageEdits}
-          onAddInstruction={handleAddInstruction}
-          onRemoveInstruction={handleRemoveInstruction}
+          onTweaqsCreated={handleTweaqsCreated}
         />
 
         {/* Panels */}
@@ -599,13 +520,7 @@ const OverlayUI: React.FC<OverlayUIProps> = ({
           />
         )}
 
-        {/* Comment Pill */}
-        {state.selectedElement && (
-          <CommentPill
-            elementRect={state.selectedElement.element.getBoundingClientRect()}
-            onSubmitComment={handleCommentSubmit}
-          />
-        )}
+        {/* Comment Pill is now rendered directly on the webpage via browser-interaction.js */}
       </div>
     </>
   );

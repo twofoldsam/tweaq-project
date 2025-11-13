@@ -258,8 +258,9 @@ export class BrowserEngineManager {
   /**
    * Update bounds for layout with left pane
    * Positions the BrowserView to create an inset effect
+   * Supports animated transitions
    */
-  updateLayoutWithLeftPane(panelWidth: number = 320): void {
+  updateLayoutWithLeftPane(panelWidth: number = 320, animated: boolean = true): void {
     if (!this.mainWindow) return;
 
     const currentView = this.getCurrentBrowserView();
@@ -275,20 +276,76 @@ export class BrowserEngineManager {
     const marginRight = 24;
     const marginBottom = 24;
     
-    // Calculate BrowserView position to create inset effect
-    const x = toolbarWidth + panelWidth + marginLeft;
-    const y = urlBarHeight + marginTop;
-    const viewWidth = width - x - marginRight;
-    const viewHeight = height - y - marginBottom;
-    
-    currentView.setBounds({
-      x: Math.round(x),
-      y: Math.round(y),
-      width: Math.max(100, Math.round(viewWidth)), // Minimum width
-      height: Math.max(100, Math.round(viewHeight)) // Minimum height
+    // Calculate target BrowserView position
+    const targetX = toolbarWidth + panelWidth + marginLeft;
+    const targetY = urlBarHeight + marginTop;
+    const targetWidth = width - targetX - marginRight;
+    const targetHeight = height - targetY - marginBottom;
+
+    // Get current bounds
+    const currentBounds = currentView.getBounds();
+    const startX = currentBounds.x;
+    const startWidth = currentBounds.width;
+
+    console.log(`📐 BrowserView layout update:`, {
+      panelWidth,
+      animated,
+      currentBounds: { x: startX, y: currentBounds.y, width: startWidth, height: currentBounds.height },
+      targetBounds: { x: targetX, y: targetY, width: targetWidth, height: targetHeight },
+      windowBounds: { width, height }
     });
+
+    if (!animated || (Math.abs(startX - targetX) < 1 && Math.abs(startWidth - targetWidth) < 1)) {
+      // No animation needed or already at target
+      currentView.setBounds({
+        x: Math.round(targetX),
+        y: Math.round(targetY),
+        width: Math.max(100, Math.round(targetWidth)),
+        height: Math.max(100, Math.round(targetHeight))
+      });
+      console.log(`✅ BrowserView positioned immediately at x=${targetX}, width=${targetWidth}`);
+      return;
+    }
+
+    // Animate the transition
+    const duration = 300; // milliseconds
+    const startTime = Date.now();
     
-    console.log(`BrowserView positioned: x=${x}, y=${y}, w=${viewWidth}, h=${viewHeight}, panelWidth=${panelWidth}`);
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function (ease-in-out cubic)
+      const eased = progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      
+      const currentX = startX + (targetX - startX) * eased;
+      const currentWidth = startWidth + (targetWidth - startWidth) * eased;
+      
+      currentView.setBounds({
+        x: Math.round(currentX),
+        y: Math.round(targetY),
+        width: Math.max(100, Math.round(currentWidth)),
+        height: Math.max(100, Math.round(targetHeight))
+      });
+      
+      if (progress < 1) {
+        setTimeout(animate, 16); // ~60fps
+      } else {
+        // Ensure final position is exact
+        currentView.setBounds({
+          x: Math.round(targetX),
+          y: Math.round(targetY),
+          width: Math.max(100, Math.round(targetWidth)),
+          height: Math.max(100, Math.round(targetHeight))
+        });
+      }
+    };
+    
+    animate();
+    
+    console.log(`BrowserView animating: x=${startX}→${targetX}, w=${startWidth}→${targetWidth}, panelWidth=${panelWidth}`);
   }
 
   /**
