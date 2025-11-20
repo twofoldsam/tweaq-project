@@ -110,7 +110,7 @@ class SessionService {
   /**
    * Join an existing session
    */
-  async joinSession(sessionId: string, name: string, isOwner: boolean = false): Promise<void> {
+  async joinSession(sessionId: string, name: string, isOwner: boolean = false): Promise<{ participants: Participant[], comments: Comment[] }> {
     if (this.socket?.connected) {
       this.disconnect();
     }
@@ -140,7 +140,14 @@ class SessionService {
         console.log('✅ Joined session:', this.sessionId);
         console.log('👤 Participant ID:', this.participantId);
         console.log('👑 Is Owner (from server):', this.isOwner);
-        resolve();
+        console.log('👥 Participants:', data.session?.participants?.length || 0);
+        console.log('💬 Comments:', data.session?.comments?.length || 0);
+        
+        // Extract participants and comments from session data
+        const participants = data.session?.participants || [];
+        const comments = data.session?.comments || [];
+        
+        resolve({ participants, comments });
       });
 
       // Error handler for join errors only

@@ -77,9 +77,9 @@
       /* Comment bubbles */
       .tweaq-comment-bubble {
         position: absolute;
-        width: 24px;
-        height: 24px;
-        background: #FF3B30;
+        width: 28px;
+        height: 28px;
+        /* background color is set inline per participant */
         border: 2px solid white;
         border-radius: 50%;
         display: flex;
@@ -87,13 +87,15 @@
         justify-content: center;
         color: white;
         font-size: 11px;
-        font-weight: 600;
+        font-weight: 700;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         cursor: pointer;
         z-index: 999999;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         pointer-events: auto;
+        text-transform: uppercase;
+        letter-spacing: -0.5px;
       }
       
       .tweaq-comment-bubble:hover {
@@ -139,14 +141,23 @@
       .tweaq-comment-bubble.expanded .comment-count-badge {
         width: 20px;
         height: 20px;
-        background: #FF3B30;
+        /* background color is set inline per participant */
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        font-size: 9px;
         font-weight: 600;
         flex-shrink: 0;
+        color: white;
+      }
+      
+      .tweaq-comment-bubble.expanded .comment-author-name {
+        flex: 1;
+        margin-left: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
       }
       
       .tweaq-comment-bubble.expanded .comment-close {
@@ -439,6 +450,7 @@
     }
 
     setMode(newMode) {
+      console.log(`🎯 setMode called: "${this.mode}" → "${newMode}"`);
       this.mode = newMode;
       
       // Auto-enable select mode for design mode
@@ -468,7 +480,18 @@
     }
 
     toggleCommentMode() {
-      if (this.mode !== 'comment') return;
+      console.log('🔄 toggleCommentMode called - Current state:', {
+        mode: this.mode,
+        isCommentModeActive: this.isCommentModeActive
+      });
+      
+      if (this.mode !== 'comment') {
+        console.warn('⚠️ Cannot toggle comment mode - not in comment mode. Current mode:', this.mode);
+        console.log('💡 Switching to comment mode first...');
+        this.setMode('comment');
+        // After switching, isCommentModeActive is set to true by setMode
+        return;
+      }
       
       this.isCommentModeActive = !this.isCommentModeActive;
       
@@ -480,6 +503,7 @@
         if (this.selectedElement) {
           this.updateCommentPillPosition();
         }
+        console.log('✅ Comment mode ENABLED - can add comments');
       } else {
         // Disable comment mode - allow normal navigation
         this.isSelectModeActive = false;
@@ -487,9 +511,10 @@
         this.clearHighlights();
         this.hideCommentPill();
         this.deselectElement();
+        console.log('✅ Navigation mode ENABLED - can browse normally');
       }
       
-      console.log(`Comment mode ${this.isCommentModeActive ? 'enabled' : 'disabled'} (navigation mode)`);
+      console.log(`📊 Final state: Comment mode ${this.isCommentModeActive ? 'enabled' : 'disabled'}`);
     }
 
     toggleSelectMode() {
@@ -1215,8 +1240,12 @@
     renderCommentBubble(comment) {
       const bubble = document.createElement('div');
       bubble.className = 'tweaq-comment-bubble';
-      // Show comment count (for now just 1, but could be updated to show total comments on element)
-      bubble.textContent = '1';
+      // Show user initials instead of number
+      const initials = this.getInitials(comment.authorName || 'User');
+      bubble.textContent = initials;
+      // Use author's assigned color or default to red
+      const authorColor = comment.authorColor || '#FF3B30';
+      bubble.style.backgroundColor = authorColor;
       bubble.style.left = `${comment.position.x}px`;
       bubble.style.top = `${comment.position.y}px`;
       bubble.setAttribute('data-comment-id', comment.id);
@@ -1272,7 +1301,8 @@
       if (isExpanded) {
         // Collapse - restore original size and position
         bubble.classList.remove('expanded');
-        bubble.innerHTML = '1';
+        const initials = this.getInitials(comment.authorName || 'User');
+        bubble.innerHTML = initials;
         // Restore original position
         if (comment.position) {
           bubble.style.left = `${comment.position.x}px`;
@@ -1290,9 +1320,12 @@
         
         // Expand - show comment text
         bubble.classList.add('expanded');
+        const initials = this.getInitials(comment.authorName || 'User');
+        const authorColor = comment.authorColor || '#FF3B30';
         bubble.innerHTML = `
           <div class="comment-header">
-            <div class="comment-count-badge">1</div>
+            <div class="comment-count-badge" style="background-color: ${authorColor}">${initials}</div>
+            <div class="comment-author-name">${this.escapeHtml(comment.authorName || 'User')}</div>
             <div class="comment-close" title="Close">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1572,6 +1605,23 @@
       } catch (error) {
         console.error('❌ Error applying tweaq from chat:', error);
       }
+    }
+
+    // Get initials from name
+    getInitials(name) {
+      if (!name) return 'U';
+      
+      const words = name.trim().split(/\s+/);
+      
+      if (words.length === 1) {
+        // Single word: take first letter
+        return words[0][0].toUpperCase();
+      } else if (words.length >= 2) {
+        // Two or more words: take first letter of first two words
+        return (words[0][0] + words[1][0]).toUpperCase();
+      }
+      
+      return 'U';
     }
 
     // Escape HTML for safety

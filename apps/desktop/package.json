@@ -9,7 +9,10 @@
     "dev": "concurrently \"npm run build:electron-main\" \"vite\" \"npm run electron-dev\"",
     "build:electron-main": "tsc electron/main.ts electron/preload.ts --outDir dist --target es2020 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck",
     "electron-dev": "sleep 3 && electron . --enable-logging",
-    "build": "npm run build:electron-main && vite build && electron-builder",
+    "prebuild": "pnpm --filter github build && pnpm --filter github-remote build && pnpm --filter change-engine build && pnpm --filter mapping-remote build && pnpm --filter repo-analyzer build && pnpm --filter agent-v5 build && npm run copy-packages",
+    "copy-packages": "mkdir -p packages && cp -r ../../packages/github/dist packages/github && cp -r ../../packages/github-remote/dist packages/github-remote && cp -r ../../packages/change-engine/dist packages/change-engine && cp -r ../../packages/mapping-remote/dist packages/mapping-remote && cp -r ../../packages/repo-analyzer/dist packages/repo-analyzer && cp -r ../../packages/agent-v5/dist packages/agent-v5 && echo '✅ Packages copied to apps/desktop/packages'",
+    "copy-overlay-scripts": "mkdir -p dist/overlay && cp ../../packages/overlay/src/preload/browser-interaction.js dist/overlay/ && cp ../../packages/overlay/src/preload/multiplayer-cursors.js dist/overlay/ && echo '✅ Overlay scripts copied to dist/overlay'",
+    "build": "npm run build:electron-main && npm run copy-overlay-scripts && vite build && electron-builder",
     "build:electron": "electron-builder",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -32,10 +35,10 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.2",
+    "conf": "^10.2.0",
     "electron-store": "^8.1.0",
     "keytar": "^7.9.0",
     "lucide-react": "^0.545.0",
-    "playwright": "^1.56.0",
     "postcss": "^8.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -50,6 +53,8 @@
     "concurrently": "^8.2.2",
     "electron": "^26.2.1",
     "electron-builder": "^24.6.4",
+    "playwright": "^1.56.0",
+    "prebuild-install": "^7.1.1",
     "rimraf": "^5.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.2",
@@ -66,14 +71,29 @@
       }
     ],
     "directories": {
-      "output": "../../dist"
+      "output": "dist",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "dist/main.js"
+    },
+    "asarUnpack": [
+      "node_modules/electron-store/**",
+      "node_modules/conf/**",
+      "node_modules/type-fest/**",
+      "node_modules/keytar/**",
+      "node_modules/socket.io-client/**",
+      "node_modules/engine.io-client/**",
+      "node_modules/ws/**"
     ],
     "mac": {
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "target": "dir"
     },
     "win": {
       "target": "nsis"

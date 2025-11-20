@@ -85,3 +85,4 @@ const session = sessionManager.getSession(sessionId);
 const report = sessionManager.generateReport(session);
 ```
 
+

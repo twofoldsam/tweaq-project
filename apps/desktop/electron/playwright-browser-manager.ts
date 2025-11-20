@@ -1,5 +1,12 @@
 import { BrowserWindow, nativeImage } from 'electron';
-import { Browser, Page, chromium, firefox, webkit } from 'playwright';
+
+// Try to import playwright, but make it optional for production builds
+let playwright: any = null;
+try {
+  playwright = require('playwright');
+} catch (error) {
+  console.warn('⚠️ Playwright not available - Firefox and WebKit browsers will be disabled');
+}
 
 export type PlaywrightEngine = 'firefox' | 'webkit';
 
@@ -29,9 +36,16 @@ export const PLAYWRIGHT_CONFIGS: Record<PlaywrightEngine, PlaywrightBrowserConfi
 };
 
 interface BrowserInstance {
-  browser: Browser;
-  page: Page;
+  browser: any; // Playwright Browser type (dynamically loaded)
+  page: any; // Playwright Page type (dynamically loaded)
   screenshotDataUrl: string | null;
+}
+
+/**
+ * Check if Playwright is available
+ */
+export function isPlaywrightAvailable(): boolean {
+  return playwright !== null;
 }
 
 /**
@@ -47,6 +61,13 @@ export class PlaywrightBrowserManager {
   private screenshotRefreshRate: number = 100; // ms
 
   /**
+   * Check if Playwright is available for use
+   */
+  isAvailable(): boolean {
+    return isPlaywrightAvailable();
+  }
+
+  /**
    * Set the main window reference
    */
   setMainWindow(window: BrowserWindow): void {
@@ -57,18 +78,22 @@ export class PlaywrightBrowserManager {
    * Launch a Playwright browser
    */
   private async launchBrowser(engine: PlaywrightEngine): Promise<BrowserInstance> {
-    let browser: Browser;
+    if (!playwright) {
+      throw new Error('Playwright is not available. Install it with: pnpm add -D playwright');
+    }
+
+    let browser: any;
 
     console.log(`Launching Playwright ${engine}...`);
 
     switch (engine) {
       case 'firefox':
-        browser = await firefox.launch({
+        browser = await playwright.firefox.launch({
           headless: false, // Show the browser for debugging
         });
         break;
       case 'webkit':
-        browser = await webkit.launch({
+        browser = await playwright.webkit.launch({
           headless: false,
         });
         break;

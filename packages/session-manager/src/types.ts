@@ -28,6 +28,7 @@ export interface Comment {
   sessionId: string;
   authorId: string;
   authorName: string;
+  authorColor: string; // Color assigned to the author
   elementSelector: string;
   elementName: string;
   text: string;

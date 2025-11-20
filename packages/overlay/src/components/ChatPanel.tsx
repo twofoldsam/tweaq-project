@@ -34,7 +34,7 @@ interface ChatPanelProps {
 const ChatPanel: React.FC<ChatPanelProps> = ({
   isOpen,
   onClose,
-  selectedElement,
+  selectedElement: _selectedElement,
   onTweaqsCreated
 }) => {
   const [input, setInput] = useState('');
@@ -189,7 +189,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       setInput(example);
       // Auto-submit after short delay
       setTimeout(() => {
-        const submitEvent = new Event('submit');
         handleSubmit();
       }, 100);
     }

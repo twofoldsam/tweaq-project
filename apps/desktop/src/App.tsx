@@ -30,7 +30,7 @@ function App() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [hasNavigated, setHasNavigated] = useState(false); // Track if user has navigated
+  const [hasNavigated, setHasNavigated] = useState(true); // Track if user has navigated - default to true since browser is always loaded
   const [panelWidth, setPanelWidth] = useState(320); // Track QA panel width (default)
   const [toolbarMode, setToolbarMode] = useState<ToolbarMode>('chat'); // Current toolbar mode
   const [isPanelVisible, setIsPanelVisible] = useState(true); // Panel visibility
@@ -152,22 +152,44 @@ function App() {
 
     checkGithubAuth();
 
-    // Check for existing session state
-    const checkSessionState = async () => {
-      try {
-        // Session state is managed in renderer via SessionService
-        // We'll check WebSocket connection status instead
-        const sessionService = getSessionService();
-        if (sessionService.isConnected()) {
-          // Session is active, but we need to get session info from service
-          // This will be handled when we restore session state
-        }
-      } catch (error) {
-        console.error('Error checking session state:', error);
+    // Clear any stale session state on startup
+    // When app is closed and reopened, session connections are lost
+    // User must explicitly rejoin if they want to continue a session
+    const clearStaleSessionState = () => {
+      console.log('🧹 Clearing any stale session state on app startup');
+      const sessionService = getSessionService();
+      
+      // Disconnect any existing connections (shouldn't be any, but just in case)
+      if (sessionService.isConnected()) {
+        console.log('⚠️ Found existing connection, disconnecting...');
+        sessionService.disconnect();
       }
+      
+      // Clear session state in React
+      setSessionState({
+        sessionId: null,
+        shareLink: null,
+        homeUrl: null,
+        isOwner: false,
+        participants: []
+      });
+      setSessionStartTime(null);
+      
+      console.log('✅ Session state cleared');
     };
 
-    checkSessionState();
+    clearStaleSessionState();
+
+    // Set up window close handler to disconnect from sessions
+    const handleWindowClose = () => {
+      const sessionService = getSessionService();
+      if (sessionService.isConnected()) {
+        console.log('🪟 Window closing, disconnecting from session');
+        sessionService.disconnect();
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleWindowClose);
 
     // Set up session event listeners (these are now handled via SessionService in renderer)
     // The IPC events are no longer needed since WebSocket is in renderer
@@ -272,6 +294,14 @@ function App() {
       cleanupError();
       if (cleanupPanelWidth) cleanupPanelWidth();
       unsubscribeSessionLink?.();
+      window.removeEventListener('beforeunload', handleWindowClose);
+      
+      // Disconnect from any active session when app is closing
+      const sessionService = getSessionService();
+      if (sessionService.isConnected()) {
+        console.log('🧹 App closing, disconnecting from session');
+        sessionService.disconnect();
+      }
     };
   }, []);
 
@@ -300,6 +330,23 @@ function App() {
     // Set up listener if the API exists
     if (window.electronAPI.onOverlayMessage) {
       const cleanup = window.electronAPI.onOverlayMessage('overlay-comment-added', handleCommentAdded);
+      return cleanup;
+    }
+  }, [sessionState.sessionId]);
+
+  // Listen for cursor movements in the overlay and send to session manager
+  useEffect(() => {
+    const handleCursorMove = (cursor: any) => {
+      // If there's an active session, send cursor position to session manager
+      if (sessionState.sessionId) {
+        const sessionService = getSessionService();
+        sessionService.updateCursor(cursor);
+      }
+    };
+    
+    // Set up listener if the API exists
+    if (window.electronAPI.onOverlayMessage) {
+      const cleanup = window.electronAPI.onOverlayMessage('overlay-cursor-move', handleCursorMove);
       return cleanup;
     }
   }, [sessionState.sessionId]);
@@ -439,17 +486,19 @@ function App() {
       if (result.success && result.session) {
         // Connect WebSocket in renderer process
         const sessionService = getSessionService();
-        await sessionService.joinSession(result.session.id, ownerName, true); // true = isOwner
+        const sessionData = await sessionService.joinSession(result.session.id, ownerName, true); // true = isOwner
         
         const newSessionState = {
           sessionId: result.session.id,
           shareLink: result.session.shareLink || `tweaq://session/${result.session.id}`,
           homeUrl: result.session.homeUrl || homeUrl,
           isOwner: sessionService.isSessionOwner(), // Get ownership from service (set by server)
-          participants: [{ id: 'owner', name: ownerName, color: '#0A84FF', joinedAt: Date.now() }]
+          participants: sessionData.participants || []
         };
         
         console.log('Setting session state:', newSessionState);
+        console.log('Session has', sessionData.participants?.length || 0, 'participants');
+        console.log('Session has', sessionData.comments?.length || 0, 'comments');
         setSessionState(newSessionState);
         setSessionStartTime(Date.now());
         
@@ -459,6 +508,19 @@ function App() {
         
         // Set up WebSocket event listeners
         setupSessionEventListeners(sessionService);
+        
+        // Send initial participants list to overlay
+        window.electronAPI.sendOverlayMessage?.('session-participants-update', newSessionState.participants);
+        
+        // Send initial comments to overlay
+        if (sessionData.comments && sessionData.comments.length > 0) {
+          sessionData.comments.forEach(comment => {
+            window.electronAPI.sendOverlayMessage?.('comment-add', comment);
+          });
+        }
+        
+        // Switch to comment mode when session starts
+        await handleModeChange('comment');
         
         // Navigate to home URL
         setUrlInput(homeUrl);
@@ -478,23 +540,39 @@ function App() {
       if (result.success) {
         // Connect WebSocket in renderer process
         const sessionService = getSessionService();
-        await sessionService.joinSession(sessionId, name);
+        const sessionData = await sessionService.joinSession(sessionId, name);
         
         // Get session info
         const infoResult = await window.electronAPI.sessionGetInfo(sessionId);
         if (infoResult.success && infoResult.session) {
+          console.log('Joined session with', sessionData.participants?.length || 0, 'participants');
+          console.log('Joined session with', sessionData.comments?.length || 0, 'comments');
+          
           setSessionState(prev => ({
             ...prev,
             sessionId,
             shareLink: `tweaq://session/${sessionId}`,
             homeUrl: infoResult.session!.homeUrl,
             isOwner: sessionService.isSessionOwner(), // Get ownership from service (set by server)
-            participants: []
+            participants: sessionData.participants || []
           }));
           setSessionStartTime(Date.now());
           
           // Set up WebSocket event listeners
           setupSessionEventListeners(sessionService);
+          
+          // Send initial participants list to overlay
+          window.electronAPI.sendOverlayMessage?.('session-participants-update', sessionData.participants || []);
+          
+          // Send initial comments to overlay
+          if (sessionData.comments && sessionData.comments.length > 0) {
+            sessionData.comments.forEach(comment => {
+              window.electronAPI.sendOverlayMessage?.('comment-add', comment);
+            });
+          }
+          
+          // Switch to comment mode when joining session
+          await handleModeChange('comment');
           
           // Navigate to session home URL
           setUrlInput(infoResult.session!.homeUrl);
@@ -700,22 +778,40 @@ function App() {
   // Set up WebSocket event listeners
   const setupSessionEventListeners = (sessionService: ReturnType<typeof getSessionService>) => {
     sessionService.on('participant-joined', (participant) => {
-      setSessionState(prev => ({
-        ...prev,
-        participants: [...prev.participants, participant]
-      }));
+      setSessionState(prev => {
+        const newState = {
+          ...prev,
+          participants: [...prev.participants, participant]
+        };
+        // Send updated participants to overlay
+        window.electronAPI.sendOverlayMessage?.('session-participants-update', newState.participants);
+        return newState;
+      });
     });
 
     sessionService.on('participant-left', (participantId) => {
-      setSessionState(prev => ({
-        ...prev,
-        participants: prev.participants.filter(p => p.id !== participantId)
-      }));
+      setSessionState(prev => {
+        const newState = {
+          ...prev,
+          participants: prev.participants.filter(p => p.id !== participantId)
+        };
+        // Send updated participants to overlay
+        window.electronAPI.sendOverlayMessage?.('session-participants-update', newState.participants);
+        // Also notify overlay to remove cursor
+        window.electronAPI.sendOverlayMessage?.('cursor-remove', { participantId });
+        return newState;
+      });
     });
 
     sessionService.on('comment-added', (comment) => {
-      // Handle comment added - will integrate with comment system later
+      // Handle comment added - send to overlay for display
       console.log('Comment added:', comment);
+      window.electronAPI.sendOverlayMessage?.('comment-add', comment);
+    });
+
+    sessionService.on('cursor-update', (data) => {
+      // Broadcast cursor update to overlay
+      window.electronAPI.sendOverlayMessage?.('cursor-update', data);
     });
 
     sessionService.on('url-changed', (url) => {

@@ -176,3 +176,4 @@ interface SessionReport {
 2. Export functionality
 3. Session history
 
+

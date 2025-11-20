@@ -16,35 +16,185 @@ function safeIpcHandle(channel: string, handler: (...args: any[]) => any) {
     console.log(`⚠️ Deferring IPC handler: ${channel}`);
   }
 }
-import Store from 'electron-store';
-import { GitClient, PRWatcher, type DeploymentPreview } from '../../../packages/github/dist/src/index';
-import { createOAuthDeviceAuth } from '@octokit/auth-oauth-device';
-import { Octokit } from '@octokit/rest';
-import * as keytar from 'keytar';
-import { RemoteRepo, LocalRepo } from '../../../packages/github-remote/dist/index.js';
-import { InMemoryPatcher, LLMCodeAdapter, ClaudeAgentAdapter } from '../../../packages/change-engine/dist/src/index.js';
-import { MappingEngine, MockLLMProvider, OpenAIProvider, ClaudeProvider, buildRepoIndex, getDeterministicHints } from '../../../packages/mapping-remote/dist/index.js';
-import { RepoAnalyzer, RepoSymbolicModel } from '../../../packages/repo-analyzer/dist/index.js';
+// Try to import electron-store, but make it optional for production builds
+let Store: any = null;
+try {
+  Store = require('electron-store').default || require('electron-store');
+} catch (error) {
+  console.warn('⚠️ electron-store not available - using in-memory storage fallback');
+  // Create a simple in-memory fallback that matches electron-store API
+  Store = class {
+    private data: Map<string, any> = new Map();
+    private defaults: any = {};
+    
+    constructor(options?: { defaults?: any }) {
+      if (options?.defaults) {
+        this.defaults = options.defaults;
+        Object.keys(options.defaults).forEach(key => {
+          if (!this.data.has(key)) {
+            this.data.set(key, options.defaults[key]);
+          }
+        });
+      }
+    }
+    
+    get(key: string, defaultValue?: any) {
+      return this.data.has(key) ? this.data.get(key) : (defaultValue !== undefined ? defaultValue : this.defaults[key]);
+    }
+    set(key: string, value: any) {
+      this.data.set(key, value);
+    }
+    delete(key: string) {
+      this.data.delete(key);
+    }
+    clear() {
+      this.data.clear();
+    }
+    has(key: string) {
+      return this.data.has(key);
+    }
+  };
+}
+// Safe console wrapper to prevent EPIPE errors in packaged builds
+const safeConsole = {
+  log: (...args: any[]) => {
+    try {
+      console.log(...args);
+    } catch (e) {
+      // Ignore EPIPE errors in packaged builds
+    }
+  },
+  warn: (...args: any[]) => {
+    try {
+      console.warn(...args);
+    } catch (e) {
+      // Ignore EPIPE errors in packaged builds
+    }
+  },
+  error: (...args: any[]) => {
+    try {
+      console.error(...args);
+    } catch (e) {
+      // Ignore EPIPE errors in packaged builds
+    }
+  }
+};
 
-// Agent V5 Integration
-import { 
-  processVisualRequestIPC,
-  checkAgentV5StatusIPC 
-} from '../../../packages/agent-v5/dist/integration/MainProcessIntegration';
+// Use safe console in packaged builds, regular console in dev
+const log = app.isPackaged ? safeConsole : console;
+
+// Import workspace packages - make them optional for packaged builds
+// This allows the app to run without full GitHub/Agent functionality in production
+let githubModule: any = null;
+let githubRemoteModule: any = null;
+let changeEngineModule: any = null;
+let mappingRemoteModule: any = null;
+let repoAnalyzerModule: any = null;
+let agentV5Module: any = null;
+
+const WORKSPACE_PACKAGES_AVAILABLE = app.isPackaged ? false : true;
+
+if (WORKSPACE_PACKAGES_AVAILABLE) {
+  log.log('🔧 Loading workspace packages (dev mode)...');
+  try {
+    githubModule = require('../../../packages/github/dist/src/index');
+    githubRemoteModule = require('../../../packages/github-remote/dist/index');
+    changeEngineModule = require('../../../packages/change-engine/dist/src/index');
+    mappingRemoteModule = require('../../../packages/mapping-remote/dist/index');
+    repoAnalyzerModule = require('../../../packages/repo-analyzer/dist/index');
+    agentV5Module = require('../../../packages/agent-v5/dist/integration/MainProcessIntegration');
+    log.log('✅ Workspace packages loaded successfully');
+  } catch (error) {
+    log.warn('⚠️ Failed to load workspace packages:', error);
+    log.warn('ℹ️ GitHub/Agent features will be disabled');
+  }
+} else {
+  log.log('📦 Running in packaged mode - workspace packages disabled');
+  log.log('ℹ️ GitHub/Agent features not available in packaged builds');
+}
+
+// Create stub implementations for missing packages
+const createStub = (name: string) => ({
+  __isStub: true,
+  __name: name
+});
+
+const GitClient = githubModule?.GitClient || class { constructor() { log.warn('GitClient not available in packaged build'); } };
+const PRWatcher = githubModule?.PRWatcher || class { constructor() { log.warn('PRWatcher not available in packaged build'); } };
+const RemoteRepo = githubRemoteModule?.RemoteRepo || class { constructor() { log.warn('RemoteRepo not available in packaged build'); } };
+const LocalRepo = githubRemoteModule?.LocalRepo || class { constructor() { log.warn('LocalRepo not available in packaged build'); } };
+const InMemoryPatcher = changeEngineModule?.InMemoryPatcher || class { constructor() { log.warn('InMemoryPatcher not available in packaged build'); } };
+const LLMCodeAdapter = changeEngineModule?.LLMCodeAdapter || class { constructor() { log.warn('LLMCodeAdapter not available in packaged build'); } };
+const ClaudeAgentAdapter = changeEngineModule?.ClaudeAgentAdapter || class { constructor() { log.warn('ClaudeAgentAdapter not available in packaged build'); } };
+const MappingEngine = mappingRemoteModule?.MappingEngine || class { constructor() { log.warn('MappingEngine not available in packaged build'); } };
+const MockLLMProvider = mappingRemoteModule?.MockLLMProvider || class { constructor() { log.warn('MockLLMProvider not available in packaged build'); } };
+const OpenAIProvider = mappingRemoteModule?.OpenAIProvider || class { constructor() { log.warn('OpenAIProvider not available in packaged build'); } };
+const ClaudeProvider = mappingRemoteModule?.ClaudeProvider || class { constructor() { log.warn('ClaudeProvider not available in packaged build'); } };
+const buildRepoIndex = mappingRemoteModule?.buildRepoIndex || (() => { log.warn('buildRepoIndex not available in packaged build'); return null; });
+const getDeterministicHints = mappingRemoteModule?.getDeterministicHints || (() => { log.warn('getDeterministicHints not available in packaged build'); return null; });
+const RepoAnalyzer = repoAnalyzerModule?.RepoAnalyzer || class { constructor() { log.warn('RepoAnalyzer not available in packaged build'); } };
+const RepoSymbolicModel = repoAnalyzerModule?.RepoSymbolicModel || class { constructor() { log.warn('RepoSymbolicModel not available in packaged build'); } };
+const processVisualRequestIPC = agentV5Module?.processVisualRequestIPC || (() => { log.warn('processVisualRequestIPC not available in packaged build'); return Promise.resolve({ success: false, error: 'Agent V5 not available' }); });
+const checkAgentV5StatusIPC = agentV5Module?.checkAgentV5StatusIPC || (() => { log.warn('checkAgentV5StatusIPC not available in packaged build'); return Promise.resolve({ success: false, error: 'Agent V5 not available' }); });
+
+// GitHub authentication modules - only load in development mode
+let createOAuthDeviceAuth: any = null;
+let Octokit: any = null;
+let keytarModule: any = null;
+
+if (WORKSPACE_PACKAGES_AVAILABLE) {
+  try {
+    createOAuthDeviceAuth = require('@octokit/auth-oauth-device').createOAuthDeviceAuth;
+    Octokit = require('@octokit/rest').Octokit;
+    keytarModule = require('keytar');
+    log.log('✅ GitHub authentication modules loaded');
+  } catch (error) {
+    log.warn('⚠️ Failed to load GitHub auth modules:', error);
+  }
+} else {
+  log.log('📦 GitHub authentication disabled in packaged build');
+}
+
+// Keytar wrapper with fallback to in-memory storage
+const keytar = keytarModule || {
+  // In-memory fallback for packaged builds
+  _store: new Map<string, Map<string, string>>(),
+  
+  async setPassword(service: string, account: string, password: string): Promise<void> {
+    log.warn(`⚠️ Using in-memory password storage (not secure): ${service}/${account}`);
+    if (!this._store.has(service)) {
+      this._store.set(service, new Map());
+    }
+    this._store.get(service)!.set(account, password);
+  },
+  
+  async getPassword(service: string, account: string): Promise<string | null> {
+    const serviceStore = this._store.get(service);
+    return serviceStore?.get(account) || null;
+  },
+  
+  async deletePassword(service: string, account: string): Promise<boolean> {
+    const serviceStore = this._store.get(service);
+    if (serviceStore) {
+      return serviceStore.delete(account);
+    }
+    return false;
+  }
+};
 
 // Load environment variables from .env file
 try {
   const envPath = path.join(__dirname, '../../..', '.env');
-  console.log(`🔧 Loading .env from: ${envPath}`);
+  log.log(`🔧 Loading .env from: ${envPath}`);
   const result = require('dotenv').config({ path: envPath });
   if (result.error) {
-    console.log('❌ Error loading .env:', result.error);
+    log.log('❌ Error loading .env:', result.error);
   } else {
-    console.log('✅ Successfully loaded .env file');
-    console.log(`🔑 ANTHROPIC_API_KEY loaded: ${process.env.ANTHROPIC_API_KEY ? 'YES' : 'NO'}`);
+    log.log('✅ Successfully loaded .env file');
+    log.log(`🔑 ANTHROPIC_API_KEY loaded: ${process.env.ANTHROPIC_API_KEY ? 'YES' : 'NO'}`);
   }
 } catch (error) {
-  console.log('❌ No .env file found or dotenv not available:', error);
+  log.log('❌ No .env file found or dotenv not available:', error);
 }
 
 interface StoreSchema {
@@ -86,7 +236,7 @@ interface CodeIntent {
   evidence: string;
 }
 
-const store = new Store<StoreSchema>({
+const store = new Store({
   defaults: {
     lastUrl: 'https://www.google.com'
   }
@@ -118,7 +268,7 @@ async function createCodexDelegationPR(params: {
   changeSet: VisualEdit[];
   codeIntents: CodeIntent[];
   config: any;
-  remoteRepo: RemoteRepo;
+  remoteRepo: any;
 }) {
   const { changeSet, codeIntents, config, remoteRepo } = params;
 
@@ -316,17 +466,21 @@ function buildCodexPRBody(params: { changeSet: VisualEdit[]; codeIntents: CodeIn
 }
 
 // Global repo analyzer and symbolic model
-let repoAnalyzer: RepoAnalyzer | null = null;
-let currentRepoModel: RepoSymbolicModel | null = null;
+let repoAnalyzer: any | null = null;
+let currentRepoModel: any | null = null;
 
 // GitHub OAuth App Client ID - Replace with your actual GitHub OAuth App Client ID
 const GITHUB_CLIENT_ID = 'Ov23liiu7rMP6sTcvb6H';
 
 // Create a custom GitClient that opens URLs in the system browser
 class ElectronGitClient extends GitClient {
-  private electronOctokit: Octokit | null = null;
+  private electronOctokit: any | null = null;
 
   async connectDeviceFlow() {
+    if (!WORKSPACE_PACKAGES_AVAILABLE || !createOAuthDeviceAuth || !Octokit) {
+      throw new Error('GitHub authentication not available in packaged build');
+    }
+    
     const auth = createOAuthDeviceAuth({
       clientType: 'oauth-app',
       clientId: this.clientId,
@@ -334,8 +488,8 @@ class ElectronGitClient extends GitClient {
       onVerification: (verification: any) => {
         // Open the verification URL in the system browser
         shell.openExternal(verification.verification_uri);
-        console.log('Verification URL opened in browser:', verification.verification_uri);
-        console.log('Enter code:', verification.user_code);
+        log.log('Verification URL opened in browser:', verification.verification_uri);
+        log.log('Enter code:', verification.user_code);
       },
     });
 
@@ -367,6 +521,10 @@ class ElectronGitClient extends GitClient {
 
   async loadStoredToken(): Promise<boolean> {
     try {
+      if (!WORKSPACE_PACKAGES_AVAILABLE || !Octokit) {
+        return false;
+      }
+      
       const token = await keytar.getPassword('smart-qa-github', 'github-token');
       if (!token) {
         return false;
@@ -396,7 +554,7 @@ class ElectronGitClient extends GitClient {
     return this.electronOctokit !== null;
   }
 
-  getOctokit(): Octokit {
+  getOctokit(): any {
     if (!this.electronOctokit) {
       throw new Error('Not authenticated. Call connectDeviceFlow() first.');
     }
@@ -439,22 +597,22 @@ if (ipcMain) {
     return { enabled: !!s?.enabled, connectedAt: s?.connectedAt || null };
   });
 } else {
-  console.log('⚠️ ipcMain not available, skipping Codex IPC handlers');
+  log.log('⚠️ ipcMain not available, skipping Codex IPC handlers');
 }
 
-const gitClient = new ElectronGitClient(GITHUB_CLIENT_ID);
+const gitClient = new (ElectronGitClient as any)(GITHUB_CLIENT_ID);
 
 // Initialize authentication on startup
 const initializeAuth = async () => {
   try {
     const success = await gitClient.loadStoredToken();
     if (success) {
-      console.log('GitHub token loaded from keychain');
+      log.log('GitHub token loaded from keychain');
     } else {
-      console.log('No stored GitHub token found');
+      log.log('No stored GitHub token found');
     }
   } catch (error) {
-    console.error('Failed to load stored token:', error);
+    log.error('Failed to load stored token:', error);
   }
 };
 
@@ -467,8 +625,8 @@ let playwrightBrowserManager: PlaywrightBrowserManager | null = null;
 let rightPaneView: BrowserView | null = null;
 
 // PR watcher state
-const activePRWatchers = new Map<string, PRWatcher>();
-const previewUrls = new Map<string, DeploymentPreview[]>();
+const activePRWatchers = new Map<string, any>(); // PRWatcher type from github package
+const previewUrls = new Map<string, any[]>(); // DeploymentPreview[] - type from github package
 
 // Layout functions (defined at module level)
 const updateBrowserViewBounds = () => {
@@ -511,9 +669,20 @@ function createWindow(): void {
     setupBrowserViewEvents(view);
   });
 
-  // Initialize Playwright Browser Manager
-  playwrightBrowserManager = new PlaywrightBrowserManager();
-  playwrightBrowserManager.setMainWindow(mainWindow);
+  // Initialize Playwright Browser Manager (optional - only for Firefox/WebKit support)
+  try {
+    playwrightBrowserManager = new PlaywrightBrowserManager();
+    if (playwrightBrowserManager.isAvailable()) {
+      playwrightBrowserManager.setMainWindow(mainWindow);
+      log.log('✅ Playwright browser manager initialized (Firefox/WebKit available)');
+    } else {
+      log.log('ℹ️ Playwright not available - Firefox/WebKit browsers disabled');
+      playwrightBrowserManager = null;
+    }
+  } catch (error) {
+    log.warn('⚠️ Could not initialize Playwright browser manager:', error);
+    playwrightBrowserManager = null;
+  }
 
   // Initialize with default browser (chromium) and set legacy reference
   browserView = browserEngineManager.initialize();
@@ -569,7 +738,7 @@ function createWindow(): void {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, './index.html'));
+    mainWindow.loadFile(path.join(__dirname, './renderer/index.html'));
   }
 
   // Handle pending session ID if window was created after protocol URL was received
@@ -616,12 +785,25 @@ function setupBrowserViewEvents(view: BrowserView) {
     // Then inject browser interaction script
     try {
       const fs = require('fs');
-      const overlayScript = fs.readFileSync(
-        path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js'),
-        'utf8'
-      );
       
+      // Determine paths for overlay scripts (dev vs prod)
+      const devOverlayPath = path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js');
+      const prodOverlayPath = path.join(__dirname, './overlay/browser-interaction.js');
+      const overlayScriptPath = fs.existsSync(devOverlayPath) ? devOverlayPath : prodOverlayPath;
+      
+      const devMultiplayerPath = path.join(__dirname, '../../../packages/overlay/src/preload/multiplayer-cursors.js');
+      const prodMultiplayerPath = path.join(__dirname, './overlay/multiplayer-cursors.js');
+      const multiplayerScriptPath = fs.existsSync(devMultiplayerPath) ? devMultiplayerPath : prodMultiplayerPath;
+      
+      log.log(`📂 Loading overlay script from: ${overlayScriptPath}`);
+      log.log(`📂 Loading multiplayer script from: ${multiplayerScriptPath}`);
+      
+      const overlayScript = fs.readFileSync(overlayScriptPath, 'utf8');
       await view.webContents.executeJavaScript(overlayScript);
+      
+      // Inject multiplayer cursor script
+      const multiplayerCursorScript = fs.readFileSync(multiplayerScriptPath, 'utf8');
+      await view.webContents.executeJavaScript(multiplayerCursorScript);
       
       // Show overlay immediately with the current mode (preserve mode across navigation)
       const showScript = `
@@ -645,9 +827,9 @@ function setupBrowserViewEvents(view: BrowserView) {
         browserEngineManager.updateLayoutWithLeftPane(currentPanelWidth, false);
       }
       
-      console.log('✅ Overlay auto-injected on page load');
+      log.log('✅ Overlay auto-injected on page load');
     } catch (error) {
-      console.error('Failed to inject overlay on page load:', error);
+      log.error('Failed to inject overlay on page load:', error);
     }
   });
 
@@ -674,7 +856,7 @@ function setupBrowserViewEvents(view: BrowserView) {
 ipcMain.on('update-panel-width', (event, width: number, animated: boolean = true) => {
   currentPanelWidth = width;
   
-  console.log(`📏 IPC update-panel-width: width=${width}, animated=${animated}`);
+  log.log(`📏 IPC update-panel-width: width=${width}, animated=${animated}`);
   
   // Update BrowserView position (with or without animation)
   if (browserEngineManager) {
@@ -687,13 +869,109 @@ ipcMain.on('update-panel-width', (event, width: number, animated: boolean = true
   }
 });
 
-// Handle overlay messages from BrowserView (comments, etc.)
+// Handle overlay messages from BrowserView (comments, cursor movements, etc.)
 ipcMain.on('overlay-comment-added', (event, comment) => {
-  console.log('📥 Overlay comment received in main process:', comment);
+  log.log('📥 Overlay comment received in main process:', comment);
   
   // Forward to renderer window
   if (mainWindow) {
     mainWindow.webContents.send('overlay-comment-added', comment);
+  }
+});
+
+ipcMain.on('overlay-cursor-move', (event, cursor) => {
+  // Forward cursor movement to renderer window for session sync
+  if (mainWindow) {
+    mainWindow.webContents.send('overlay-cursor-move', cursor);
+  }
+});
+
+// Handle overlay messages FROM renderer TO BrowserView (for multiplayer session updates)
+ipcMain.on('comment-add', async (event, comment) => {
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  if (currentView) {
+    try {
+      // Forward comment to BrowserView overlay
+      await currentView.webContents.executeJavaScript(`
+        if (window.TweaqOverlay && window.TweaqOverlay._instance) {
+          const comment = ${JSON.stringify(comment)};
+          // Add comment from another participant
+          window.TweaqOverlay._instance.renderCommentBubble({
+            id: comment.id,
+            selector: comment.elementSelector,
+            elementName: comment.elementName,
+            text: comment.text,
+            url: comment.url,
+            position: comment.position,
+            authorName: comment.authorName,
+            authorColor: comment.authorColor,
+            textContent: comment.textContent || ''
+          });
+          // Also add to comments array
+          window.TweaqOverlay._instance.comments.push({
+            id: comment.id,
+            selector: comment.elementSelector,
+            elementName: comment.elementName,
+            text: comment.text,
+            url: comment.url,
+            position: comment.position,
+            authorName: comment.authorName,
+            authorColor: comment.authorColor,
+            textContent: comment.textContent || ''
+          });
+        }
+      `);
+    } catch (error) {
+      log.error('Failed to forward comment to BrowserView:', error);
+    }
+  }
+});
+
+ipcMain.on('session-participants-update', async (event, participants) => {
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  if (currentView) {
+    try {
+      // Forward to multiplayer cursor system
+      await currentView.webContents.executeJavaScript(`
+        if (window.electronAPI && window.electronAPI.sendOverlayMessage) {
+          window.electronAPI.sendOverlayMessage('session-participants-update', ${JSON.stringify(participants)});
+        }
+      `);
+    } catch (error) {
+      log.error('Failed to forward participants update:', error);
+    }
+  }
+});
+
+ipcMain.on('cursor-update', async (event, data) => {
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  if (currentView) {
+    try {
+      // Forward to multiplayer cursor system
+      await currentView.webContents.executeJavaScript(`
+        if (window.electronAPI && window.electronAPI.sendOverlayMessage) {
+          window.electronAPI.sendOverlayMessage('cursor-update', ${JSON.stringify(data)});
+        }
+      `);
+    } catch (error) {
+      log.error('Failed to forward cursor update:', error);
+    }
+  }
+});
+
+ipcMain.on('cursor-remove', async (event, data) => {
+  const currentView = browserEngineManager?.getCurrentBrowserView();
+  if (currentView) {
+    try {
+      // Forward to multiplayer cursor system
+      await currentView.webContents.executeJavaScript(`
+        if (window.electronAPI && window.electronAPI.sendOverlayMessage) {
+          window.electronAPI.sendOverlayMessage('cursor-remove', ${JSON.stringify(data)});
+        }
+      `);
+    } catch (error) {
+      log.error('Failed to forward cursor removal:', error);
+    }
   }
 });
 
@@ -794,9 +1072,9 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
             };
           })()
         `);
-        console.log('📸 Captured overlay state:', overlaySnapshot);
+        log.log('📸 Captured overlay state:', overlaySnapshot);
       } catch (error) {
-        console.log('Could not capture overlay state:', error);
+        log.log('Could not capture overlay state:', error);
       }
     }
     
@@ -811,12 +1089,22 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
       if (overlaySnapshot && overlaySnapshot.isVisible && browserView) {
                 try {
                   const fs = require('fs');
-                  const overlayScript = fs.readFileSync(
-                    path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js'),
-                    'utf8'
-                  );
-
+                  
+                  // Determine paths for overlay scripts (dev vs prod)
+                  const devOverlayPath = path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js');
+                  const prodOverlayPath = path.join(__dirname, './overlay/browser-interaction.js');
+                  const overlayScriptPath = fs.existsSync(devOverlayPath) ? devOverlayPath : prodOverlayPath;
+                  
+                  const devMultiplayerPath = path.join(__dirname, '../../../packages/overlay/src/preload/multiplayer-cursors.js');
+                  const prodMultiplayerPath = path.join(__dirname, './overlay/multiplayer-cursors.js');
+                  const multiplayerScriptPath = fs.existsSync(devMultiplayerPath) ? devMultiplayerPath : prodMultiplayerPath;
+                  
+                  const overlayScript = fs.readFileSync(overlayScriptPath, 'utf8');
           await browserView.webContents.executeJavaScript(overlayScript);
+          
+          // Inject multiplayer cursor script
+          const multiplayerCursorScript = fs.readFileSync(multiplayerScriptPath, 'utf8');
+          await browserView.webContents.executeJavaScript(multiplayerCursorScript);
           
           // Inject with restoration state
           const restoreScript = `
@@ -831,9 +1119,9 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
           `;
           await browserView.webContents.executeJavaScript(restoreScript);
           
-          console.log('✅ Pre-injected overlay in new browser view');
+          log.log('✅ Pre-injected overlay in new browser view');
         } catch (error) {
-          console.error('❌ Failed to pre-inject overlay:', error);
+          log.error('❌ Failed to pre-inject overlay:', error);
         }
       }
       
@@ -843,7 +1131,7 @@ safeIpcHandle('browser-switch-engine', async (event, engine: BrowserEngine) => {
         config: browserEngineManager.getEngineConfig(engine)
       });
       
-      console.log(`✅ Switched to ${engine}`);
+      log.log(`✅ Switched to ${engine}`);
     }
     
     return result;
@@ -877,11 +1165,11 @@ safeIpcHandle('playwright-launch-true-browser', async (event, data: { engine: Pl
       await playwrightBrowserManager.navigate(engine, url);
     }
 
-    console.log(`✅ Launched true ${engine} browser`);
+    log.log(`✅ Launched true ${engine} browser`);
 
     return { success: true };
   } catch (error) {
-    console.error('Error launching true browser:', error);
+    log.error('Error launching true browser:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to launch browser'
@@ -941,7 +1229,7 @@ safeIpcHandle('github-load-stored-token', async () => {
     }
     return { success: false, error: 'No stored token found' };
   } catch (error) {
-    console.error('Error loading stored token:', error);
+    log.error('Error loading stored token:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to load token' };
   }
 });
@@ -1000,7 +1288,7 @@ safeIpcHandle('github-list-repos', async () => {
 
     return { success: true, repos: formattedRepos };
   } catch (error) {
-    console.error('Error listing repositories:', error);
+    log.error('Error listing repositories:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to list repositories' };
   }
 });
@@ -1175,7 +1463,7 @@ safeIpcHandle('github-test-pr', async () => {
       }
     };
   } catch (error) {
-    console.error('Error creating test PR:', error);
+    log.error('Error creating test PR:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create test PR' };
   }
 });
@@ -1186,13 +1474,19 @@ safeIpcHandle('github-test-pr', async () => {
 
 // Check Agent V5 status
 safeIpcHandle('check-agent-v5-status', async () => {
-  console.log('🤖 IPC: Check Agent V5 status');
+  log.log('🤖 IPC: Check Agent V5 status');
+  if (!WORKSPACE_PACKAGES_AVAILABLE) {
+    return { success: false, error: 'Agent V5 not available in packaged build' };
+  }
   return await checkAgentV5StatusIPC();
 });
 
 // Process with Agent V5 (Primary handler for tickets/edits)
 safeIpcHandle('process-visual-request-agent-v5', async (event, request: any) => {
-  console.log('🤖 IPC: Process with Agent V5');
+  log.log('🤖 IPC: Process with Agent V5');
+  if (!WORKSPACE_PACKAGES_AVAILABLE) {
+    return { success: false, error: 'Agent V5 not available in packaged build' };
+  }
   return await processVisualRequestIPC(request);
 });
 
@@ -1212,17 +1506,17 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
       return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
     }
 
-    console.log('🚀 Processing visual edits (Agent V5 → Agent V4 fallback)');
-    console.log('📝 Visual edits:', data.edits.length);
-    console.log('🌐 Target URL:', data.url);
+    log.log('🚀 Processing visual edits (Agent V5 → Agent V4 fallback)');
+    log.log('📝 Visual edits:', data.edits.length);
+    log.log('🌐 Target URL:', data.url);
 
     // Try Agent V5 first
     try {
-      console.log('🤖 Attempting to use Agent V5...');
+      log.log('🤖 Attempting to use Agent V5...');
       const agentV5Status = await checkAgentV5StatusIPC();
       
       if (agentV5Status.available) {
-        console.log('✅ Agent V5 available, using as primary');
+        log.log('✅ Agent V5 available, using as primary');
         
         // Convert edits to instruction format for Agent V5
         const instruction = generateInstructionFromEdits(data.edits);
@@ -1239,7 +1533,7 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
         });
 
         if (result.success) {
-          console.log('✅ Agent V5 processing successful!');
+          log.log('✅ Agent V5 processing successful!');
           return {
             success: true,
             pr: {
@@ -1252,19 +1546,19 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
             message: 'Changes processed successfully with Agent V5!'
           };
         } else {
-          console.log('⚠️ Agent V5 processing failed, falling back to Agent V4...');
+          log.log('⚠️ Agent V5 processing failed, falling back to Agent V4...');
         }
       } else {
-        console.log(`⚠️ Agent V5 not available: ${agentV5Status.message}`);
-        console.log('🔄 Falling back to Agent V4...');
+        log.log(`⚠️ Agent V5 not available: ${agentV5Status.message}`);
+        log.log('🔄 Falling back to Agent V4...');
       }
     } catch (v5Error) {
-      console.error('❌ Agent V5 error:', v5Error);
-      console.log('🔄 Falling back to Agent V4...');
+      log.error('❌ Agent V5 error:', v5Error);
+      log.log('🔄 Falling back to Agent V4...');
     }
 
     // Fallback to Agent V4
-    console.log('🔄 Using Agent V4 fallback...');
+    log.log('🔄 Using Agent V4 fallback...');
 
     // Convert edits to VisualEdit format expected by Agent V4
     const visualEdits: VisualEdit[] = data.edits.map((edit, index) => ({
@@ -1295,7 +1589,7 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
 
     // Initialize Agent V4 if needed
     if (!agentV4Integration) {
-      console.log('🤖 Initializing Agent V4...');
+      log.log('🤖 Initializing Agent V4...');
       const initResult = await initializeAgentV4({
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
         cacheAnalysis: true
@@ -1310,7 +1604,7 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
     }
 
     // Process with Agent V4
-    console.log('🎯 Processing visual edits with Agent V4...');
+    log.log('🎯 Processing visual edits with Agent V4...');
     const result = await processVisualRequestWithAgentV4({
       visualEdits: visualEdits,
       context: {
@@ -1328,8 +1622,8 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
     }
 
     // Agent V4 will have already created the PR through its internal flow
-    console.log('✅ Agent V4 processing completed successfully');
-    console.log('📋 Result:', result);
+    log.log('✅ Agent V4 processing completed successfully');
+    log.log('📋 Result:', result);
     
     // Extract PR URL from the result
     const resultAny = result as any;
@@ -1345,7 +1639,7 @@ safeIpcHandle('trigger-agent-v4', async (event, data: { edits: any[]; url: strin
       message: 'Visual edits successfully converted to code and PR created!'
     };
   } catch (error) {
-    console.error('❌ Error triggering Agent V4:', error);
+    log.error('❌ Error triggering Agent V4:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to trigger Agent V4' 
@@ -1365,24 +1659,24 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
       return { success: false, error: 'Not authenticated. Please connect to GitHub first.' };
     }
 
-    console.log('🚀 Processing Combined Edits (Agent V5 primary)');
-    console.log('📊 Visual edits:', request.visualEdits?.length || 0);
-    console.log('💬 Natural language instructions:', request.naturalLanguageEdits?.length || 0);
+    log.log('🚀 Processing Combined Edits (Agent V5 primary)');
+    log.log('📊 Visual edits:', request.visualEdits?.length || 0);
+    log.log('💬 Natural language instructions:', request.naturalLanguageEdits?.length || 0);
 
     // Try Agent V5 first - convert combined edits to natural language instruction
-    console.log('🚀 Attempting Agent V5 for combined edits...');
-    console.log('📊 Raw request data:', JSON.stringify(request, null, 2).substring(0, 500));
+    log.log('🚀 Attempting Agent V5 for combined edits...');
+    log.log('📊 Raw request data:', JSON.stringify(request, null, 2).substring(0, 500));
     
     try {
       // Convert visual edits to natural language description
       const visualInstructions = request.visualEdits?.map((edit: any) => {
-        console.log('🔍 Processing visual edit:', edit);
+        log.log('🔍 Processing visual edit:', edit);
         const changes = edit.changes?.map((c: any) => 
           `${c.property}: "${c.before}" → "${c.after}"`
         ).join(', ') || '';
         const selector = edit.selector || edit.elementSelector || edit.element || 'element';
         if (!changes) {
-          console.warn('⚠️  No changes found in edit:', edit);
+          log.warn('⚠️  No changes found in edit:', edit);
           return '';
         }
         return `For ${selector}: ${changes}`;
@@ -1397,7 +1691,7 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
         .filter(s => s)
         .join('. ') || 'Apply the requested changes';
 
-      console.log('📝 Combined instruction for Agent V5:', combinedInstruction);
+      log.log('📝 Combined instruction for Agent V5:', combinedInstruction);
 
       // Get credentials directly (keytar is available here)
       const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
@@ -1418,11 +1712,11 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
       const agentV5Response = await processVisualRequestIPC(agentV5Request);
 
       if (agentV5Response.success) {
-        console.log('✅ Agent V5 successfully processed combined edits');
-        console.log(`   Files modified: ${agentV5Response.filesModified?.length || 0}`);
-        console.log(`   Tool calls: ${agentV5Response.toolCalls || 0}`);
+        log.log('✅ Agent V5 successfully processed combined edits');
+        log.log(`   Files modified: ${agentV5Response.filesModified?.length || 0}`);
+        log.log(`   Tool calls: ${agentV5Response.toolCalls || 0}`);
         if (agentV5Response.prUrl) {
-          console.log(`   PR created: ${agentV5Response.prUrl}`);
+          log.log(`   PR created: ${agentV5Response.prUrl}`);
         }
 
         return { 
@@ -1437,20 +1731,20 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
           message: 'Combined edits successfully processed by Agent V5!'
         };
       } else {
-        console.warn('⚠️  Agent V5 failed for combined edits:', agentV5Response.error);
-        console.log('🔄 Falling back to Agent V4...');
+        log.warn('⚠️  Agent V5 failed for combined edits:', agentV5Response.error);
+        log.log('🔄 Falling back to Agent V4...');
       }
     } catch (agentV5Error) {
-      console.warn('⚠️  Agent V5 error:', agentV5Error instanceof Error ? agentV5Error.message : agentV5Error);
-      console.log('🔄 Falling back to Agent V4...');
+      log.warn('⚠️  Agent V5 error:', agentV5Error instanceof Error ? agentV5Error.message : agentV5Error);
+      log.log('🔄 Falling back to Agent V4...');
     }
 
     // Fallback to Agent V4 Combined Editing
-    console.log('🚀 Agent V4 Combined: Processing with fallback');
+    log.log('🚀 Agent V4 Combined: Processing with fallback');
     
     // Initialize Agent V4 if needed
     if (!agentV4Integration) {
-      console.log('🤖 Initializing Agent V4...');
+      log.log('🤖 Initializing Agent V4...');
       const initResult = await initializeAgentV4({
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
         cacheAnalysis: true
@@ -1465,7 +1759,7 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
     }
 
     // Process with Agent V4 Combined Editing
-    console.log('🎯 Processing combined edits with Agent V4 (fallback)...');
+    log.log('🎯 Processing combined edits with Agent V4 (fallback)...');
     const result = await processCombinedEditsWithAgentV4(request);
 
     if (!result.success) {
@@ -1476,8 +1770,8 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
     }
 
     // Agent V4 will have already created the PR through its internal flow
-    console.log('✅ Agent V4 combined processing completed successfully');
-    console.log('📋 Result:', result);
+    log.log('✅ Agent V4 combined processing completed successfully');
+    log.log('📋 Result:', result);
     
     // Extract PR URL from the result
     const prUrl = (result as any).pullRequest?.html_url || (result as any).pullRequest?.url || (result as any).pr?.url || (result as any).prUrl;
@@ -1494,7 +1788,7 @@ safeIpcHandle('process-combined-edits', async (event, request: any) => {
       message: 'Combined edits successfully converted to code and PR created!'
     };
   } catch (error) {
-    console.error('❌ Error processing combined edits:', error);
+    log.error('❌ Error processing combined edits:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to process combined edits' 
@@ -1507,11 +1801,11 @@ let conversationalIntelligence: any = null;
 
 safeIpcHandle('analyze-conversation-message', async (event, data: { message: string; conversationState?: any }) => {
   try {
-    console.log('🗣️ Analyzing conversation message:', data.message.substring(0, 50) + '...');
+    log.log('🗣️ Analyzing conversation message:', data.message.substring(0, 50) + '...');
     
     // Initialize conversational intelligence if needed
     if (!conversationalIntelligence) {
-      console.log('🤖 Initializing Conversational Intelligence...');
+      log.log('🤖 Initializing Conversational Intelligence...');
       
       // Load LLM configuration from file
       const llmConfigPath = path.join(__dirname, '../../..', 'llm-config.js');
@@ -1521,7 +1815,7 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
         delete require.cache[require.resolve(llmConfigPath)];
         llmConfig = require(llmConfigPath);
       } catch (error) {
-        console.log('📝 No llm-config.js found, using environment variables');
+        log.log('📝 No llm-config.js found, using environment variables');
       }
       
       // Get Claude API key from config file first, then environment variables
@@ -1536,7 +1830,7 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
         };
       }
       
-      console.log('✅ Found Claude API key from', llmConfig.claude?.enabled ? 'llm-config.js' : 'environment variables');
+      log.log('✅ Found Claude API key from', llmConfig.claude?.enabled ? 'llm-config.js' : 'environment variables');
       
       // Dynamic import of ConversationalIntelligence
       const { ConversationalIntelligence } = await import('../../../packages/agent-v4/dist/conversation/index.js');
@@ -1556,7 +1850,7 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
       };
       
       conversationalIntelligence = new ConversationalIntelligence(wrappedProvider);
-      console.log('✅ Conversational Intelligence initialized');
+      log.log('✅ Conversational Intelligence initialized');
     }
     
     // If we have existing state, deserialize it
@@ -1564,18 +1858,18 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
     
     // If this is the first message, start a new conversation
     if (!state) {
-      console.log('🆕 Starting new conversation');
+      log.log('🆕 Starting new conversation');
       state = conversationalIntelligence.startConversation(data.message);
     }
     
     // Analyze the message
-    console.log('🧠 Analyzing message with conversation context...');
+    log.log('🧠 Analyzing message with conversation context...');
     const analysis = await conversationalIntelligence.analyzeMessage(data.message, state);
     
-    console.log('✅ Analysis complete');
-    console.log(`   Completeness: ${(analysis.completeness * 100).toFixed(1)}%`);
-    console.log(`   Next Action: ${analysis.nextAction}`);
-    console.log(`   Response: ${analysis.response.substring(0, 100)}...`);
+    log.log('✅ Analysis complete');
+    log.log(`   Completeness: ${(analysis.completeness * 100).toFixed(1)}%`);
+    log.log(`   Next Action: ${analysis.nextAction}`);
+    log.log(`   Response: ${analysis.response.substring(0, 100)}...`);
     
     return {
       success: true,
@@ -1585,7 +1879,7 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
       }
     };
   } catch (error) {
-    console.error('❌ Error analyzing conversation:', error);
+    log.error('❌ Error analyzing conversation:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to analyze conversation'
@@ -1596,7 +1890,7 @@ safeIpcHandle('analyze-conversation-message', async (event, data: { message: str
 // Convert Comments to Tweaqs IPC handler
 safeIpcHandle('convert-comments-to-tweaqs', async (event, commentsData: any[]) => {
   try {
-    console.log('💬➡️⚡ Converting comments to tweaqs...', commentsData.length, 'comments');
+    log.log('💬➡️⚡ Converting comments to tweaqs...', commentsData.length, 'comments');
     
     // Get Claude API key
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -1614,7 +1908,7 @@ safeIpcHandle('convert-comments-to-tweaqs', async (event, commentsData: any[]) =
     // Build the prompt for Claude
     const prompt = buildCommentsToTweaqsPrompt(commentsData);
     
-    console.log('🤖 Calling Claude to analyze comments...');
+    log.log('🤖 Calling Claude to analyze comments...');
     
     // Call Claude
     const message = await anthropic.messages.create({
@@ -1628,8 +1922,8 @@ safeIpcHandle('convert-comments-to-tweaqs', async (event, commentsData: any[]) =
     });
     
     const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
-    console.log('✅ Claude response received');
-    console.log('Response preview:', responseText.substring(0, 200) + '...');
+    log.log('✅ Claude response received');
+    log.log('Response preview:', responseText.substring(0, 200) + '...');
     
     // Parse the response (expecting JSON)
     let tweaqs;
@@ -1643,21 +1937,21 @@ safeIpcHandle('convert-comments-to-tweaqs', async (event, commentsData: any[]) =
         tweaqs = JSON.parse(responseText);
       }
     } catch (parseError) {
-      console.error('Failed to parse Claude response as JSON:', parseError);
+      log.error('Failed to parse Claude response as JSON:', parseError);
       return {
         success: false,
         error: 'Failed to parse AI response. The AI may have generated invalid JSON.'
       };
     }
     
-    console.log('✅ Successfully parsed tweaqs:', tweaqs.length);
+    log.log('✅ Successfully parsed tweaqs:', tweaqs.length);
     
     return {
       success: true,
       tweaqs: tweaqs
     };
   } catch (error) {
-    console.error('❌ Error converting comments to tweaqs:', error);
+    log.error('❌ Error converting comments to tweaqs:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to convert comments'
@@ -1898,13 +2192,24 @@ safeIpcHandle('inject-overlay', async (event, options = {}) => {
 
     // Read the browser interaction script
     const fs = require('fs');
-    const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js'),
-      'utf8'
-    );
+    
+    // Determine paths for overlay scripts (dev vs prod)
+    const devOverlayPath = path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js');
+    const prodOverlayPath = path.join(__dirname, './overlay/browser-interaction.js');
+    const overlayScriptPath = fs.existsSync(devOverlayPath) ? devOverlayPath : prodOverlayPath;
+    
+    const devMultiplayerPath = path.join(__dirname, '../../../packages/overlay/src/preload/multiplayer-cursors.js');
+    const prodMultiplayerPath = path.join(__dirname, './overlay/multiplayer-cursors.js');
+    const multiplayerScriptPath = fs.existsSync(devMultiplayerPath) ? devMultiplayerPath : prodMultiplayerPath;
+    
+    const overlayScript = fs.readFileSync(overlayScriptPath, 'utf8');
 
     // Execute the script and initialize in one go
     await currentView.webContents.executeJavaScript(overlayScript);
+    
+    // Inject multiplayer cursor script
+    const multiplayerCursorScript = fs.readFileSync(multiplayerScriptPath, 'utf8');
+    await currentView.webContents.executeJavaScript(multiplayerCursorScript);
     
     // Initialize the overlay with options (electronAPI is now available via preload)
     const initScript = `
@@ -1955,12 +2260,23 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
 
     // First ensure the browser interaction script is injected
     const fs = require('fs');
-    const overlayScript = fs.readFileSync(
-      path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js'),
-      'utf8'
-    );
+    
+    // Determine paths for overlay scripts (dev vs prod)
+    const devOverlayPath = path.join(__dirname, '../../../packages/overlay/src/preload/browser-interaction.js');
+    const prodOverlayPath = path.join(__dirname, './overlay/browser-interaction.js');
+    const overlayScriptPath = fs.existsSync(devOverlayPath) ? devOverlayPath : prodOverlayPath;
+    
+    const devMultiplayerPath = path.join(__dirname, '../../../packages/overlay/src/preload/multiplayer-cursors.js');
+    const prodMultiplayerPath = path.join(__dirname, './overlay/multiplayer-cursors.js');
+    const multiplayerScriptPath = fs.existsSync(devMultiplayerPath) ? devMultiplayerPath : prodMultiplayerPath;
+    
+    const overlayScript = fs.readFileSync(overlayScriptPath, 'utf8');
 
     await currentView.webContents.executeJavaScript(overlayScript);
+    
+    // Inject multiplayer cursor script
+    const multiplayerCursorScript = fs.readFileSync(multiplayerScriptPath, 'utf8');
+    await currentView.webContents.executeJavaScript(multiplayerCursorScript);
     
     // Then toggle with options (electronAPI is now available via preload)
     const toggleScript = `
@@ -1974,7 +2290,7 @@ safeIpcHandle('toggle-overlay', async (event, options = {}) => {
     overlayState.isVisible = !overlayState.isVisible;
     overlayState.options = options;
     
-    console.log('Overlay toggled:', overlayState.isVisible);
+    log.log('Overlay toggled:', overlayState.isVisible);
 
     // Don't adjust browser view bounds - overlay handles layout with body margin
     return { success: true };
@@ -2021,7 +2337,7 @@ safeIpcHandle('overlay-set-mode', async (event, mode: string) => {
       return injectResult;
     }
     if (injectResult && injectResult.injected) {
-      console.log('📊 Overlay injected with mode:', injectResult);
+      log.log('📊 Overlay injected with mode:', injectResult);
       return injectResult;
     }
 
@@ -2046,13 +2362,13 @@ safeIpcHandle('overlay-set-mode', async (event, mode: string) => {
     // Store the current mode so it can be restored after navigation
     if (result && result.success) {
       currentOverlayMode = mode;
-      console.log('💾 Stored current overlay mode:', currentOverlayMode);
+      log.log('💾 Stored current overlay mode:', currentOverlayMode);
     }
 
-    console.log('📊 overlay-set-mode result:', result);
+    log.log('📊 overlay-set-mode result:', result);
     return result || { success: true };
   } catch (error) {
-    console.error('❌ Error in overlay-set-mode:', error);
+    log.error('❌ Error in overlay-set-mode:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to set mode' 
@@ -2357,19 +2673,19 @@ safeIpcHandle('execute-script', async (event, script: string) => {
     const result = await currentView.webContents.executeJavaScript(script);
     return result;
   } catch (error) {
-    console.error('❌ Error executing script:', error);
+    log.error('❌ Error executing script:', error);
     return null;
   }
 });
 
 // Listen for tweaq application from chat
 ipcMain.on('apply-tweaq-from-chat', async (event, tweaqData) => {
-  console.log('⚡ Applying tweaq from chat to BrowserView:', tweaqData);
+  log.log('⚡ Applying tweaq from chat to BrowserView:', tweaqData);
   
   try {
     const currentView = browserEngineManager?.getCurrentBrowserView();
     if (!currentView) {
-      console.error('❌ No browser view available');
+      log.error('❌ No browser view available');
       return;
     }
 
@@ -2385,9 +2701,9 @@ ipcMain.on('apply-tweaq-from-chat', async (event, tweaqData) => {
       })()
     `);
 
-    console.log('✅ Tweaq applied successfully');
+    log.log('✅ Tweaq applied successfully');
   } catch (error) {
-    console.error('❌ Error applying tweaq:', error);
+    log.error('❌ Error applying tweaq:', error);
   }
 });
 
@@ -2457,29 +2773,29 @@ safeIpcHandle('overlay-get-recorded-edits', async () => {
   try {
     const currentView = browserEngineManager?.getCurrentBrowserView();
     if (!currentView) {
-      console.log('❌ overlay-get-recorded-edits: No browser view available');
+      log.log('❌ overlay-get-recorded-edits: No browser view available');
       return { success: false, error: 'No browser view available' };
     }
 
     const edits = await currentView.webContents.executeJavaScript(`
       (function() {
-        console.log('🔍 Fetching edits from overlay...');
-        console.log('TweaqOverlay exists:', !!window.TweaqOverlay);
-        console.log('TweaqOverlay.getRecordedEdits exists:', !!(window.TweaqOverlay && typeof window.TweaqOverlay.getRecordedEdits === 'function'));
+        log.log('🔍 Fetching edits from overlay...');
+        log.log('TweaqOverlay exists:', !!window.TweaqOverlay);
+        log.log('TweaqOverlay.getRecordedEdits exists:', !!(window.TweaqOverlay && typeof window.TweaqOverlay.getRecordedEdits === 'function'));
         if (window.TweaqOverlay && typeof window.TweaqOverlay.getRecordedEdits === 'function') {
           const edits = window.TweaqOverlay.getRecordedEdits();
-          console.log('📦 Found edits:', edits.length, edits);
+          log.log('📦 Found edits:', edits.length, edits);
           return edits;
         }
-        console.log('❌ No overlay or getRecordedEdits method found');
+        log.log('❌ No overlay or getRecordedEdits method found');
         return [];
       })()
     `);
 
-    console.log('✅ overlay-get-recorded-edits returning:', { success: true, editsCount: edits.length });
+    log.log('✅ overlay-get-recorded-edits returning:', { success: true, editsCount: edits.length });
     return { success: true, edits };
   } catch (error) {
-    console.error('❌ overlay-get-recorded-edits error:', error);
+    log.error('❌ overlay-get-recorded-edits error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to get recorded edits' 
@@ -2510,7 +2826,7 @@ safeIpcHandle('session-create', async (event, data: { homeUrl: string; ownerName
     const result = await response.json();
     return { success: true, session: result.session };
   } catch (error) {
-    console.error('❌ Failed to create session:', error);
+    log.error('❌ Failed to create session:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to create session' 
@@ -2531,7 +2847,7 @@ safeIpcHandle('session-join', async (event, data: { sessionId: string; name: str
     // WebSocket connection will be handled in renderer process
     return { success: true };
   } catch (error) {
-    console.error('❌ Failed to join session:', error);
+    log.error('❌ Failed to join session:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to join session' 
@@ -2547,7 +2863,7 @@ safeIpcHandle('session-leave', async () => {
 
 // End session (owner only - WebSocket handled in renderer)
 safeIpcHandle('session-end', async () => {
-  console.log('📤 Session end IPC handler called');
+  log.log('📤 Session end IPC handler called');
   // WebSocket end session handled in renderer
   return { success: true };
 });
@@ -2563,7 +2879,7 @@ safeIpcHandle('session-get-info', async (event, sessionId: string) => {
     const result = await response.json();
     return { success: true, session: result.session };
   } catch (error) {
-    console.error('❌ Failed to get session info:', error);
+    log.error('❌ Failed to get session info:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to get session info' 
@@ -2582,7 +2898,7 @@ safeIpcHandle('session-get-report', async (event, sessionId: string) => {
     const result = await response.json();
     return { success: true, report: result.report };
   } catch (error) {
-    console.error('❌ Failed to get session report:', error);
+    log.error('❌ Failed to get session report:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to get session report' 
@@ -2601,6 +2917,10 @@ ipcMain.on('session-url-changed', (event, url: string) => {
 // PR Watcher IPC handlers
 safeIpcHandle('pr-watcher-start', async (event, options: { owner: string; repo: string; prNumber: number }) => {
   try {
+    if (!WORKSPACE_PACKAGES_AVAILABLE) {
+      return { success: false, error: 'PR Watcher not available in packaged build' };
+    }
+    
     const config = store.get('github');
     if (!config) {
       return { success: false, error: 'No GitHub configuration found' };
@@ -2626,7 +2946,7 @@ safeIpcHandle('pr-watcher-start', async (event, options: { owner: string; repo: 
       prNumber: options.prNumber,
       pollInterval: 30000, // 30 seconds
     }, {
-      onPreviewReady: (preview: DeploymentPreview) => {
+      onPreviewReady: (preview: any) => { // DeploymentPreview type from github package
         const currentPreviews = previewUrls.get(watcherKey) || [];
         const existingIndex = currentPreviews.findIndex(p => p.url === preview.url);
         
@@ -2648,7 +2968,7 @@ safeIpcHandle('pr-watcher-start', async (event, options: { owner: string; repo: 
         }
       },
       onError: (error: Error) => {
-        console.error('PR Watcher error:', error);
+        log.error('PR Watcher error:', error);
         if (mainWindow) {
           mainWindow.webContents.send('pr-watcher-error', {
             prKey: watcherKey,
@@ -2663,7 +2983,7 @@ safeIpcHandle('pr-watcher-start', async (event, options: { owner: string; repo: 
 
     return { success: true, watcherKey };
   } catch (error) {
-    console.error('Error starting PR watcher:', error);
+    log.error('Error starting PR watcher:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to start PR watcher' };
   }
 });
@@ -2678,7 +2998,7 @@ safeIpcHandle('pr-watcher-stop', async (event, watcherKey: string) => {
     }
     return { success: true };
   } catch (error) {
-    console.error('Error stopping PR watcher:', error);
+    log.error('Error stopping PR watcher:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to stop PR watcher' };
   }
 });
@@ -2688,7 +3008,7 @@ safeIpcHandle('pr-watcher-get-previews', async (event, watcherKey: string) => {
     const previews = previewUrls.get(watcherKey) || [];
     return { success: true, previews };
   } catch (error) {
-    console.error('Error getting previews:', error);
+    log.error('Error getting previews:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to get previews' };
   }
 });
@@ -2721,7 +3041,7 @@ safeIpcHandle('show-preview-pane', async (event, previewUrl: string) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error showing preview pane:', error);
+    log.error('Error showing preview pane:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to show preview pane' };
   }
 });
@@ -2734,7 +3054,7 @@ safeIpcHandle('hide-preview-pane', async () => {
     }
     return { success: true };
   } catch (error) {
-    console.error('Error hiding preview pane:', error);
+    log.error('Error hiding preview pane:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to hide preview pane' };
   }
 });
@@ -2755,29 +3075,29 @@ safeIpcHandle('confirm-changes', async (event, changeSet: VisualEdit[]) => {
     const remoteRepo = new RemoteRepo(await keytar.getPassword('smart-qa-github', 'github-token') || '');
     
     // Initialize repository analyzer to ensure we have current analysis
-    console.log('🔍 Initializing repository analyzer...');
+    log.log('🔍 Initializing repository analyzer...');
     await initializeRepoAnalyzer(config, remoteRepo);
     
     // Step 1: Build CodeIntent[] using symbolic analysis + LLM mapping
     const codeIntents = await buildCodeIntents(changeSet, config, remoteRepo);
-    console.log('📝 Built code intents:', codeIntents.length, 'intents');
+    log.log('📝 Built code intents:', codeIntents.length, 'intents');
 
     // Step 2: Use Visual Coding Agent approach (prioritize over Codex)
-    console.log('🎨 Using Visual Coding Agent for enhanced code generation...');
+    log.log('🎨 Using Visual Coding Agent for enhanced code generation...');
     
     try {
       const fileUpdates = await getFileUpdatesWithVisualAgent(codeIntents, config, remoteRepo, changeSet);
-      console.log('🔧 Generated file updates with Visual Coding Agent:', fileUpdates.length, 'files');
+      log.log('🔧 Generated file updates with Visual Coding Agent:', fileUpdates.length, 'files');
       
       const prResult = await createPullRequest(fileUpdates, config, remoteRepo, changeSet);
       return { success: true, pr: prResult, agent: 'visual-coding-agent' };
       
     } catch (agentError) {
-      console.warn('⚠️ Visual Coding Agent failed, falling back to existing approaches:', agentError);
+      log.warn('⚠️ Visual Coding Agent failed, falling back to existing approaches:', agentError);
       
       // Fallback to Codex if enabled
       if (await isCodexEnabled()) {
-        console.log('🧭 Falling back to Codex delegation...');
+        log.log('🧭 Falling back to Codex delegation...');
         const prResult = await createCodexDelegationPR({
           changeSet,
           codeIntents,
@@ -2789,13 +3109,13 @@ safeIpcHandle('confirm-changes', async (event, changeSet: VisualEdit[]) => {
 
       // Final fallback to existing Claude agent
       const fileUpdates = await getFileUpdatesWithAgent(codeIntents, config, remoteRepo);
-      console.log('🔧 Generated file updates with fallback agent:', fileUpdates.length, 'files');
+      log.log('🔧 Generated file updates with fallback agent:', fileUpdates.length, 'files');
       
       const prResult = await createPullRequest(fileUpdates, config, remoteRepo, changeSet);
       return { success: true, pr: prResult, agent: 'claude-agent', fallback: true };
     }
   } catch (error) {
-    console.error('Error in confirm flow:', error);
+    log.error('Error in confirm flow:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to confirm changes' };
   }
 });
@@ -2811,7 +3131,7 @@ async function getClaudeApiKey(): Promise<string | null> {
       delete require.cache[require.resolve(llmConfigPath)];
       llmConfig = require(llmConfigPath);
     } catch (error) {
-      console.log('📝 No llm-config.js found, checking environment variables and UI settings');
+      log.log('📝 No llm-config.js found, checking environment variables and UI settings');
     }
 
     // Try to get Claude API key from config file first, then environment variables
@@ -2823,7 +3143,7 @@ async function getClaudeApiKey(): Promise<string | null> {
     if (claudeKey) {
       const source = llmConfig.claude?.enabled ? 'config file' : 
                      (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) ? 'environment variable' : 'unknown';
-      console.log(`🤖 Found Claude API key (from ${source})`);
+      log.log(`🤖 Found Claude API key (from ${source})`);
       return claudeKey;
     }
 
@@ -2832,23 +3152,23 @@ async function getClaudeApiKey(): Promise<string | null> {
     if (uiLlmConfig.provider === 'claude') {
       const apiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key');
       if (apiKey) {
-        console.log('🤖 Found Claude API key (from UI settings)');
+        log.log('🤖 Found Claude API key (from UI settings)');
         return apiKey;
       }
     }
 
-    console.warn('⚠️ No Claude API key found');
+    log.warn('⚠️ No Claude API key found');
     return null;
   } catch (error) {
-    console.error('❌ Failed to get Claude API key:', error);
+    log.error('❌ Failed to get Claude API key:', error);
     return null;
   }
 }
 
 // Helper function to build symbolic context for Claude Agent
-function buildSymbolicContext(repoModel: RepoSymbolicModel): any {
+function buildSymbolicContext(repoModel: any): any {
   try {
-    console.log('🧠 Building symbolic context for Claude Agent');
+    log.log('🧠 Building symbolic context for Claude Agent');
     
     // Convert DOM mappings to a format suitable for the agent
     const domMappings = new Map();
@@ -2888,10 +3208,10 @@ function buildSymbolicContext(repoModel: RepoSymbolicModel): any {
       stylingApproach: repoModel.stylingApproach
     };
 
-    console.log(`✅ Built symbolic context: ${domMappings.size} DOM mappings, ${componentStructure.length} components, ${transformationRules.length} rules`);
+    log.log(`✅ Built symbolic context: ${domMappings.size} DOM mappings, ${componentStructure.length} components, ${transformationRules.length} rules`);
     return context;
   } catch (error) {
-    console.error('❌ Failed to build symbolic context:', error);
+    log.error('❌ Failed to build symbolic context:', error);
     return null;
   }
 }
@@ -2907,7 +3227,7 @@ async function initializeLLMProviderForCodeGeneration(): Promise<{ provider: any
       delete require.cache[require.resolve(llmConfigPath)];
       llmConfig = require(llmConfigPath);
     } catch (error) {
-      console.log('📝 No llm-config.js found, using environment variables and UI settings');
+      log.log('📝 No llm-config.js found, using environment variables and UI settings');
     }
 
     let llmProvider: any = null;
@@ -2926,21 +3246,21 @@ async function initializeLLMProviderForCodeGeneration(): Promise<{ provider: any
                       // 'sk-ant-your-claude-key-here' ||
                       null;
     
-    console.log(`🔍 Debug API keys - Claude config enabled: ${llmConfig.claude?.enabled}, Claude config key: ${llmConfig.claude?.apiKey ? 'YES' : 'NO'}`);
-    console.log(`🔍 Debug API keys - ANTHROPIC_API_KEY env: ${process.env.ANTHROPIC_API_KEY ? 'YES' : 'NO'}, CLAUDE_API_KEY env: ${process.env.CLAUDE_API_KEY ? 'YES' : 'NO'}`);
-    console.log(`🔍 Debug API keys - Final claudeKey: ${claudeKey ? 'YES' : 'NO'}`);
+    log.log(`🔍 Debug API keys - Claude config enabled: ${llmConfig.claude?.enabled}, Claude config key: ${llmConfig.claude?.apiKey ? 'YES' : 'NO'}`);
+    log.log(`🔍 Debug API keys - ANTHROPIC_API_KEY env: ${process.env.ANTHROPIC_API_KEY ? 'YES' : 'NO'}, CLAUDE_API_KEY env: ${process.env.CLAUDE_API_KEY ? 'YES' : 'NO'}`);
+    log.log(`🔍 Debug API keys - Final claudeKey: ${claudeKey ? 'YES' : 'NO'}`);
 
     if (claudeKey) {
       llmProvider = new ClaudeProvider(claudeKey);
       const source = llmConfig.claude?.enabled ? 'config file' : 
                      (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) ? 'environment variable' : 'hardcoded';
-      console.log(`🤖 Using Claude provider for code generation (from ${source})`);
+      log.log(`🤖 Using Claude provider for code generation (from ${source})`);
       return { provider: llmProvider, type: 'claude', apiKey: claudeKey };
     } else if (openaiKey) {
       llmProvider = new OpenAIProvider(openaiKey);
       const source = llmConfig.openai?.enabled ? 'config file' : 
                      process.env.OPENAI_API_KEY ? 'environment variable' : 'hardcoded';
-      console.log(`🤖 Using OpenAI provider for code generation (from ${source})`);
+      log.log(`🤖 Using OpenAI provider for code generation (from ${source})`);
       return { provider: llmProvider, type: 'openai', apiKey: openaiKey };
     } else {
       // Fallback to UI configuration if no environment variables
@@ -2950,38 +3270,38 @@ async function initializeLLMProviderForCodeGeneration(): Promise<{ provider: any
         const apiKey = await keytar.getPassword('smart-qa-llm', 'openai-api-key');
         if (apiKey) {
           llmProvider = new OpenAIProvider(apiKey);
-          console.log('🤖 Using OpenAI provider for code generation (from UI settings)');
+          log.log('🤖 Using OpenAI provider for code generation (from UI settings)');
           return { provider: llmProvider, type: 'openai', apiKey };
         } else {
           llmProvider = new MockLLMProvider();
-          console.log('🤖 Using Mock provider for code generation (OpenAI configured but no API key found)');
+          log.log('🤖 Using Mock provider for code generation (OpenAI configured but no API key found)');
           return { provider: llmProvider, type: 'mock' };
         }
       } else if (uiLlmConfig.provider === 'claude') {
         const apiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key');
         if (apiKey) {
           llmProvider = new ClaudeProvider(apiKey);
-          console.log('🤖 Using Claude provider for code generation (from UI settings)');
+          log.log('🤖 Using Claude provider for code generation (from UI settings)');
           return { provider: llmProvider, type: 'claude', apiKey };
         } else {
           llmProvider = new MockLLMProvider();
-          console.log('🤖 Using Mock provider for code generation (Claude configured but no API key found)');
+          log.log('🤖 Using Mock provider for code generation (Claude configured but no API key found)');
           return { provider: llmProvider, type: 'mock' };
         }
       } else {
         llmProvider = new MockLLMProvider();
-        console.log('🤖 Using Mock provider for code generation (default)');
+        log.log('🤖 Using Mock provider for code generation (default)');
         return { provider: llmProvider, type: 'mock' };
       }
     }
   } catch (error) {
-    console.error('❌ Failed to initialize LLM provider:', error);
+    log.error('❌ Failed to initialize LLM provider:', error);
     return { provider: new MockLLMProvider(), type: 'mock' };
   }
 }
 
 // Helper function to build CodeIntents from VisualEdits
-async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo: RemoteRepo): Promise<CodeIntent[]> {
+async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo: any): Promise<CodeIntent[]> {
   const intents: CodeIntent[] = [];
   
   try {
@@ -3015,13 +3335,13 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
       providerName = 'openai';
       const source = llmConfig.openai?.enabled ? 'config file' : 
                      process.env.OPENAI_API_KEY ? 'environment variable' : 'hardcoded';
-      console.log(`🤖 Using OpenAI provider (from ${source})`);
+      log.log(`🤖 Using OpenAI provider (from ${source})`);
     } else if (claudeKey) {
       llmProvider = new ClaudeProvider(claudeKey);
       providerName = 'claude';
       const source = llmConfig.claude?.enabled ? 'config file' : 
                      (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) ? 'environment variable' : 'hardcoded';
-      console.log(`🤖 Using Claude provider (from ${source})`);
+      log.log(`🤖 Using Claude provider (from ${source})`);
     } else {
       // Fallback to UI configuration if no environment variables
       const uiLlmConfig = store.get('llm') || { provider: 'mock' };
@@ -3031,36 +3351,36 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
         if (apiKey) {
           llmProvider = new OpenAIProvider(apiKey);
           providerName = 'openai';
-          console.log('🤖 Using OpenAI provider (from UI settings)');
+          log.log('🤖 Using OpenAI provider (from UI settings)');
         } else {
           llmProvider = new MockLLMProvider();
-          console.log('🤖 Using Mock provider (OpenAI configured but no API key found)');
+          log.log('🤖 Using Mock provider (OpenAI configured but no API key found)');
         }
       } else if (uiLlmConfig.provider === 'claude') {
         const apiKey = await keytar.getPassword('smart-qa-llm', 'claude-api-key');
         if (apiKey) {
           llmProvider = new ClaudeProvider(apiKey);
           providerName = 'claude';
-          console.log('🤖 Using Claude provider (from UI settings)');
+          log.log('🤖 Using Claude provider (from UI settings)');
         } else {
           llmProvider = new MockLLMProvider();
-          console.log('🤖 Using Mock provider (Claude configured but no API key found)');
+          log.log('🤖 Using Mock provider (Claude configured but no API key found)');
         }
       } else {
         llmProvider = new MockLLMProvider();
-        console.log('🤖 Using Mock provider (default)');
+        log.log('🤖 Using Mock provider (default)');
       }
     }
     
     const githubToken = await keytar.getPassword('smart-qa-github', 'github-token');
     
     if (!githubToken) {
-      console.warn('No GitHub token available for mapping engine');
+      log.warn('No GitHub token available for mapping engine');
       return [];
     }
     
     // Build repository index first
-    console.log('🗂️ Building repository index...');
+    log.log('🗂️ Building repository index...');
     const repoIndex = await buildRepoIndex({
       owner: config.owner,
       repo: config.repo,
@@ -3068,7 +3388,7 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
       auth: githubToken
     });
     
-    console.log(`✅ Repository index built with ${repoIndex.files.length} files`);
+    log.log(`✅ Repository index built with ${repoIndex.files.length} files`);
     
     // Get current page URL for context
     const currentUrl = browserView?.webContents?.getURL() || '';
@@ -3086,10 +3406,10 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
         };
         
         // Get deterministic hints first
-        console.log(`🔍 Getting hints for element: ${edit.element.tagName}${edit.element.id ? '#' + edit.element.id : ''}${edit.element.className ? '.' + edit.element.className.split(' ').join('.') : ''}`);
+        log.log(`🔍 Getting hints for element: ${edit.element.tagName}${edit.element.id ? '#' + edit.element.id : ''}${edit.element.className ? '.' + edit.element.className.split(' ').join('.') : ''}`);
         
         // Use symbolic repository model for intelligent file detection
-        console.log('🧠 Using symbolic repository analysis for precise mapping...');
+        log.log('🧠 Using symbolic repository analysis for precise mapping...');
         
         try {
           const symbolicMappingResult = await mapVisualChangeWithSymbolicModel(
@@ -3108,13 +3428,13 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
               evidence: 'symbolic-analysis'
             };
             intents.push(symbolicIntent);
-            console.log(`🎯 Symbolic model mapped to: ${symbolicMappingResult.filePath} (confidence: ${symbolicMappingResult.confidence})`);
-            console.log(`💡 Reasoning: ${symbolicMappingResult.reasoning}`);
+            log.log(`🎯 Symbolic model mapped to: ${symbolicMappingResult.filePath} (confidence: ${symbolicMappingResult.confidence})`);
+            log.log(`💡 Reasoning: ${symbolicMappingResult.reasoning}`);
           } else {
             throw new Error('Symbolic model could not identify target file');
           }
         } catch (error) {
-          console.warn('Symbolic mapping failed, falling back to LLM approach:', error.message);
+          log.warn('Symbolic mapping failed, falling back to LLM approach:', error.message);
           
           // Fallback to original LLM mapping
           try {
@@ -3137,12 +3457,12 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
                 evidence: 'llm-fallback'
               };
               intents.push(llmBasedIntent);
-              console.log(`🎯 LLM fallback mapped to: ${llmMappingResult.filePath} (confidence: ${llmMappingResult.confidence})`);
+              log.log(`🎯 LLM fallback mapped to: ${llmMappingResult.filePath} (confidence: ${llmMappingResult.confidence})`);
             } else {
               throw new Error('LLM fallback could not identify target file');
             }
           } catch (llmError) {
-            console.warn('LLM fallback also failed, using deterministic approach:', llmError.message);
+            log.warn('LLM fallback also failed, using deterministic approach:', llmError.message);
           }
           
           // Fallback to deterministic approach
@@ -3154,9 +3474,9 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
               repoIndex,
               auth: githubToken
             });
-            console.log(`📍 Found ${hints.length} deterministic hints`);
+            log.log(`📍 Found ${hints.length} deterministic hints`);
           } catch (searchError) {
-            console.warn('Deterministic search also failed, using URL-based mapping');
+            log.warn('Deterministic search also failed, using URL-based mapping');
           }
           
           if (hints.length > 0) {
@@ -3170,7 +3490,7 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
               evidence: bestHint.evidence
             };
             intents.push(codeIntent);
-            console.log(`✅ Fallback mapped to ${bestHint.filePath}`);
+            log.log(`✅ Fallback mapped to ${bestHint.filePath}`);
           } else {
             // Final fallback to URL-based mapping
             const possibleFiles = await findLikelySourceFiles(repoIndex, currentUrl);
@@ -3185,7 +3505,7 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
                 evidence: 'url-pattern'
               };
               intents.push(urlBasedIntent);
-              console.log(`📍 Final fallback to: ${bestFile.path}`);
+              log.log(`📍 Final fallback to: ${bestFile.path}`);
             } else {
               // Create changelog as last resort
               const changelogIntent: CodeIntent = {
@@ -3197,17 +3517,17 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
                 evidence: 'changelog-fallback'
               };
               intents.push(changelogIntent);
-              console.log('📝 Creating changelog entry as final fallback');
+              log.log('📝 Creating changelog entry as final fallback');
             }
           }
         }
       } catch (error) {
-        console.warn('Failed to map visual edit to code intent:', error);
+        log.warn('Failed to map visual edit to code intent:', error);
         // Continue with other edits
       }
     }
   } catch (error) {
-    console.error('Failed to build code intents:', error);
+    log.error('Failed to build code intents:', error);
     // Return empty array rather than failing completely
   }
   
@@ -3218,12 +3538,17 @@ async function buildCodeIntents(changeSet: VisualEdit[], config: any, remoteRepo
 /**
  * Get symbolic repository model for Agent V4
  */
-async function getSymbolicRepoModel(config: any, remoteRepo: RemoteRepo): Promise<any> {
+async function getSymbolicRepoModel(config: any, remoteRepo: any): Promise<any> {
   try {
-    console.log('🔍 Building symbolic repository model...');
+    if (!WORKSPACE_PACKAGES_AVAILABLE) {
+      log.warn('⚠️ RepoAnalyzer not available in packaged build');
+      return null;
+    }
+    
+    log.log('🔍 Building symbolic repository model...');
     
     // Use existing repo analyzer
-    const { RepoAnalyzer } = await import('../../../packages/repo-analyzer/dist/index.js');
+    // RepoAnalyzer is already loaded at module level
     const analyzer = new RepoAnalyzer();
     
     const analysisResult = await analyzer.analyzeRepository(remoteRepo, config, {
@@ -3236,10 +3561,10 @@ async function getSymbolicRepoModel(config: any, remoteRepo: RemoteRepo): Promis
     });
     
     if (analysisResult.success && analysisResult.model) {
-      console.log(`✅ Symbolic repo model built: ${analysisResult.stats.componentsFound} components found`);
+      log.log(`✅ Symbolic repo model built: ${analysisResult.stats.componentsFound} components found`);
       return analysisResult.model;
     } else {
-      console.warn('⚠️ Failed to build symbolic repo model, using fallback');
+      log.warn('⚠️ Failed to build symbolic repo model, using fallback');
       // Return a minimal fallback model
       return {
         repoId: `${config.owner}/${config.repo}`,
@@ -3270,7 +3595,7 @@ async function getSymbolicRepoModel(config: any, remoteRepo: RemoteRepo): Promis
       };
     }
   } catch (error) {
-    console.error('❌ Failed to get symbolic repo model:', error);
+    log.error('❌ Failed to get symbolic repo model:', error);
     // Return minimal fallback
     return {
       repoId: `${config.owner}/${config.repo}`,
@@ -3302,10 +3627,15 @@ async function getSymbolicRepoModel(config: any, remoteRepo: RemoteRepo): Promis
   }
 }
 
-async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Promise<void> {
-  console.log('🔍 Initializing repository analyzer with hybrid approach...');
+async function initializeRepoAnalyzer(config: any, remoteRepo: any): Promise<void> {
+  log.log('🔍 Initializing repository analyzer with hybrid approach...');
   
   try {
+    if (!WORKSPACE_PACKAGES_AVAILABLE) {
+      log.warn('⚠️ RepoAnalyzer not available in packaged build');
+      return;
+    }
+    
     if (!repoAnalyzer) {
       repoAnalyzer = new RepoAnalyzer();
     }
@@ -3313,7 +3643,7 @@ async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Prom
     // Check if we already have analysis for this repo
     const repoId = `${config.owner}/${config.repo}`;
     
-    console.log(`📊 Analyzing repository: ${repoId}`);
+    log.log(`📊 Analyzing repository: ${repoId}`);
     // Note: Analysis uses GitHub API for efficiency, but file editing uses local cloning for reliability
     const analysisResult = await repoAnalyzer.analyzeRepository(
       remoteRepo,
@@ -3331,27 +3661,27 @@ async function initializeRepoAnalyzer(config: any, remoteRepo: RemoteRepo): Prom
     
     if (analysisResult.success && analysisResult.model) {
       currentRepoModel = analysisResult.model;
-      console.log(`✅ Repository analysis complete:`);
-      console.log(`   📁 ${analysisResult.stats.filesAnalyzed} files analyzed`);
-      console.log(`   ⚛️ ${analysisResult.stats.componentsFound} components found`);
-      console.log(`   📋 ${analysisResult.stats.rulesGenerated} transformation rules generated`);
-      console.log(`   ⏱️ Analysis took ${analysisResult.stats.processingTime}ms`);
+      log.log(`✅ Repository analysis complete:`);
+      log.log(`   📁 ${analysisResult.stats.filesAnalyzed} files analyzed`);
+      log.log(`   ⚛️ ${analysisResult.stats.componentsFound} components found`);
+      log.log(`   📋 ${analysisResult.stats.rulesGenerated} transformation rules generated`);
+      log.log(`   ⏱️ Analysis took ${analysisResult.stats.processingTime}ms`);
       
       // Debug: Show some sample DOM mappings
-      console.log(`🗺️ Sample DOM mappings (first 10):`);
+      log.log(`🗺️ Sample DOM mappings (first 10):`);
       let count = 0;
       for (const [selector, mappings] of currentRepoModel.domMappings.entries()) {
         if (count < 10) {
-          console.log(`   ${selector} → ${mappings[0]?.componentName} (${mappings[0]?.filePath})`);
+          log.log(`   ${selector} → ${mappings[0]?.componentName} (${mappings[0]?.filePath})`);
           count++;
         }
       }
     } else {
-      console.warn('⚠️ Repository analysis failed:', analysisResult.errors);
+      log.warn('⚠️ Repository analysis failed:', analysisResult.errors);
       currentRepoModel = null;
     }
   } catch (error) {
-    console.error('❌ Failed to initialize repository analyzer:', error);
+    log.error('❌ Failed to initialize repository analyzer:', error);
     currentRepoModel = null;
   }
 }
@@ -3370,16 +3700,16 @@ async function mapVisualChangeWithSymbolicModel(
 } | null> {
   
   if (!currentRepoModel) {
-    console.log('📝 No symbolic model available, falling back to basic LLM mapping');
+    log.log('📝 No symbolic model available, falling back to basic LLM mapping');
     return null;
   }
   
-  console.log('🧠 Using symbolic repository model for intelligent mapping...');
+  log.log('🧠 Using symbolic repository model for intelligent mapping...');
   
   // Extract element details
   const elementSelector = `${edit.element.tagName.toLowerCase()}${edit.element.id ? '#' + edit.element.id : ''}${edit.element.className ? '.' + edit.element.className.split(' ').join('.') : ''}`;
   
-  console.log(`🔍 Looking for DOM mappings for selector: ${elementSelector}`);
+  log.log(`🔍 Looking for DOM mappings for selector: ${elementSelector}`);
   
   // Find matching DOM mappings from the symbolic model
   let domMappings = currentRepoModel.domMappings.get(elementSelector) || [];
@@ -3392,7 +3722,7 @@ async function mapVisualChangeWithSymbolicModel(
       !cls.startsWith('max-w') // Skip utility classes that are less specific
     );
     
-    console.log(`🔍 No exact match, trying partial matching with classes: ${classes.join(', ')}`);
+    log.log(`🔍 No exact match, trying partial matching with classes: ${classes.join(', ')}`);
     
     // Try different combinations of classes
     for (const [selector, mappings] of currentRepoModel.domMappings.entries()) {
@@ -3401,20 +3731,20 @@ async function mapVisualChangeWithSymbolicModel(
       const commonClasses = classes.filter(cls => selectorClasses.includes(cls));
       
       if (commonClasses.length >= 2) { // Require at least 2 matching classes
-        console.log(`🎯 Found partial match: ${selector} (${commonClasses.length} common classes: ${commonClasses.join(', ')})`);
+        log.log(`🎯 Found partial match: ${selector} (${commonClasses.length} common classes: ${commonClasses.join(', ')})`);
         domMappings = mappings;
         break;
       }
     }
   }
   
-  console.log(`📊 Found ${domMappings.length} DOM mappings for element`);
+  log.log(`📊 Found ${domMappings.length} DOM mappings for element`);
   
   if (domMappings.length > 0) {
     // Sort by confidence and take the best match
     const bestMapping = domMappings.sort((a, b) => b.confidence - a.confidence)[0];
     
-    console.log(`🎯 Found direct mapping: ${elementSelector} → ${bestMapping.filePath} (confidence: ${bestMapping.confidence})`);
+    log.log(`🎯 Found direct mapping: ${elementSelector} → ${bestMapping.filePath} (confidence: ${bestMapping.confidence})`);
     
     // Find applicable transformation rules
     const applicableRules = currentRepoModel.transformationRules.filter(rule => 
@@ -3427,7 +3757,7 @@ async function mapVisualChangeWithSymbolicModel(
     if (applicableRules.length > 0) {
       const bestRule = applicableRules.sort((a, b) => b.confidence - a.confidence)[0];
       
-      console.log(`⚡ Found transformation rule: ${bestRule.action} - ${bestRule.fromValue} → ${bestRule.toValue}`);
+      log.log(`⚡ Found transformation rule: ${bestRule.action} - ${bestRule.fromValue} → ${bestRule.toValue}`);
       
       return {
         filePath: bestMapping.filePath,
@@ -3451,7 +3781,7 @@ async function mapVisualChangeWithSymbolicModel(
   }
   
   // No direct mapping, use LLM with symbolic model context
-  console.log('🤖 No direct mapping found, using LLM with symbolic context...');
+  log.log('🤖 No direct mapping found, using LLM with symbolic context...');
   
   const contextualPrompt = `
 Repository Analysis Context:
@@ -3511,7 +3841,7 @@ Respond with JSON:
       };
     }
   } catch (error) {
-    console.error('🚨 LLM analysis with symbolic context failed:', error);
+    log.error('🚨 LLM analysis with symbolic context failed:', error);
   }
   
   return null;
@@ -3523,7 +3853,7 @@ async function mapVisualChangeWithLLM(options: {
   repoIndex: any;
   currentUrl: string;
   llmProvider: any;
-  remoteRepo: RemoteRepo;
+  remoteRepo: any;
   config: any;
 }): Promise<{
   filePath: string;
@@ -3625,7 +3955,7 @@ If you cannot determine a likely file with reasonable confidence (>0.3), respond
 }`;
 
   try {
-    console.log('🤖 Sending analysis request to LLM...');
+    log.log('🤖 Sending analysis request to LLM...');
     
     // Convert our file list to the format expected by the LLM provider
     // For better analysis, let's fetch the actual content of key files
@@ -3651,14 +3981,14 @@ If you cannot determine a likely file with reasonable confidence (>0.3), respond
           excerpt: truncatedContent
         });
         
-        console.log(`📖 Read ${file.path} for LLM analysis (${fileContent.length} chars)`);
+        log.log(`📖 Read ${file.path} for LLM analysis (${fileContent.length} chars)`);
       } catch (error) {
         // If we can't read the file, still include it with basic info
         candidateFiles.push({
           path: file.path,
           excerpt: `// File: ${file.path}\n// Size: ${file.size} bytes\n// Could not read content: ${error.message}`
         });
-        console.warn(`⚠️ Could not read ${file.path} for LLM analysis:`, error.message);
+        log.warn(`⚠️ Could not read ${file.path} for LLM analysis:`, error.message);
       }
     }
     
@@ -3677,7 +4007,7 @@ If you cannot determine a likely file with reasonable confidence (>0.3), respond
     const response = await llmProvider.analyzeComponents(analysisRequest);
     
     if (!response.rankings || response.rankings.length === 0) {
-      console.log('🤖 LLM found no suitable file mappings');
+      log.log('🤖 LLM found no suitable file mappings');
       return null;
     }
     
@@ -3685,7 +4015,7 @@ If you cannot determine a likely file with reasonable confidence (>0.3), respond
     const bestMatch = response.rankings[0];
     
     if (bestMatch.confidence < 0.3) {
-      console.log('🤖 LLM confidence too low:', bestMatch.confidence);
+      log.log('🤖 LLM confidence too low:', bestMatch.confidence);
       return null;
     }
     
@@ -3698,7 +4028,7 @@ If you cannot determine a likely file with reasonable confidence (>0.3), respond
     };
     
   } catch (error) {
-    console.error('LLM mapping error:', error);
+    log.error('LLM mapping error:', error);
     return null;
   }
 }
@@ -3822,14 +4152,14 @@ function mapToTailwindSpacing(value: string): string {
 }
 
 // Helper function to get file updates using Claude Agent with direct repository access
-async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, remoteRepo: RemoteRepo) {
-  console.log('🤖 Using Claude Agent for direct repository access and code modification');
+async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, remoteRepo: any) {
+  log.log('🤖 Using Claude Agent for direct repository access and code modification');
   
   try {
     // Get Claude API key
     const claudeApiKey = await getClaudeApiKey();
     if (!claudeApiKey) {
-      console.warn('⚠️ No Claude API key available, falling back to hybrid approach');
+      log.warn('⚠️ No Claude API key available, falling back to hybrid approach');
       return getFileUpdatesHybrid(codeIntents, config, remoteRepo);
     }
 
@@ -3851,13 +4181,13 @@ async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, r
       symbolicContext
     );
 
-    console.log(`🧠 Claude Agent initialized with symbolic context: ${symbolicContext ? 'yes' : 'no'}`);
+    log.log(`🧠 Claude Agent initialized with symbolic context: ${symbolicContext ? 'yes' : 'no'}`);
     
     const allFileUpdates: any[] = [];
 
     for (const intent of codeIntents) {
       try {
-        console.log(`🔍 Processing intent for ${intent.filePath}: ${intent.intent}`);
+        log.log(`🔍 Processing intent for ${intent.filePath}: ${intent.intent}`);
         
         // Read file content using RemoteRepo (no local cloning needed)
         const fileContent = await remoteRepo.readFile({
@@ -3867,7 +4197,7 @@ async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, r
           ref: config.baseBranch
         });
         
-        console.log(`📖 Read file content from GitHub API: ${fileContent.length} characters`);
+        log.log(`📖 Read file content from GitHub API: ${fileContent.length} characters`);
 
         // Use Claude Agent to generate code changes
         const result = await claudeAgent.generateCodeChanges({
@@ -3879,7 +4209,7 @@ async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, r
         });
 
         if (result.success && result.modifiedContent) {
-          console.log(`✅ Claude Agent generated modified content: ${result.modifiedContent.length} characters`);
+          log.log(`✅ Claude Agent generated modified content: ${result.modifiedContent.length} characters`);
           
           // Only add to file updates if the content actually changed
           if (result.modifiedContent !== fileContent) {
@@ -3887,12 +4217,12 @@ async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, r
               path: intent.filePath,
               newContent: result.modifiedContent,
             });
-            console.log(`📝 Added file update for ${intent.filePath}`);
+            log.log(`📝 Added file update for ${intent.filePath}`);
           } else {
-            console.log(`ℹ️ No changes needed for ${intent.filePath}`);
+            log.log(`ℹ️ No changes needed for ${intent.filePath}`);
           }
         } else {
-          console.warn(`❌ Claude Agent failed: ${result.error}`);
+          log.warn(`❌ Claude Agent failed: ${result.error}`);
           // Create a changelog entry for failed intents
           allFileUpdates.push({
             path: 'AGENT_CHANGES.md',
@@ -3920,7 +4250,7 @@ async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, r
           });
         }
       } catch (error) {
-        console.error(`Failed to process intent for ${intent.filePath}:`, error instanceof Error ? error.message : String(error));
+        log.error(`Failed to process intent for ${intent.filePath}:`, error instanceof Error ? error.message : String(error));
         
         // Create a detailed error entry
         allFileUpdates.push({
@@ -3953,7 +4283,7 @@ async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, r
 
     // Ensure we always have at least one file update to prevent empty tree errors
     if (allFileUpdates.length === 0) {
-      console.log('📝 No file updates generated by Claude Agent, creating status report');
+      log.log('📝 No file updates generated by Claude Agent, creating status report');
       allFileUpdates.push({
         path: 'AGENT_STATUS.md',
         newContent: `## Claude Agent Status Report
@@ -3987,15 +4317,15 @@ async function getFileUpdatesWithAgent(codeIntents: CodeIntent[], config: any, r
     return allFileUpdates;
 
   } catch (error) {
-    console.error('❌ Claude Agent approach failed, falling back to hybrid approach:', error);
+    log.error('❌ Claude Agent approach failed, falling back to hybrid approach:', error);
     // Fallback to hybrid approach if agent fails
     return getFileUpdatesHybrid(codeIntents, config, remoteRepo);
   }
 }
 
 // Helper function to get file updates using hybrid approach (LocalRepo + InMemoryPatcher)
-async function getFileUpdatesHybrid(codeIntents: CodeIntent[], config: any, remoteRepo: RemoteRepo) {
-  console.log('🔄 Using hybrid approach: cloning repository locally for file operations');
+async function getFileUpdatesHybrid(codeIntents: CodeIntent[], config: any, remoteRepo: any) {
+  log.log('🔄 Using hybrid approach: cloning repository locally for file operations');
   
   // Create local repository instance
   const token = await keytar.getPassword('smart-qa-github', 'github-token') || '';
@@ -4016,12 +4346,12 @@ async function getFileUpdatesHybrid(codeIntents: CodeIntent[], config: any, remo
     const fileReader = {
       readFile: async (options: { owner: string; repo: string; path: string; ref?: string }) => {
         try {
-          console.log(`📖 Reading local file: ${options.path}`);
+          log.log(`📖 Reading local file: ${options.path}`);
           const content = await localRepo.readFile(options.path);
-          console.log(`✅ Successfully read ${options.path} (${content.length} chars)`);
+          log.log(`✅ Successfully read ${options.path} (${content.length} chars)`);
           return content;
         } catch (error) {
-          console.error(`❌ Failed to read local file ${options.path}:`, error instanceof Error ? error.message : String(error));
+          log.error(`❌ Failed to read local file ${options.path}:`, error instanceof Error ? error.message : String(error));
           throw error;
         }
       }
@@ -4033,21 +4363,21 @@ async function getFileUpdatesHybrid(codeIntents: CodeIntent[], config: any, remo
       ? new LLMCodeAdapter({ apiKey, model: llmProvider.model }, providerType) 
       : undefined;
     
-    console.log(`🤖 LLM provider available: ${llmAdapter ? 'yes' : 'no'}`);
+    log.log(`🤖 LLM provider available: ${llmAdapter ? 'yes' : 'no'}`);
     const patcher = new InMemoryPatcher(fileReader, llmAdapter);
     
     for (const intent of codeIntents) {
       try {
-        console.log(`🔍 Processing intent for ${intent.filePath}:`, intent.intent);
+        log.log(`🔍 Processing intent for ${intent.filePath}:`, intent.intent);
         
         // Check if file exists locally first
         const fileExists = await localRepo.fileExists(intent.filePath);
         if (!fileExists) {
-          console.warn(`⚠️ File ${intent.filePath} does not exist locally, skipping`);
+          log.warn(`⚠️ File ${intent.filePath} does not exist locally, skipping`);
           continue;
         }
 
-        console.log(`🔍 Debug - Intent details:`, {
+        log.log(`🔍 Debug - Intent details:`, {
           filePath: intent.filePath,
           intent: intent.intent,
           targetElement: intent.targetElement,
@@ -4069,25 +4399,25 @@ async function getFileUpdatesHybrid(codeIntents: CodeIntent[], config: any, remo
           }]
         });
         
-        console.log(`🔍 Debug - InMemoryPatcher result:`, {
+        log.log(`🔍 Debug - InMemoryPatcher result:`, {
           fileUpdatesCount: result.fileUpdates.length,
           changelogEntry: result.changelogEntry ? 'present' : 'none',
           fileUpdates: result.fileUpdates.map(f => ({ path: f.path, contentLength: f.newContent?.length }))
         });
         
-        console.log(`  ✅ Generated ${result.fileUpdates.length} file updates`);
+        log.log(`  ✅ Generated ${result.fileUpdates.length} file updates`);
         allFileUpdates.push(...result.fileUpdates);
         
         // If no file updates but there's a changelog, add it as a file
         if (result.fileUpdates.length === 0 && result.changelogEntry) {
-          console.log('  📝 Adding changelog entry as fallback');
+          log.log('  📝 Adding changelog entry as fallback');
           allFileUpdates.push({
             path: 'CHANGELOG.md',
             newContent: result.changelogEntry
           });
         }
       } catch (error) {
-        console.error(`Failed to process intent for ${intent.filePath}:`, error instanceof Error ? error.message : String(error));
+        log.error(`Failed to process intent for ${intent.filePath}:`, error instanceof Error ? error.message : String(error));
         
         // Create a changelog entry for failed intents
         allFileUpdates.push({
@@ -4111,7 +4441,7 @@ ${intent.tailwindChanges && Array.isArray(intent.tailwindChanges) ? intent.tailw
 
     // Ensure we always have at least one file update to prevent empty tree errors
     if (allFileUpdates.length === 0) {
-      console.log('📝 No file updates generated, creating fallback changelog');
+      log.log('📝 No file updates generated, creating fallback changelog');
       allFileUpdates.push({
         path: 'DESIGN_CHANGES.md',
         newContent: `## Design Change Request
@@ -4149,7 +4479,7 @@ let agentV4Integration: any = null;
  */
 async function initializeAgentV4(config: any) {
   try {
-    console.log('🤖 Initializing Intelligent Coding Agent...');
+    log.log('🤖 Initializing Intelligent Coding Agent...');
     
     // Initialize LLM provider
     const { provider: llmProvider, type: providerType } = await initializeLLMProviderForCodeGeneration();
@@ -4157,7 +4487,7 @@ async function initializeAgentV4(config: any) {
       throw new Error('No LLM provider available for Agent V4');
     }
     
-    console.log(`🧠 Using ${providerType} AI provider`);
+    log.log(`🧠 Using ${providerType} AI provider`);
     
     // Dynamic import of Agent V4
     const { createTweaqAgentV4Integration } = await import('../../../packages/agent-v4/dist/integration/TweaqIntegration.js');
@@ -4190,10 +4520,10 @@ async function initializeAgentV4(config: any) {
       }
     });
     
-    console.log('✅ Intelligent Coding Agent initialized successfully');
+    log.log('✅ Intelligent Coding Agent initialized successfully');
     return { success: true, agent: 'v4' };
   } catch (error) {
-    console.error('❌ Failed to initialize Intelligent Agent:', error);
+    log.error('❌ Failed to initialize Intelligent Agent:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
@@ -4237,9 +4567,9 @@ async function callOpenAIForVisualCoding(provider: any, prompt: string): Promise
  * Call Claude API directly for Visual Coding Agent
  */
 async function callClaudeForVisualCoding(provider: any, prompt: string): Promise<string> {
-  console.log(`🔍 Debug Claude API call - Provider:`, provider.constructor.name);
-  console.log(`🔍 Debug Claude API call - API Key exists: ${provider.apiKey ? 'YES' : 'NO'}`);
-  console.log(`🔍 Debug Claude API call - API Key prefix: ${provider.apiKey ? provider.apiKey.substring(0, 20) + '...' : 'NONE'}`);
+  log.log(`🔍 Debug Claude API call - Provider:`, provider.constructor.name);
+  log.log(`🔍 Debug Claude API call - API Key exists: ${provider.apiKey ? 'YES' : 'NO'}`);
+  log.log(`🔍 Debug Claude API call - API Key prefix: ${provider.apiKey ? provider.apiKey.substring(0, 20) + '...' : 'NONE'}`);
   
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -4276,7 +4606,7 @@ async function callClaudeForVisualCoding(provider: any, prompt: string): Promise
  * Create real PR using workspace manager (Phase 1 implementation with safety)
  */
 async function createRealPRWithWorkspace(changes: any[], config: any, githubToken: string) {
-  console.log('🏗️ Creating REAL PR with workspace manager...');
+  log.log('🏗️ Creating REAL PR with workspace manager...');
   
   try {
     // Safety check: Limit number of files
@@ -4288,7 +4618,7 @@ async function createRealPRWithWorkspace(changes: any[], config: any, githubToke
     const remoteRepo = new RemoteRepo(githubToken);
     
     // Step 1: Get base tree
-    console.log('📥 Getting base repository tree...');
+    log.log('📥 Getting base repository tree...');
     const baseRef = await remoteRepo.getRepoTree({
       owner: config.owner,
       repo: config.repo,
@@ -4296,7 +4626,7 @@ async function createRealPRWithWorkspace(changes: any[], config: any, githubToke
     });
     
     // Step 2: Create new tree with changes
-    console.log('📝 Creating tree with file changes...');
+    log.log('📝 Creating tree with file changes...');
     const files = changes.map(change => ({
       path: change.filePath,
       content: change.newContent
@@ -4320,7 +4650,7 @@ Generated by Agent V3 Two-Agent System
 Changes:
 ${changes.map(c => `- ${c.action}: ${c.filePath}`).join('\n')}`;
 
-    console.log('💾 Creating commit...');
+    log.log('💾 Creating commit...');
     const commit = await remoteRepo.createCommit({
       owner: config.owner,
       repo: config.repo,
@@ -4332,7 +4662,7 @@ ${changes.map(c => `- ${c.action}: ${c.filePath}`).join('\n')}`;
     // Step 4: Create branch
     const timestamp = Date.now();
     const branchName = `agent-v3/${timestamp}-visual-changes`;
-    console.log(`🌿 Creating branch: ${branchName}`);
+    log.log(`🌿 Creating branch: ${branchName}`);
     
     const octokit = gitClient.getOctokit();
     await octokit.rest.git.createRef({
@@ -4343,7 +4673,7 @@ ${changes.map(c => `- ${c.action}: ${c.filePath}`).join('\n')}`;
     });
     
     // Step 5: Create DRAFT PR for safety
-    console.log('🔀 Creating DRAFT pull request...');
+    log.log('🔀 Creating DRAFT pull request...');
     const prTitle = `🤖 Agent V3: Visual Changes (${changes.length} files)`;
     const prBody = `# Agent V3 Implementation
 
@@ -4389,7 +4719,7 @@ This is a **DRAFT PR** created with safety measures:
       draft: true // SAFETY: Create as draft PR
     });
     
-    console.log(`✅ REAL PR created successfully: ${pr.html_url}`);
+    log.log(`✅ REAL PR created successfully: ${pr.html_url}`);
     
     return {
       success: true,
@@ -4401,7 +4731,7 @@ This is a **DRAFT PR** created with safety measures:
     };
     
   } catch (error) {
-    console.error('❌ Failed to create real PR:', error);
+    log.error('❌ Failed to create real PR:', error);
     throw error;
   }
 }
@@ -4410,7 +4740,7 @@ This is a **DRAFT PR** created with safety measures:
  * Process visual requests using Agent V4 (Intelligent Agent with Over-Deletion Prevention)
  */
 async function processVisualRequestWithAgentV4(request: any) {
-  console.log('🤖 TWEAQ Intelligent Coding Agent - Processing Visual Changes');
+  log.log('🤖 TWEAQ Intelligent Coding Agent - Processing Visual Changes');
 
   try {
     // Extract visual edits from request
@@ -4487,9 +4817,9 @@ async function processVisualRequestWithAgentV4(request: any) {
       
       
       if (!result.success) {
-        console.log('❌ Agent V4 validation failed, issues:');
+        log.log('❌ Agent V4 validation failed, issues:');
         result.validation.issues.forEach((issue: any) => {
-          console.log(`  - ${issue.type}: ${issue.message}`);
+          log.log(`  - ${issue.type}: ${issue.message}`);
         });
         
         // If Agent V4 fails due to over-deletion or other issues, don't fallback
@@ -4509,13 +4839,13 @@ async function processVisualRequestWithAgentV4(request: any) {
       
     } else {
       // Fallback to Agent V4 for low-confidence scenarios
-      console.log('🔄 Agent V4 not recommended, falling back to Agent V4...');
+      log.log('🔄 Agent V4 not recommended, falling back to Agent V4...');
       return await processVisualRequestWithAgentV4(request);
     }
 
     // If Agent V4 succeeded, create PR with the changes
     if (result.success && result.fileChanges.length > 0) {
-      console.log('🚀 Creating PR with Agent V4 changes...');
+      log.log('🚀 Creating PR with Agent V4 changes...');
       
       // Convert Agent V4 file changes to the expected format for createRealPRWithWorkspace
       const changes = result.fileChanges.map((change: any) => ({
@@ -4546,7 +4876,7 @@ async function processVisualRequestWithAgentV4(request: any) {
     };
 
   } catch (error) {
-    console.error('❌ Agent V4 processing failed:', error);
+    log.error('❌ Agent V4 processing failed:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error in Agent V4'
@@ -4558,7 +4888,7 @@ async function processVisualRequestWithAgentV4(request: any) {
  * Process combined edits (visual + natural language) using Agent V4
  */
 async function processCombinedEditsWithAgentV4(request: any) {
-  console.log('🤖 TWEAQ Intelligent Agent - Processing Combined Edits (Visual + Natural Language)');
+  log.log('🤖 TWEAQ Intelligent Agent - Processing Combined Edits (Visual + Natural Language)');
 
   try {
     // Extract edits from request
@@ -4569,7 +4899,7 @@ async function processCombinedEditsWithAgentV4(request: any) {
       throw new Error('No edits provided');
     }
 
-    console.log(`📊 Processing ${visualEdits.length} visual edits and ${naturalLanguageEdits.length} NL instructions`);
+    log.log(`📊 Processing ${visualEdits.length} visual edits and ${naturalLanguageEdits.length} NL instructions`);
 
     // Get GitHub configuration
     const config = store.get('github');
@@ -4635,16 +4965,16 @@ async function processCombinedEditsWithAgentV4(request: any) {
     };
 
     // Process with Agent V4's combined editing method
-    console.log('🎯 Calling Agent V4 processCombinedEdits...');
+    log.log('🎯 Calling Agent V4 processCombinedEdits...');
     const result = await agentV4Integration.processCombinedEdits(combinedRequest, symbolicRepo, {
       enableLogging: true
     });
     
     if (!result.success) {
-      console.log('❌ Agent V4 combined validation failed, issues:');
+      log.log('❌ Agent V4 combined validation failed, issues:');
       if (result.validation?.issues) {
         result.validation.issues.forEach((issue: any) => {
-          console.log(`  - ${issue.type}: ${issue.message}`);
+          log.log(`  - ${issue.type}: ${issue.message}`);
         });
       }
       
@@ -4662,8 +4992,8 @@ async function processCombinedEditsWithAgentV4(request: any) {
 
     // If Agent V4 succeeded, create PR with the changes
     if (result.success && result.fileChanges.length > 0) {
-      console.log('🚀 Creating PR with Agent V4 combined changes...');
-      console.log(`📝 ${result.fileChanges.length} files modified`);
+      log.log('🚀 Creating PR with Agent V4 combined changes...');
+      log.log(`📝 ${result.fileChanges.length} files modified`);
       
       // Convert Agent V4 file changes to the expected format for createRealPRWithWorkspace
       const changes = result.fileChanges.map((change: any) => ({
@@ -4693,13 +5023,13 @@ async function processCombinedEditsWithAgentV4(request: any) {
     };
 
   } catch (error) {
-    console.error('❌ Agent V4 combined processing failed:', error);
+    log.error('❌ Agent V4 combined processing failed:', error);
     throw error;
   }
 }
 
 async function processVisualRequestWithLLM(request: any) {
-  console.log('🎨 Processing visual request with Visual Coding Agent...');
+  log.log('🎨 Processing visual request with Visual Coding Agent...');
   
   // Build a comprehensive prompt for Claude
   const prompt = `You are a Visual Coding Agent that converts visual design changes into precise code modifications.
@@ -4748,7 +5078,7 @@ ${request.description}
       throw new Error('No LLM provider available');
     }
 
-    console.log(`🤖 Using ${providerType} provider for Visual Coding Agent`);
+    log.log(`🤖 Using ${providerType} provider for Visual Coding Agent`);
 
     let response: string;
     if (providerType === 'openai' && llmProvider.constructor.name === 'OpenAIProvider') {
@@ -4781,7 +5111,7 @@ ${request.description}
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : response;
       parsedResponse = JSON.parse(jsonStr);
     } catch (parseError) {
-      console.warn('Failed to parse JSON response, creating fallback response');
+      log.warn('Failed to parse JSON response, creating fallback response');
       parsedResponse = {
         changes: [{
           filePath: 'components/unknown.tsx',
@@ -4798,7 +5128,7 @@ ${request.description}
 
     return parsedResponse;
   } catch (error) {
-    console.error('Error processing visual request with Claude:', error);
+    log.error('Error processing visual request with Claude:', error);
     throw error;
   }
 }
@@ -4806,19 +5136,19 @@ ${request.description}
 /**
  * Enhanced function to get file updates using Visual Coding Agent
  */
-async function getFileUpdatesWithVisualAgent(codeIntents: CodeIntent[], config: any, remoteRepo: RemoteRepo, visualEdits: VisualEdit[]) {
-  console.log('🎨 Processing with Visual Coding Agent...');
+async function getFileUpdatesWithVisualAgent(codeIntents: CodeIntent[], config: any, remoteRepo: any, visualEdits: VisualEdit[]) {
+  log.log('🎨 Processing with Visual Coding Agent...');
   
   // Initialize Agent V4 first, fallback to V3 if needed
   if (!agentV4Integration) {
-    console.log('🤖 Initializing Agent V4 for edit processing...');
+    log.log('🤖 Initializing Agent V4 for edit processing...');
     const initResult = await initializeAgentV4({
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       cacheAnalysis: true
     });
     
     if (!initResult.success) {
-      console.log('⚠️ Agent V4 initialization failed, will use Agent V3 fallback');
+      log.log('⚠️ Agent V4 initialization failed, will use Agent V3 fallback');
       // Don't throw error, just continue to Agent V3 fallback
     }
   }
@@ -4852,7 +5182,7 @@ async function getFileUpdatesWithVisualAgent(codeIntents: CodeIntent[], config: 
   let agentResponse;
   
   if (agentV4Integration) {
-    console.log('🚀 Using Agent V4 for processing...');
+    log.log('🚀 Using Agent V4 for processing...');
     
     // Get symbolic repository model for Agent V4
     await initializeRepoAnalyzer(config, remoteRepo);
@@ -4869,7 +5199,7 @@ async function getFileUpdatesWithVisualAgent(codeIntents: CodeIntent[], config: 
     });
     
     if (v4Response.success) {
-      console.log('✅ Agent V4 processing successful');
+      log.log('✅ Agent V4 processing successful');
       // Convert Agent V4 response to expected format
       const fileUpdates = (v4Response.fileChanges || []).map((change: any) => ({
         path: change.path.startsWith('/') ? change.path.substring(1) : change.path,
@@ -4881,18 +5211,18 @@ async function getFileUpdatesWithVisualAgent(codeIntents: CodeIntent[], config: 
       
       return fileUpdates;
     } else {
-      console.log('⚠️ Agent V4 processing failed, falling back to Agent V3...');
+      log.log('⚠️ Agent V4 processing failed, falling back to Agent V3...');
       // Continue to Agent V3 fallback below
     }
   }
   
   // Agent V3 fallback removed - now only using Agent V4/V5
-  console.log('⚠️ Agent V4 processing failed, no fallback available');
+  log.log('⚠️ Agent V4 processing failed, no fallback available');
   throw new Error('Agent V4 processing failed and Agent V3 is no longer available');
 }
 
 // Helper function to create pull request
-async function createPullRequest(fileUpdates: any[], config: any, remoteRepo: RemoteRepo, originalEdits: VisualEdit[]) {
+async function createPullRequest(fileUpdates: any[], config: any, remoteRepo: any, originalEdits: VisualEdit[]) {
   try {
     // Get base SHA for the base branch
     const baseRef = await remoteRepo.getRepoTree({ 
@@ -4913,8 +5243,8 @@ async function createPullRequest(fileUpdates: any[], config: any, remoteRepo: Re
       content: update.newContent
     }));
     
-    console.log('📁 Files to include in tree:', files.length);
-    files.forEach(file => console.log(`  - ${file.path} (${file.content.length} chars)`));
+    log.log('📁 Files to include in tree:', files.length);
+    files.forEach(file => log.log(`  - ${file.path} (${file.content.length} chars)`));
     
     // Create new tree with updated files
     const newTree = await remoteRepo.createTree({
@@ -4943,9 +5273,9 @@ async function createPullRequest(fileUpdates: any[], config: any, remoteRepo: Re
         ref: `refs/heads/${branchName}`,
         sha: commit.sha
       });
-      console.log(`🌿 Created branch: ${branchName}`);
+      log.log(`🌿 Created branch: ${branchName}`);
     } catch (error) {
-      console.error('Failed to create branch:', error);
+      log.error('Failed to create branch:', error);
       throw error;
     }
     
@@ -4970,7 +5300,7 @@ async function createPullRequest(fileUpdates: any[], config: any, remoteRepo: Re
   } catch (error) {
     // Handle base SHA mismatch with refresh and retry logic
     if (error instanceof Error && error.message.includes('mismatch')) {
-      console.log('Base SHA mismatch detected, refreshing and retrying...');
+      log.log('Base SHA mismatch detected, refreshing and retrying...');
       // TODO: Implement retry logic
     }
     throw error;
@@ -5025,7 +5355,7 @@ safeIpcHandle('analyze-repository', async () => {
     const octokit = gitClient.getOctokit();
     const remoteRepo = new RemoteRepo(await keytar.getPassword('smart-qa-github', 'github-token') || '');
     
-    console.log('🔍 Manual repository analysis requested...');
+    log.log('🔍 Manual repository analysis requested...');
     
     // Force re-analysis by clearing current model
     currentRepoModel = null;
@@ -5074,7 +5404,7 @@ safeIpcHandle('analyze-repository', async () => {
       return { success: false, error: 'Analysis completed but no model was generated' };
     }
   } catch (error) {
-    console.error('❌ Manual repository analysis failed:', error);
+    log.error('❌ Manual repository analysis failed:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred during analysis' 
@@ -5097,20 +5427,20 @@ safeIpcHandle('re-analyze-repository', async () => {
     const octokit = gitClient.getOctokit();
     const remoteRepo = new RemoteRepo(await keytar.getPassword('smart-qa-github', 'github-token') || '');
     
-    console.log('🔄 Repository re-analysis requested - clearing cache...');
+    log.log('🔄 Repository re-analysis requested - clearing cache...');
     
     // Clear cache first by forcing re-analysis
     const repoId = `${config.owner}/${config.repo}`;
-    console.log('🗑️ Clearing cache and forcing fresh analysis');
+    log.log('🗑️ Clearing cache and forcing fresh analysis');
     
     // Clear the disk cache file
     try {
       const { RepoCache } = await import('@smart-qa/repo-analyzer');
       const cache = new RepoCache();
       await cache.invalidate(repoId);
-      console.log('🗑️ Invalidated cache for twofoldsam/picturist-website');
+      log.log('🗑️ Invalidated cache for twofoldsam/picturist-website');
     } catch (error) {
-      console.warn('⚠️ Failed to clear cache:', error);
+      log.warn('⚠️ Failed to clear cache:', error);
     }
     
     // Clear the current model and force new analysis
@@ -5160,7 +5490,7 @@ safeIpcHandle('re-analyze-repository', async () => {
       return { success: false, error: 'Failed to re-analyze repository. Check console for details.' };
     }
   } catch (error) {
-    console.error('❌ Repository re-analysis failed:', error);
+    log.error('❌ Repository re-analysis failed:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error during re-analysis' };
   }
 });
@@ -5192,10 +5522,10 @@ safeIpcHandle('llm-save-config', async (event, config: { provider: string; apiKe
       provider: config.provider as 'openai' | 'claude' | 'mock'
     });
     
-    console.log(`💾 LLM configuration saved: ${config.provider}`);
+    log.log(`💾 LLM configuration saved: ${config.provider}`);
     return { success: true };
   } catch (error) {
-    console.error('Error saving LLM config:', error);
+    log.error('Error saving LLM config:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to save LLM config' };
   }
 });
@@ -5214,7 +5544,7 @@ safeIpcHandle('llm-get-config', async () => {
         const apiKey = await keytar.getPassword('smart-qa-llm', `${config.provider}-api-key`);
         hasApiKey = !!apiKey;
       } catch (error) {
-        console.warn('Failed to check API key:', error);
+        log.warn('Failed to check API key:', error);
       }
     }
     
@@ -5223,7 +5553,7 @@ safeIpcHandle('llm-get-config', async () => {
       hasApiKey
     };
   } catch (error) {
-    console.error('Error getting LLM config:', error);
+    log.error('Error getting LLM config:', error);
     return { provider: 'mock', hasApiKey: false };
   }
 });
@@ -5280,7 +5610,7 @@ safeIpcHandle('llm-test-connection', async () => {
     
     return { success: false, error: 'Unknown provider' };
   } catch (error) {
-    console.error('Error testing LLM connection:', error);
+    log.error('Error testing LLM connection:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Connection test failed' };
   }
 });
@@ -5290,7 +5620,7 @@ safeIpcHandle('get-env-var', async (event, key: string) => {
   try {
     return process.env[key];
   } catch (error) {
-    console.error('Error getting environment variable:', error);
+    log.error('Error getting environment variable:', error);
     return undefined;
   }
 });
@@ -5298,20 +5628,20 @@ safeIpcHandle('get-env-var', async (event, key: string) => {
 // Visual Coding Agent IPC handlers - Now using Agent V4 as primary
 safeIpcHandle('initialize-visual-agent', async (event, config: any) => {
   try {
-    console.log('🤖 IPC: Initialize Visual Coding Agent (trying Agent V4 first)');
+    log.log('🤖 IPC: Initialize Visual Coding Agent (trying Agent V4 first)');
     return await initializeAgentV4(config);
   } catch (error) {
-    console.error('❌ IPC: Failed to initialize Visual Coding Agent:', error);
+    log.error('❌ IPC: Failed to initialize Visual Coding Agent:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 });
 
 safeIpcHandle('process-visual-request', async (event, request: any) => {
   try {
-    console.log('🤖 IPC: Process visual request (Agent V5 primary)');
+    log.log('🤖 IPC: Process visual request (Agent V5 primary)');
     
     // Try Agent V5 first (autonomous Claude agent)
-    console.log('🚀 Attempting Agent V5 (autonomous) for request processing...');
+    log.log('🚀 Attempting Agent V5 (autonomous) for request processing...');
     
     try {
       // Get credentials directly (keytar is available here)
@@ -5329,20 +5659,20 @@ safeIpcHandle('process-visual-request', async (event, request: any) => {
       const agentV5Response = await processVisualRequestIPC(agentV5Request);
       
       if (agentV5Response.success) {
-        console.log('✅ Agent V5 successfully processed request');
-        console.log(`   Files modified: ${agentV5Response.filesModified?.length || 0}`);
-        console.log(`   Tool calls: ${agentV5Response.toolCalls || 0}`);
+        log.log('✅ Agent V5 successfully processed request');
+        log.log(`   Files modified: ${agentV5Response.filesModified?.length || 0}`);
+        log.log(`   Tool calls: ${agentV5Response.toolCalls || 0}`);
         if (agentV5Response.prUrl) {
-          console.log(`   PR created: ${agentV5Response.prUrl}`);
+          log.log(`   PR created: ${agentV5Response.prUrl}`);
         }
         return { success: true, data: agentV5Response, agent: 'v5' };
       } else {
-        console.warn('⚠️  Agent V5 failed:', agentV5Response.error);
-        console.log('🔄 Falling back to Agent V4...');
+        log.warn('⚠️  Agent V5 failed:', agentV5Response.error);
+        log.log('🔄 Falling back to Agent V4...');
       }
     } catch (agentV5Error) {
-      console.warn('⚠️  Agent V5 error:', agentV5Error instanceof Error ? agentV5Error.message : agentV5Error);
-      console.log('🔄 Falling back to Agent V4...');
+      log.warn('⚠️  Agent V5 error:', agentV5Error instanceof Error ? agentV5Error.message : agentV5Error);
+      log.log('🔄 Falling back to Agent V4...');
     }
     
     // Fallback to Agent V4 if V5 fails
@@ -5359,19 +5689,19 @@ safeIpcHandle('process-visual-request', async (event, request: any) => {
     }
     
     // Process the request with Agent V4
-    console.log('🚀 Using Agent V4 (fallback) for request processing');
+    log.log('🚀 Using Agent V4 (fallback) for request processing');
     const response = await processVisualRequestWithAgentV4(request);
     
     return { success: true, data: response, agent: 'v4-fallback' };
   } catch (error) {
-    console.error('❌ IPC: Failed to process visual request:', error);
+    log.error('❌ IPC: Failed to process visual request:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 });
 
 safeIpcHandle('process-visual-edits', async (event, visualEdits: VisualEdit[], context?: any) => {
   try {
-    console.log('🎨 Processing visual edits with Visual Coding Agent:', visualEdits.length, 'edits');
+    log.log('🎨 Processing visual edits with Visual Coding Agent:', visualEdits.length, 'edits');
     
     // For now, we'll integrate this into the existing confirm-changes flow
     // The Visual Coding Agent will enhance the existing workflow
@@ -5389,30 +5719,30 @@ safeIpcHandle('process-visual-edits', async (event, visualEdits: VisualEdit[], c
     const remoteRepo = new RemoteRepo(await keytar.getPassword('smart-qa-github', 'github-token') || '');
     
     // Initialize repository analyzer to get symbolic context
-    console.log('🔍 Initializing repository analyzer...');
+    log.log('🔍 Initializing repository analyzer...');
     await initializeRepoAnalyzer(config, remoteRepo);
     
     // Build CodeIntent[] using symbolic analysis + LLM mapping
     const codeIntents = await buildCodeIntents(visualEdits, config, remoteRepo);
-    console.log('📝 Built code intents:', codeIntents.length, 'intents');
+    log.log('📝 Built code intents:', codeIntents.length, 'intents');
 
     // Use Visual Coding Agent approach (prioritize over Codex)
-    console.log('🎨 Using Visual Coding Agent for enhanced code generation...');
+    log.log('🎨 Using Visual Coding Agent for enhanced code generation...');
     
     try {
       // Try to use the Visual Coding Agent first
       const fileUpdates = await getFileUpdatesWithVisualAgent(codeIntents, config, remoteRepo, visualEdits);
-      console.log('🔧 Generated file updates with Visual Coding Agent:', fileUpdates.length, 'files');
+      log.log('🔧 Generated file updates with Visual Coding Agent:', fileUpdates.length, 'files');
       
       const prResult = await createPullRequest(fileUpdates, config, remoteRepo, visualEdits);
       return { success: true, pr: prResult, agent: 'visual-coding-agent' };
       
     } catch (agentError) {
-      console.warn('⚠️ Visual Coding Agent failed, falling back to existing approach:', agentError);
+      log.warn('⚠️ Visual Coding Agent failed, falling back to existing approach:', agentError);
       
       // Fallback to Codex if Visual Agent fails
       if (await isCodexEnabled()) {
-        console.log('🧭 Falling back to Codex delegation...');
+        log.log('🧭 Falling back to Codex delegation...');
         const prResult = await createCodexDelegationPR({
           changeSet: visualEdits,
           codeIntents,
@@ -5428,7 +5758,7 @@ safeIpcHandle('process-visual-edits', async (event, visualEdits: VisualEdit[], c
       return { success: true, pr: prResult, agent: 'claude-agent', fallback: true };
     }
   } catch (error) {
-    console.error('Error processing visual edits with agent:', error);
+    log.error('Error processing visual edits with agent:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 });
@@ -5437,14 +5767,14 @@ if (app && app.whenReady) {
   // Register protocol handler before app is ready (required for some platforms)
   if (!app.isReady()) {
     app.setAsDefaultProtocolClient('tweaq');
-    console.log('✅ Registered tweaq:// protocol handler');
+    log.log('✅ Registered tweaq:// protocol handler');
   }
 
   app.whenReady().then(async () => {
   // Ensure protocol is registered (in case it wasn't set earlier)
   if (!app.isDefaultProtocolClient('tweaq')) {
     app.setAsDefaultProtocolClient('tweaq');
-    console.log('✅ Registered tweaq:// protocol handler (on ready)');
+    log.log('✅ Registered tweaq:// protocol handler (on ready)');
   }
 
   // Handle protocol URL when app is already running (macOS)
@@ -5471,18 +5801,18 @@ if (app && app.whenReady) {
   });
   });
 } else {
-  console.log('⚠️ Electron app not available, skipping app.whenReady setup');
+  log.log('⚠️ Electron app not available, skipping app.whenReady setup');
 }
 
 // Handle protocol URLs (tweaq://session/{sessionId})
 function handleProtocolUrl(url: string) {
-  console.log('🔗 Received protocol URL:', url);
+  log.log('🔗 Received protocol URL:', url);
   
   // Parse session ID from URL
   const match = url.match(/tweaq:\/\/session\/([a-zA-Z0-9-]+)/);
   if (match && match[1]) {
     const sessionId = match[1];
-    console.log('📋 Extracted session ID:', sessionId);
+    log.log('📋 Extracted session ID:', sessionId);
     
     // Send to renderer process
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -5492,7 +5822,7 @@ function handleProtocolUrl(url: string) {
       pendingSessionId = sessionId;
     }
   } else {
-    console.warn('⚠️ Invalid protocol URL format:', url);
+    log.warn('⚠️ Invalid protocol URL format:', url);
   }
 }
 
@@ -5516,5 +5846,5 @@ if (app && app.on) {
   }
   });
 } else {
-  console.log('⚠️ Electron app events not available');
+  log.log('⚠️ Electron app events not available');
 }

@@ -242,6 +242,7 @@ export class SessionManager {
       sessionId,
       authorId: participantId,
       authorName: participant.name,
+      authorColor: participant.color, // Include participant's assigned color
       elementSelector: payload.elementSelector,
       elementName: payload.elementName,
       text: payload.text,
