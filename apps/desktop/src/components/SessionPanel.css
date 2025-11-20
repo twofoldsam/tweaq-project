@@ -266,6 +266,12 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+.participant-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .participant-badge {
   padding: 2px 8px;
   border-radius: 4px;
@@ -276,6 +282,21 @@
 .participant-badge.owner {
   background: rgba(10, 132, 255, 0.15);
   color: #0A84FF;
+}
+
+.participant-badge.status-active {
+  background: rgba(52, 199, 89, 0.15);
+  color: #34C759;
+}
+
+.participant-badge.status-inactive {
+  background: rgba(255, 149, 0, 0.15);
+  color: #FF9500;
+}
+
+.participant-badge.status-left {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Session Actions */
@@ -308,6 +329,33 @@
 }
 
 .end-session-button svg {
+  flex-shrink: 0;
+}
+
+.leave-session-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.leave-session-button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.leave-session-button svg {
   flex-shrink: 0;
 }
 

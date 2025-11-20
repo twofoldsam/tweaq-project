@@ -128,11 +128,14 @@ export class SessionManager {
     // Create participant
     const participantId = uuidv4();
     const colorIndex = session.participants.size % PARTICIPANT_COLORS.length;
+    const now = Date.now();
     const participant: Participant = {
       id: participantId,
       sessionId,
       name: name || `User ${session.participants.size + 1}`,
       color: PARTICIPANT_COLORS[colorIndex],
+      status: 'active',
+      lastActivityAt: now,
       joinedAt: Date.now(),
       socketId: socket.id
     };
@@ -193,8 +196,14 @@ export class SessionManager {
 
     const participant = session.participants.get(participantId);
     if (participant) {
-      session.participants.delete(participantId);
+      // Mark participant as left instead of removing them
+      participant.status = 'left';
+      participant.lastActivityAt = Date.now();
+      
+      // Leave socket room
       socket.leave(sessionId);
+      
+      // Remove socket mapping
       this.socketToParticipant.delete(socket.id);
 
       // Notify other participants
@@ -217,6 +226,12 @@ export class SessionManager {
     const participant = session.participants.get(participantId);
     if (participant) {
       participant.cursor = payload.cursor;
+      participant.lastActivityAt = Date.now();
+      
+      // Update status to active if it was inactive
+      if (participant.status === 'inactive') {
+        participant.status = 'active';
+      }
       
       // Broadcast to other participants
       socket.to(sessionId).emit('cursor-update', {
@@ -236,6 +251,12 @@ export class SessionManager {
 
     const participant = session.participants.get(participantId);
     if (!participant) return;
+
+    // Update participant activity
+    participant.lastActivityAt = Date.now();
+    if (participant.status === 'inactive') {
+      participant.status = 'active';
+    }
 
     const comment: Comment = {
       id: uuidv4(),

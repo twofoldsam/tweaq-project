@@ -6,6 +6,7 @@ interface Participant {
   name: string;
   color: string;
   joinedAt: number;
+  status?: 'active' | 'inactive' | 'left';
 }
 
 interface CompletedSession {
@@ -23,7 +24,9 @@ interface SessionPanelProps {
   shareLink?: string | null;
   homeUrl?: string | null;
   participants?: Participant[];
+  isOwner?: boolean;
   onEndSession?: () => void;
+  onLeaveSession?: () => void;
   onCopyLink?: () => void;
   onCreateSession?: () => void;
   onJoinSession?: () => void;
@@ -41,7 +44,9 @@ export function SessionPanel({
   shareLink,
   homeUrl,
   participants = [],
+  isOwner = false,
   onEndSession,
+  onLeaveSession,
   onCopyLink,
   onCreateSession,
   onJoinSession,
@@ -177,24 +182,40 @@ export function SessionPanel({
                       style={{ backgroundColor: participant.color }}
                     />
                     <span className="participant-name">{participant.name}</span>
-                    {participant.name === 'Owner' && (
-                      <span className="participant-badge owner">Owner</span>
-                    )}
+                    <div className="participant-badges">
+                      {participant.name === 'Owner' && (
+                        <span className="participant-badge owner">Owner</span>
+                      )}
+                      <span className={`participant-badge status-${participant.status || 'active'}`}>
+                        {participant.status === 'left' ? 'Left' : participant.status === 'inactive' ? 'Inactive' : 'Active'}
+                      </span>
+                    </div>
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          {/* End Session Button */}
+          {/* Session Actions */}
           <div className="session-actions">
-            <button className="end-session-button" onClick={onEndSession}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-                <path d="M12 8v8M8 12h8" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-              End Session
-            </button>
+            {isOwner ? (
+              <button className="end-session-button" onClick={onEndSession}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+                  <path d="M15 9l-6 6M9 9l6 6" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                End Session
+              </button>
+            ) : (
+              <button className="leave-session-button" onClick={onLeaveSession}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="16 17 21 12 16 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="21" y1="12" x2="9" y2="12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Leave Session
+              </button>
+            )}
           </div>
         </div>
       </>

@@ -13,6 +13,8 @@ export interface Session {
   status: 'active' | 'ended';
 }
 
+export type ParticipantStatus = 'active' | 'inactive' | 'left';
+
 export interface Participant {
   id: string;
   sessionId: string;
@@ -21,6 +23,8 @@ export interface Participant {
   cursor?: CursorPosition;
   joinedAt: number;
   socketId: string;
+  status: ParticipantStatus;
+  lastActivityAt: number;
 }
 
 export interface Comment {

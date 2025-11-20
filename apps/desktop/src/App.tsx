@@ -587,6 +587,34 @@ function App() {
     }
   };
 
+  const handleLeaveSession = async () => {
+    if (!confirm('Are you sure you want to leave this session?')) {
+      return;
+    }
+
+    try {
+      console.log('👋 Leaving session...');
+      const sessionService = getSessionService();
+      
+      // Disconnect from the session
+      sessionService.disconnect();
+      
+      // Clear session state
+      setSessionState({
+        sessionId: null,
+        shareLink: null,
+        homeUrl: null,
+        isOwner: false,
+        participants: []
+      });
+      setSessionStartTime(null);
+      
+      console.log('✅ Left session successfully');
+    } catch (error) {
+      console.error('Failed to leave session:', error);
+    }
+  };
+
   const handleEndSession = async () => {
     if (!confirm('Are you sure you want to end this session? All participants will be disconnected.')) {
       return;
@@ -614,25 +642,6 @@ function App() {
     } catch (error) {
       console.error('❌ Failed to end session:', error);
       alert('Failed to end session');
-    }
-  };
-
-  const handleLeaveSession = async () => {
-    try {
-      const sessionService = getSessionService();
-      sessionService.disconnect();
-      
-      await window.electronAPI.sessionLeave();
-      setSessionState({
-        sessionId: null,
-        shareLink: null,
-        homeUrl: null,
-        isOwner: false,
-        participants: []
-      });
-      setSessionStartTime(null);
-    } catch (error) {
-      console.error('Failed to leave session:', error);
     }
   };
 
@@ -793,7 +802,11 @@ function App() {
       setSessionState(prev => {
         const newState = {
           ...prev,
-          participants: prev.participants.filter(p => p.id !== participantId)
+          participants: prev.participants.map(p => 
+            p.id === participantId 
+              ? { ...p, status: 'left' as const }
+              : p
+          )
         };
         // Send updated participants to overlay
         window.electronAPI.sendOverlayMessage?.('session-participants-update', newState.participants);
@@ -899,7 +912,9 @@ function App() {
             shareLink={sessionState.shareLink || null}
             homeUrl={sessionState.homeUrl || null}
             participants={sessionState.participants}
+            isOwner={sessionState.isOwner}
             onEndSession={sessionState.sessionId ? handleEndSession : undefined}
+            onLeaveSession={sessionState.sessionId ? handleLeaveSession : undefined}
             onCopyLink={() => {}}
             onCreateSession={toolbarMode === 'comment' ? () => {
               window.electronAPI.toggleModal(true);
